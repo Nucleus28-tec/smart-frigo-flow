@@ -278,7 +278,7 @@ function PeriodosPage() {
 
       <AlertDialog
         open={pendingClose !== null}
-        onOpenChange={(o) => {
+        onOpenChange={(o: boolean) => {
           if (!o) setPendingClose(null);
         }}
       >
