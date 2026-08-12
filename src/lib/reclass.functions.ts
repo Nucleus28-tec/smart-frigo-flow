@@ -80,18 +80,24 @@ export const suggestReclassifications = createServerFn({ method: "POST" })
       .order("times_confirmed", { ascending: false })
       .limit(120);
 
-    const suggestions = await generateSuggestions(
-      targets.map((a) => ({
-        id: a.id,
-        source_code: a.source_code,
-        source_name: a.source_name,
-        nature: a.nature,
-      })),
-      (confirmed ?? []).map((c) => ({
-        source_name: c.source_name as string,
-        nature: c.nature as string,
-      })),
-    );
+    let suggestions;
+    try {
+      suggestions = await generateSuggestions(
+        targets.map((a) => ({
+          id: a.id,
+          source_code: a.source_code,
+          source_name: a.source_name,
+          nature: a.nature,
+        })),
+        (confirmed ?? []).map((c) => ({
+          source_name: c.source_name as string,
+          nature: c.nature as string,
+        })),
+      );
+    } catch (error) {
+      throw new Error(`[IA] ${(error as Error).message}`);
+    }
+
 
     if (!suggestions.length) {
       return { created: 0, skipped: pendingIds.size, analyzed: targets.length };
