@@ -265,6 +265,34 @@ function PeriodosPage() {
           </CardContent>
         </Card>
       )}
+
+      <AlertDialog
+        open={pendingClose !== null}
+        onOpenChange={(o) => {
+          if (!o) setPendingClose(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Fechar {pendingClose?.label}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Um período fechado sinaliza que o mês está encerrado para a operação. Você pode
+              reabri-lo depois alterando o status novamente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingClose) changeStatus.mutate({ id: pendingClose.id, status: "fechado" });
+                setPendingClose(null);
+              }}
+            >
+              Fechar período
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
