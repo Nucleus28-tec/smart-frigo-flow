@@ -1,6 +1,6 @@
 # Fase 2 — Importação de arquivos e leitura automática
 
-Objetivo: a equipe sobe os arquivos exportados do G2 e do Sicoob na tela `/importar`, acompanha o status de cada um e, no caso do balancete, vê as linhas (`ledger_entries`) criadas automaticamente a partir do conteúdo do arquivo.
+Objetivo: a equipe sobe os arquivos exportados do G2 na tela `/importar`, acompanha o status de cada um e, no caso do balancete, vê as linhas (`ledger_entries`) criadas automaticamente a partir do conteúdo do arquivo.
 
 ## Página /importar
 
@@ -16,6 +16,7 @@ Objetivo: a equipe sobe os arquivos exportados do G2 e do Sicoob na tela `/impor
 Nesta stack a lógica de servidor roda como Server Function do TanStack (mesmo papel da Edge Function descrita no documento, com o mesmo acesso privilegiado e mesmo contrato: recebe `file_id`, baixa do Storage, extrai e grava).
 
 Fluxo:
+
 1. Marca `processing_status = 'processando'`.
 2. Baixa o arquivo do bucket privado.
 3. **Excel/CSV**: parser de planilha no próprio servidor — detecta a linha de cabeçalho, a coluna de descrição da conta e a coluna de valor (saldo atual), normaliza número no formato brasileiro (1.234,56 e parênteses/D/C para negativo).
