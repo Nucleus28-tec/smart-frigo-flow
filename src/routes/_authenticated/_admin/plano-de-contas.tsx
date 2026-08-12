@@ -15,7 +15,7 @@ import {
 import { EmptyState, ErrorState, LoadingRows, PageHeader } from "@/components/PageState";
 import { NATURE_LABEL } from "@/lib/rotta";
 
-export const Route = createFileRoute("/_authenticated/plano-de-contas")({
+export const Route = createFileRoute("/_authenticated/_admin/plano-de-contas")({
   component: PlanoDeContasPage,
   head: () => ({
     meta: [
