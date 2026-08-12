@@ -39,7 +39,7 @@ const NAV = [
   { to: "/importar", label: "Importar", icon: Upload, adminOnly: false },
   { to: "/balancete", label: "Balancete", icon: Table2, adminOnly: false },
   { to: "/reclassificacoes", label: "Reclassificações", icon: Wand2, adminOnly: false },
-  { to: "/plano-de-contas", label: "Plano de Contas", icon: ListTree, adminOnly: true },
+  { to: "/plano-de-contas", label: "Plano de Contas", icon: ListTree, adminOnly: false },
   { to: "/apontamentos", label: "Apontamentos", icon: AlertTriangle, adminOnly: false },
   { to: "/demonstrativos", label: "Demonstrativos", icon: FileSpreadsheet, adminOnly: false },
   { to: "/atualizacoes", label: "Atualizações", icon: RefreshCw, adminOnly: false },
