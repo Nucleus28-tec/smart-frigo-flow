@@ -1,16 +1,54 @@
+import { useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { ComingSoon, PageHeader } from "@/components/PageState";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
+import { Download, Loader2, RefreshCw, Trash2, UploadCloud } from "lucide-react";
+
+import { supabase } from "@/integrations/supabase/client";
+import { usePeriod } from "@/hooks/usePeriod";
+import { useProfile } from "@/hooks/useProfile";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { EmptyState, ErrorState, LoadingRows, PageHeader } from "@/components/PageState";
+import { formatDateTime } from "@/lib/rotta";
+import {
+  createUploadUrl,
+  deleteImportedFile,
+  getFileDownloadUrl,
+  parseImportedFile,
+} from "@/lib/imports.functions";
 
 export const Route = createFileRoute("/_authenticated/importar")({
-  component: () => (
-    <>
-      <PageHeader
-        title="Importar arquivos"
-        description="Envio de balancetes, razões e documentos fiscais em PDF ou Excel."
-      />
-      <ComingSoon area="A importação de arquivos" />
-    </>
-  ),
+  component: ImportarPage,
   head: () => ({
     meta: [
       { title: "Importar arquivos | Rotta Financeiro" },
@@ -28,3 +66,361 @@ export const Route = createFileRoute("/_authenticated/importar")({
     ],
   }),
 });
+
+const FILE_TYPE_LABEL: Record<string, string> = {
+  balancete: "Balancete (G2)",
+  pedido_compra: "Pedido de compra",
+  nota_fiscal: "Nota fiscal",
+  romaneio_abate: "Romaneio de abate",
+  contas_pagar: "Contas a pagar",
+  contas_receber: "Contas a receber",
+  relatorio_vendas: "Relatório de vendas",
+  extrato_sicoob: "Extrato Sicoob",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  pendente: "Pendente",
+  processando: "Processando",
+  processado: "Processado",
+  erro: "Erro",
+};
+
+type ImportedFile = {
+  id: string;
+  file_type: string;
+  original_name: string;
+  mime_type: string;
+  processing_status: string;
+  processing_error: string | null;
+  created_at: string;
+  uploaded_by: string;
+};
+
+function StatusBadge({ status }: { status: string }) {
+  const variant =
+    status === "processado"
+      ? "default"
+      : status === "erro"
+        ? "destructive"
+        : status === "processando"
+          ? "secondary"
+          : "outline";
+  return <Badge variant={variant}>{STATUS_LABEL[status] ?? status}</Badge>;
+}
+
+function ImportarPage() {
+  const { selectedPeriod, selectedPeriodId } = usePeriod();
+  const { data: profile } = useProfile();
+  const queryClient = useQueryClient();
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const [fileType, setFileType] = useState<string>("balancete");
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<ImportedFile | null>(null);
+
+  const isAdmin = profile?.role === "admin";
+  const isClosed = selectedPeriod?.status === "fechado";
+
+  const createUrl = useServerFn(createUploadUrl);
+  const parseFile = useServerFn(parseImportedFile);
+  const removeFile = useServerFn(deleteImportedFile);
+  const downloadUrl = useServerFn(getFileDownloadUrl);
+
+  const filesQuery = useQuery({
+    queryKey: ["imported_files", selectedPeriodId],
+    enabled: Boolean(selectedPeriodId),
+    refetchInterval: (query) =>
+      (query.state.data ?? []).some((f) => f.processing_status === "processando") ? 4000 : false,
+    queryFn: async (): Promise<ImportedFile[]> => {
+      const { data, error } = await supabase
+        .from("imported_files")
+        .select(
+          "id, file_type, original_name, mime_type, processing_status, processing_error, created_at, uploaded_by",
+        )
+        .eq("period_id", selectedPeriodId!)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as ImportedFile[];
+    },
+  });
+
+  const countsQuery = useQuery({
+    queryKey: ["ledger_counts", selectedPeriodId],
+    enabled: Boolean(selectedPeriodId),
+    queryFn: async (): Promise<Record<string, number>> => {
+      const { data, error } = await supabase
+        .from("ledger_entries")
+        .select("file_id")
+        .eq("period_id", selectedPeriodId!)
+        .limit(20000);
+      if (error) throw error;
+      const counts: Record<string, number> = {};
+      for (const row of data ?? []) {
+        counts[row.file_id] = (counts[row.file_id] ?? 0) + 1;
+      }
+      return counts;
+    },
+  });
+
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: ["imported_files", selectedPeriodId] });
+    void queryClient.invalidateQueries({ queryKey: ["ledger_counts", selectedPeriodId] });
+  };
+
+  const processMutation = useMutation({
+    mutationFn: (fileId: string) => parseFile({ data: { file_id: fileId } }),
+    onSuccess: (result) => {
+      invalidate();
+      toast.success(
+        result.entries > 0
+          ? `Arquivo processado: ${result.entries} lançamentos gravados.`
+          : "Arquivo armazenado com sucesso.",
+      );
+    },
+    onError: (error: Error) => {
+      invalidate();
+      toast.error(error.message);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (fileId: string) => removeFile({ data: { file_id: fileId } }),
+    onSuccess: () => {
+      invalidate();
+      toast.success("Arquivo excluído.");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  async function handleUpload() {
+    if (!selectedPeriodId || !file) return;
+    setUploading(true);
+    try {
+      const { path, token } = await createUrl({
+        data: {
+          period_id: selectedPeriodId,
+          file_type: fileType as never,
+          original_name: file.name,
+        },
+      });
+
+      const { error: uploadError } = await supabase.storage
+        .from("imports")
+        .uploadToSignedUrl(path, token, file);
+      if (uploadError) throw new Error(uploadError.message);
+
+      const { registerImportedFile } = await import("@/lib/imports.functions");
+      const { file_id } = await registerImportedFile({
+        data: {
+          period_id: selectedPeriodId,
+          file_type: fileType as never,
+          original_name: file.name,
+          storage_path: path,
+          mime_type: file.type || "application/octet-stream",
+        },
+      });
+
+      setFile(null);
+      if (inputRef.current) inputRef.current.value = "";
+      invalidate();
+      toast.success("Arquivo enviado. Iniciando leitura...");
+      processMutation.mutate(file_id);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha no envio do arquivo.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleDownload(fileId: string) {
+    try {
+      const { url } = await downloadUrl({ data: { file_id: fileId } });
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível abrir o arquivo.");
+    }
+  }
+
+  if (!selectedPeriodId) {
+    return (
+      <>
+        <PageHeader
+          title="Importar arquivos"
+          description="Envio de balancetes, razões e documentos fiscais em PDF ou Excel."
+        />
+        <EmptyState
+          title="Selecione um período"
+          description="Escolha um período contábil no cabeçalho para enviar arquivos."
+        />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <PageHeader
+        title="Importar arquivos"
+        description={`Arquivos do período ${selectedPeriod?.label ?? ""}. Balancetes em PDF são lidos por IA; planilhas via parser.`}
+      />
+
+      <Card className="mb-6">
+        <CardContent className="grid gap-4 pt-6 md:grid-cols-[minmax(0,220px)_minmax(0,1fr)_auto] md:items-end">
+          <div className="space-y-2">
+            <Label>Tipo de arquivo</Label>
+            <Select value={fileType} onValueChange={setFileType}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(FILE_TYPE_LABEL).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="arquivo">Arquivo (PDF, Excel ou CSV)</Label>
+            <Input
+              id="arquivo"
+              ref={inputRef}
+              type="file"
+              accept=".pdf,.xlsx,.xls,.csv"
+              disabled={isClosed}
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            />
+          </div>
+          <Button onClick={() => void handleUpload()} disabled={!file || uploading || isClosed}>
+            {uploading ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : (
+              <UploadCloud className="mr-2 size-4" />
+            )}
+            Enviar
+          </Button>
+          {isClosed ? (
+            <p className="text-sm text-muted-foreground md:col-span-3">
+              Este período está fechado. Reabra-o em Períodos para importar novos arquivos.
+            </p>
+          ) : null}
+        </CardContent>
+      </Card>
+
+      {filesQuery.isLoading ? (
+        <LoadingRows />
+      ) : filesQuery.error ? (
+        <ErrorState
+          message={(filesQuery.error as Error).message}
+          onRetry={() => void filesQuery.refetch()}
+        />
+      ) : filesQuery.data && filesQuery.data.length > 0 ? (
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Arquivo</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Lançamentos</TableHead>
+                  <TableHead>Enviado em</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filesQuery.data.map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell className="max-w-[280px]">
+                      <span className="block truncate font-medium">{row.original_name}</span>
+                      {row.processing_error ? (
+                        <span className="mt-1 block text-xs text-muted-foreground">
+                          {row.processing_error}
+                        </span>
+                      ) : null}
+                    </TableCell>
+                    <TableCell>{FILE_TYPE_LABEL[row.file_type] ?? row.file_type}</TableCell>
+                    <TableCell>
+                      <StatusBadge status={row.processing_status} />
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {countsQuery.data?.[row.id] ?? 0}
+                    </TableCell>
+                    <TableCell>{formatDateTime(row.created_at)}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => void handleDownload(row.id)}
+                        >
+                          <Download className="size-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={processMutation.isPending || isClosed}
+                          onClick={() => processMutation.mutate(row.id)}
+                        >
+                          {processMutation.isPending && processMutation.variables === row.id ? (
+                            <Loader2 className="mr-2 size-4 animate-spin" />
+                          ) : (
+                            <RefreshCw className="mr-2 size-4" />
+                          )}
+                          Reprocessar
+                        </Button>
+                        {isAdmin ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setPendingDelete(row)}
+                            aria-label={`Excluir ${row.original_name}`}
+                          >
+                            <Trash2 className="size-4 text-destructive" />
+                          </Button>
+                        ) : null}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      ) : (
+        <EmptyState
+          title="Nenhum arquivo importado"
+          description="Envie o balancete do período para iniciar a leitura automática."
+        />
+      )}
+
+      <AlertDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open: boolean) => {
+          if (!open) setPendingDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir {pendingDelete?.original_name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O arquivo e todos os lançamentos gerados por ele serão removidos deste período.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingDelete) deleteMutation.mutate(pendingDelete.id);
+                setPendingDelete(null);
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
