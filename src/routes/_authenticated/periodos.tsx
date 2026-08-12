@@ -200,7 +200,10 @@ function PeriodosPage() {
               </TableHeader>
               <TableBody>
                 {periods.map((period) => (
-                  <TableRow key={period.id}>
+                  <TableRow
+                    key={period.id}
+                    className={period.status === "fechado" ? "opacity-70" : undefined}
+                  >
                     <TableCell className="font-medium">
                       {period.label}
                       {period.id === selectedPeriodId ? (
@@ -214,7 +217,13 @@ function PeriodosPage() {
                       {isAdmin ? (
                         <Select
                           value={period.status}
-                          onValueChange={(status) => changeStatus.mutate({ id: period.id, status })}
+                          onValueChange={(status) => {
+                            if (status === "fechado") {
+                              setPendingClose({ id: period.id, label: period.label });
+                              return;
+                            }
+                            changeStatus.mutate({ id: period.id, status });
+                          }}
                         >
                           <SelectTrigger className="w-[150px]">
                             <SelectValue />
