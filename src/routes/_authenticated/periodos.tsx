@@ -78,7 +78,12 @@ function PeriodosPage() {
         status: "aberto",
         created_by: userData.user!.id,
       });
-      if (insertError) throw insertError;
+      if (insertError) {
+        if (insertError.code === "23505") {
+          throw new Error(`Já existe um período cadastrado para ${formatMonth(month)}.`);
+        }
+        throw insertError;
+      }
       await supabase.rpc("log_activity", {
         _action: "criou período",
         _entity_type: "accounting_periods",
