@@ -20,7 +20,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
 import { usePeriod } from "@/hooks/usePeriod";
-import { roleLabel } from "@/lib/rotta";
+import { PERIOD_STATUS_LABEL, roleLabel } from "@/lib/rotta";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -48,7 +48,7 @@ const NAV = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { data: profile, isLoading } = useProfile();
-  const { periods, selectedPeriodId, selectPeriod } = usePeriod();
+  const { periods, selectedPeriodId, selectedPeriod, selectPeriod } = usePeriod();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
