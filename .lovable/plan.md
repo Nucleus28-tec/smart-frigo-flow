@@ -40,6 +40,11 @@ Lista de períodos com label, mês de referência, status colorido, último rec�
 
 `/dashboard`, `/importar`, `/balancete`, `/reclassificacoes`, `/plano-de-contas`, `/apontamentos`, `/demonstrativos`, `/atualizacoes` entram com o cabeçalho da página e um estado vazio explicando que a funcionalidade chega na Fase 2 — assim o menu inteiro já navega sem link morto.
 
+## 7. Documentação do pacote no repositório
+
+Salvar todos os documentos enviados dentro do projeto, para virarem a fonte de verdade durante todo o build: `SKILL.md` e `README.md` na raiz de `docs/`, mais `PRD.md`, `PRS.md`, `PROCESSO.md`, `ESTRUTURA.md`, `PAGINAS.md`, `FUNCTIONS.md`, `PLANO.md` e `DEPARA.md` (recém-enviado) em `docs/`, e `schemas.sql` em `db/`. A matriz DE-PARA vira o checklist de rastreabilidade ao fim de cada tarefa: nenhuma tabela, function ou página órfã.
+
+
 ## Nota técnica
 
 Este projeto Lovable roda em TanStack Start, cuja camada de servidor própria substitui as Supabase Edge Functions. A lógica de servidor (equivalente a `manage-user`, e depois `parse-imported-file`, `suggest-reclassification`, `generate-statements` etc.) será implementada como server functions do TanStack, com service role no servidor e chaves de IA nunca no frontend. Os nomes, contratos de entrada/saída e regras de autenticação de `docs/FUNCTIONS.md` são mantidos integralmente; muda apenas onde o código executa. Nomenclatura de banco em `snake_case` inglês, conforme o SKILL.md.
