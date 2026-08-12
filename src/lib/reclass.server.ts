@@ -62,7 +62,8 @@ async function readGatewayJson(response: Response): Promise<unknown> {
   const raw = await response.text();
   // A rota /v1/responses pode responder em SSE quando stream=true; aqui usamos
   // resposta única, mas mantemos tolerância a ambos os formatos.
-  if (raw.trimStart().startsWith("data:")) {
+  const trimmed = raw.trimStart();
+  if (trimmed.startsWith("data:") || trimmed.startsWith("event:")) {
     let text = "";
     for (const line of raw.split("\n")) {
       if (!line.startsWith("data:")) continue;
