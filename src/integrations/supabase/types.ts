@@ -587,6 +587,7 @@ export type Database = {
         }
         Returns: string
       }
+      sync_accounts_for_period: { Args: { _period_id: string }; Returns: Json }
     }
     Enums: {
       [_ in never]: never
