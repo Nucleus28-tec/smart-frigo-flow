@@ -40,7 +40,7 @@ import {
 import { EmptyState, ErrorState, LoadingRows, PageHeader } from "@/components/PageState";
 import { formatDateTime, roleLabel } from "@/lib/rotta";
 
-export const Route = createFileRoute("/_authenticated/usuarios")({
+export const Route = createFileRoute("/_authenticated/_admin/usuarios")({
   component: UsuariosPage,
   head: () => ({
     meta: [
