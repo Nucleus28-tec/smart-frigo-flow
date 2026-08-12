@@ -41,7 +41,7 @@ export const syncChartOfAccounts = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase as never);
     const { syncAccountsForPeriod } = await import("@/lib/ledger.server");
-    const result = await syncAccountsForPeriod(data.period_id);
+    const result = await syncAccountsForPeriod(context.supabase as never, data.period_id);
     await context.supabase.rpc("log_activity", {
       _action: "sincronizou plano de contas",
       _entity_type: "chart_of_accounts",

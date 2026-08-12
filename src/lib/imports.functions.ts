@@ -201,7 +201,7 @@ export const parseImportedFile = createServerFn({ method: "POST" })
 
       // Alimenta o plano de contas com as contas do arquivo e vincula os lançamentos.
       const { syncAccountsForPeriod } = await import("@/lib/ledger.server");
-      await syncAccountsForPeriod(file.period_id);
+      await syncAccountsForPeriod(supabaseAdmin as never, file.period_id);
 
       await supabaseAdmin
         .from("imported_files")
