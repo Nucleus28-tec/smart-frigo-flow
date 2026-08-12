@@ -152,7 +152,11 @@ async function suggestBatch(
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
     if (response.status === 429) throw new Error("Limite de uso da IA atingido. Tente novamente.");
-    if (response.status === 402) throw new Error("Créditos de IA esgotados no workspace.");
+    if (response.status === 402 || response.status === 403) {
+      throw new Error(
+        "Créditos de IA esgotados ou limite do workspace atingido. Ajuste o limite para gerar sugestões.",
+      );
+    }
     throw new Error(`Falha ao gerar sugestões (${response.status}). ${detail.slice(0, 300)}`);
   }
 
