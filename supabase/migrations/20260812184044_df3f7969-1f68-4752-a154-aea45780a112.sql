@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_periods_reference_month ON public.accounting_periods (reference_month);

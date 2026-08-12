@@ -12,6 +12,16 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -68,6 +78,7 @@ function PeriodosPage() {
   const [open, setOpen] = useState(false);
   const [month, setMonth] = useState("");
   const [label, setLabel] = useState("");
+  const [pendingClose, setPendingClose] = useState<{ id: string; label: string } | null>(null);
 
   const createPeriod = useMutation({
     mutationFn: async () => {
@@ -78,7 +89,12 @@ function PeriodosPage() {
         status: "aberto",
         created_by: userData.user!.id,
       });
-      if (insertError) throw insertError;
+      if (insertError) {
+        if (insertError.code === "23505") {
+          throw new Error(`Já existe um período cadastrado para ${formatMonth(month)}.`);
+        }
+        throw insertError;
+      }
       await supabase.rpc("log_activity", {
         _action: "criou período",
         _entity_type: "accounting_periods",
@@ -195,7 +211,10 @@ function PeriodosPage() {
               </TableHeader>
               <TableBody>
                 {periods.map((period) => (
-                  <TableRow key={period.id}>
+                  <TableRow
+                    key={period.id}
+                    className={period.status === "fechado" ? "opacity-70" : undefined}
+                  >
                     <TableCell className="font-medium">
                       {period.label}
                       {period.id === selectedPeriodId ? (
@@ -209,7 +228,13 @@ function PeriodosPage() {
                       {isAdmin ? (
                         <Select
                           value={period.status}
-                          onValueChange={(status) => changeStatus.mutate({ id: period.id, status })}
+                          onValueChange={(status) => {
+                            if (status === "fechado") {
+                              setPendingClose({ id: period.id, label: period.label });
+                              return;
+                            }
+                            changeStatus.mutate({ id: period.id, status });
+                          }}
                         >
                           <SelectTrigger className="w-[150px]">
                             <SelectValue />
@@ -250,6 +275,34 @@ function PeriodosPage() {
           </CardContent>
         </Card>
       )}
+
+      <AlertDialog
+        open={pendingClose !== null}
+        onOpenChange={(o: boolean) => {
+          if (!o) setPendingClose(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Fechar {pendingClose?.label}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Um período fechado sinaliza que o mês está encerrado para a operação. Você pode
+              reabri-lo depois alterando o status novamente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingClose) changeStatus.mutate({ id: pendingClose.id, status: "fechado" });
+                setPendingClose(null);
+              }}
+            >
+              Fechar período
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
