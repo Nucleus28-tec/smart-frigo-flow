@@ -45,6 +45,7 @@ import {
   deleteImportedFile,
   getFileDownloadUrl,
   parseImportedFile,
+  registerImportedFile,
 } from "@/lib/imports.functions";
 
 export const Route = createFileRoute("/_authenticated/importar")({
@@ -126,6 +127,7 @@ function ImportarPage() {
   const parseFile = useServerFn(parseImportedFile);
   const removeFile = useServerFn(deleteImportedFile);
   const downloadUrl = useServerFn(getFileDownloadUrl);
+  const registerFile = useServerFn(registerImportedFile);
 
   const filesQuery = useQuery({
     queryKey: ["imported_files", selectedPeriodId],
@@ -210,8 +212,7 @@ function ImportarPage() {
         .uploadToSignedUrl(path, token, file);
       if (uploadError) throw new Error(uploadError.message);
 
-      const { registerImportedFile } = await import("@/lib/imports.functions");
-      const { file_id } = await registerImportedFile({
+      const { file_id } = await registerFile({
         data: {
           period_id: selectedPeriodId,
           file_type: fileType as never,
