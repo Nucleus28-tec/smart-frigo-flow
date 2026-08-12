@@ -24,30 +24,37 @@ export const suggestReclassifications = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { generateSuggestions } = await import("@/lib/reclass.server");
 
-    // Contas presentes no período (via lançamentos).
+    // Contas usadas no período que ainda não têm natureza confirmada.
     const { data: entryRows, error: entriesError } = await supabaseAdmin
       .from("ledger_entries")
-      .select("account_id")
+      .select(
+        "account_id, chart_of_accounts!inner(id, source_code, source_name, nature, is_confirmed)",
+      )
       .eq("period_id", data.period_id)
-      .not("account_id", "is", null)
+      .eq("chart_of_accounts.is_confirmed", false)
       .limit(5000);
     if (entriesError) throw new Error(entriesError.message);
 
-    const accountIds = Array.from(
-      new Set((entryRows ?? []).map((r) => r.account_id as string).filter(Boolean)),
-    );
-    if (!accountIds.length) {
+    const uniqueAccounts = new Map<
+      string,
+      { id: string; source_code: string | null; source_name: string; nature: string | null }
+    >();
+    for (const row of entryRows ?? []) {
+      const account = (row as unknown as { chart_of_accounts: unknown }).chart_of_accounts as {
+        id: string;
+        source_code: string | null;
+        source_name: string;
+        nature: string | null;
+      } | null;
+      if (account && !uniqueAccounts.has(account.id)) uniqueAccounts.set(account.id, account);
+    }
+    const accounts = Array.from(uniqueAccounts.values())
+      .sort((a, b) => a.source_name.localeCompare(b.source_name))
+      .slice(0, 60);
+    if (!accounts.length) {
       return { created: 0, skipped: 0, analyzed: 0 };
     }
 
-    const { data: accounts, error: accountsError } = await supabaseAdmin
-      .from("chart_of_accounts")
-      .select("id, source_code, source_name, nature, is_confirmed")
-      .in("id", accountIds)
-      .eq("is_confirmed", false)
-      .order("source_name", { ascending: true })
-      .limit(60);
-    if (accountsError) throw new Error(accountsError.message);
 
     // Sugestões pendentes já existentes no período (evita duplicar).
     const { data: pending, error: pendingError } = await supabaseAdmin
