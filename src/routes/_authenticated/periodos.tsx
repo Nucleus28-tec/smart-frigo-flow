@@ -68,6 +68,7 @@ function PeriodosPage() {
   const [open, setOpen] = useState(false);
   const [month, setMonth] = useState("");
   const [label, setLabel] = useState("");
+  const [pendingClose, setPendingClose] = useState<{ id: string; label: string } | null>(null);
 
   const createPeriod = useMutation({
     mutationFn: async () => {
