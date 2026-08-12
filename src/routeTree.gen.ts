@@ -21,8 +21,8 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedDemonstrativosRouteImport } from './routes/_authenticated/demonstrativos'
 import { Route as AuthenticatedImportarRouteImport } from './routes/_authenticated/importar'
 import { Route as AuthenticatedPeriodosRouteImport } from './routes/_authenticated/periodos'
-import { Route as AuthenticatedPlanoDeContasRouteImport } from './routes/_authenticated/plano-de-contas'
 import { Route as AuthenticatedReclassificacoesRouteImport } from './routes/_authenticated/reclassificacoes'
+import { Route as AuthenticatedAdminPlanoDeContasRouteImport } from './routes/_authenticated/_admin/plano-de-contas'
 import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated/_admin/usuarios'
 
 const IndexRoute = IndexRouteImport.update({
@@ -86,17 +86,17 @@ const AuthenticatedPeriodosRoute = AuthenticatedPeriodosRouteImport.update({
   path: '/periodos',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedPlanoDeContasRoute =
-  AuthenticatedPlanoDeContasRouteImport.update({
-    id: '/plano-de-contas',
-    path: '/plano-de-contas',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedReclassificacoesRoute =
   AuthenticatedReclassificacoesRouteImport.update({
     id: '/reclassificacoes',
     path: '/reclassificacoes',
     getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminPlanoDeContasRoute =
+  AuthenticatedAdminPlanoDeContasRouteImport.update({
+    id: '/plano-de-contas',
+    path: '/plano-de-contas',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
 const AuthenticatedAdminUsuariosRoute =
   AuthenticatedAdminUsuariosRouteImport.update({
@@ -116,8 +116,8 @@ export interface FileRoutesByFullPath {
   '/demonstrativos': typeof AuthenticatedDemonstrativosRoute
   '/importar': typeof AuthenticatedImportarRoute
   '/periodos': typeof AuthenticatedPeriodosRoute
-  '/plano-de-contas': typeof AuthenticatedPlanoDeContasRoute
   '/reclassificacoes': typeof AuthenticatedReclassificacoesRoute
+  '/plano-de-contas': typeof AuthenticatedAdminPlanoDeContasRoute
   '/usuarios': typeof AuthenticatedAdminUsuariosRoute
 }
 export interface FileRoutesByTo {
@@ -131,8 +131,8 @@ export interface FileRoutesByTo {
   '/demonstrativos': typeof AuthenticatedDemonstrativosRoute
   '/importar': typeof AuthenticatedImportarRoute
   '/periodos': typeof AuthenticatedPeriodosRoute
-  '/plano-de-contas': typeof AuthenticatedPlanoDeContasRoute
   '/reclassificacoes': typeof AuthenticatedReclassificacoesRoute
+  '/plano-de-contas': typeof AuthenticatedAdminPlanoDeContasRoute
   '/usuarios': typeof AuthenticatedAdminUsuariosRoute
 }
 export interface FileRoutesById {
@@ -149,8 +149,8 @@ export interface FileRoutesById {
   '/_authenticated/demonstrativos': typeof AuthenticatedDemonstrativosRoute
   '/_authenticated/importar': typeof AuthenticatedImportarRoute
   '/_authenticated/periodos': typeof AuthenticatedPeriodosRoute
-  '/_authenticated/plano-de-contas': typeof AuthenticatedPlanoDeContasRoute
   '/_authenticated/reclassificacoes': typeof AuthenticatedReclassificacoesRoute
+  '/_authenticated/_admin/plano-de-contas': typeof AuthenticatedAdminPlanoDeContasRoute
   '/_authenticated/_admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
 }
 export interface FileRouteTypes {
@@ -166,8 +166,8 @@ export interface FileRouteTypes {
     | '/demonstrativos'
     | '/importar'
     | '/periodos'
-    | '/plano-de-contas'
     | '/reclassificacoes'
+    | '/plano-de-contas'
     | '/usuarios'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -181,8 +181,8 @@ export interface FileRouteTypes {
     | '/demonstrativos'
     | '/importar'
     | '/periodos'
-    | '/plano-de-contas'
     | '/reclassificacoes'
+    | '/plano-de-contas'
     | '/usuarios'
   id:
     | '__root__'
@@ -198,8 +198,8 @@ export interface FileRouteTypes {
     | '/_authenticated/demonstrativos'
     | '/_authenticated/importar'
     | '/_authenticated/periodos'
-    | '/_authenticated/plano-de-contas'
     | '/_authenticated/reclassificacoes'
+    | '/_authenticated/_admin/plano-de-contas'
     | '/_authenticated/_admin/usuarios'
   fileRoutesById: FileRoutesById
 }
@@ -296,19 +296,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPeriodosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/plano-de-contas': {
-      id: '/_authenticated/plano-de-contas'
-      path: '/plano-de-contas'
-      fullPath: '/plano-de-contas'
-      preLoaderRoute: typeof AuthenticatedPlanoDeContasRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/reclassificacoes': {
       id: '/_authenticated/reclassificacoes'
       path: '/reclassificacoes'
       fullPath: '/reclassificacoes'
       preLoaderRoute: typeof AuthenticatedReclassificacoesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/_admin/plano-de-contas': {
+      id: '/_authenticated/_admin/plano-de-contas'
+      path: '/plano-de-contas'
+      fullPath: '/plano-de-contas'
+      preLoaderRoute: typeof AuthenticatedAdminPlanoDeContasRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
     }
     '/_authenticated/_admin/usuarios': {
       id: '/_authenticated/_admin/usuarios'
@@ -321,11 +321,13 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedAdminRouteRouteChildren {
+  AuthenticatedAdminPlanoDeContasRoute: typeof AuthenticatedAdminPlanoDeContasRoute
   AuthenticatedAdminUsuariosRoute: typeof AuthenticatedAdminUsuariosRoute
 }
 
 const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren =
   {
+    AuthenticatedAdminPlanoDeContasRoute: AuthenticatedAdminPlanoDeContasRoute,
     AuthenticatedAdminUsuariosRoute: AuthenticatedAdminUsuariosRoute,
   }
 
@@ -343,7 +345,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDemonstrativosRoute: typeof AuthenticatedDemonstrativosRoute
   AuthenticatedImportarRoute: typeof AuthenticatedImportarRoute
   AuthenticatedPeriodosRoute: typeof AuthenticatedPeriodosRoute
-  AuthenticatedPlanoDeContasRoute: typeof AuthenticatedPlanoDeContasRoute
   AuthenticatedReclassificacoesRoute: typeof AuthenticatedReclassificacoesRoute
 }
 
@@ -356,7 +357,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDemonstrativosRoute: AuthenticatedDemonstrativosRoute,
   AuthenticatedImportarRoute: AuthenticatedImportarRoute,
   AuthenticatedPeriodosRoute: AuthenticatedPeriodosRoute,
-  AuthenticatedPlanoDeContasRoute: AuthenticatedPlanoDeContasRoute,
   AuthenticatedReclassificacoesRoute: AuthenticatedReclassificacoesRoute,
 }
 
