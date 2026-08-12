@@ -1,10 +1,38 @@
+import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
+import { Check, Loader2, Lock, Sparkles, X } from "lucide-react";
 
+import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
-import { ComingSoon, PageHeader } from "@/components/PageState";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { usePeriod } from "@/hooks/usePeriod";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Lock } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { EmptyState, ErrorState, LoadingRows, PageHeader } from "@/components/PageState";
+import { NATURE_LABEL } from "@/lib/rotta";
+import {
+  applyReclassificationDecision,
+  suggestReclassifications,
+} from "@/lib/reclass.functions";
 
 export const Route = createFileRoute("/_authenticated/reclassificacoes")({
   component: ReclassificacoesPage,
@@ -26,37 +54,257 @@ export const Route = createFileRoute("/_authenticated/reclassificacoes")({
   }),
 });
 
+type Suggestion = {
+  id: string;
+  account_id: string | null;
+  current_nature: string | null;
+  suggested_nature: string;
+  reasoning: string | null;
+  confidence_score: number | null;
+  status: string;
+  decided_at: string | null;
+  created_at: string;
+  chart_of_accounts: { source_code: string | null; source_name: string } | null;
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  pendente: "Pendente",
+  aprovada: "Aprovada",
+  rejeitada: "Rejeitada",
+};
+
+function natureLabel(value: string | null) {
+  if (!value) return "Sem natureza";
+  return NATURE_LABEL[value as keyof typeof NATURE_LABEL] ?? value;
+}
+
 function ReclassificacoesPage() {
-  const { data: profile, isLoading } = useProfile();
+  const { data: profile, isLoading: profileLoading } = useProfile();
+  const { selectedPeriodId } = usePeriod();
+  const queryClient = useQueryClient();
   const isAdmin = profile?.role === "admin";
+
+  const [status, setStatus] = useState("pendente");
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const generate = useServerFn(suggestReclassifications);
+  const decide = useServerFn(applyReclassificationDecision);
+
+  const suggestions = useQuery({
+    queryKey: ["reclassification_suggestions", selectedPeriodId, status],
+    enabled: Boolean(selectedPeriodId),
+    queryFn: async (): Promise<Suggestion[]> => {
+      let query = supabase
+        .from("reclassification_suggestions")
+        .select(
+          "id, account_id, current_nature, suggested_nature, reasoning, confidence_score, status, decided_at, created_at, chart_of_accounts(source_code, source_name)",
+        )
+        .eq("period_id", selectedPeriodId!)
+        .order("created_at", { ascending: false })
+        .limit(500);
+      if (status !== "todas") query = query.eq("status", status);
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data ?? []) as unknown as Suggestion[];
+    },
+  });
+
+  const generateMutation = useMutation({
+    mutationFn: () => generate({ data: { period_id: selectedPeriodId! } }),
+    onSuccess: (result) => {
+      void queryClient.invalidateQueries({ queryKey: ["reclassification_suggestions"] });
+      if (result.created === 0) {
+        toast.info("Nenhuma conta pendente sem sugestão neste período.");
+      } else {
+        toast.success(`${result.created} sugestão(ões) gerada(s) para revisão.`);
+      }
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const decisionMutation = useMutation({
+    mutationFn: (vars: { suggestion_id: string; decision: "aprovada" | "rejeitada" }) =>
+      decide({ data: vars }),
+    onMutate: (vars) => setBusyId(vars.suggestion_id),
+    onSettled: () => setBusyId(null),
+    onSuccess: (result) => {
+      void queryClient.invalidateQueries({ queryKey: ["reclassification_suggestions"] });
+      void queryClient.invalidateQueries({ queryKey: ["chart_of_accounts"] });
+      void queryClient.invalidateQueries({ queryKey: ["ledger_entries"] });
+      toast.success(
+        result.decision === "aprovada"
+          ? `Sugestão aprovada. ${result.entries_updated} lançamento(s) atualizado(s).`
+          : "Sugestão rejeitada. Nada foi alterado.",
+      );
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const rows = suggestions.data ?? [];
+  const pendingCount = useMemo(
+    () => rows.filter((r) => r.status === "pendente").length,
+    [rows],
+  );
 
   return (
     <>
       <PageHeader
         title="Reclassificações"
-        description="Sugestões da IA para reclassificar contas, com aprovação humana obrigatória."
+        description="Sugestões da IA para classificar contas, com aprovação humana obrigatória."
       />
 
-      {isLoading ? null : isAdmin ? (
-        <div className="mb-4 flex gap-2">
-          <Button size="sm" disabled>
-            Aprovar
-          </Button>
-          <Button size="sm" variant="outline" disabled>
-            Rejeitar
-          </Button>
-        </div>
+      {!selectedPeriodId ? (
+        <EmptyState
+          title="Selecione um período"
+          description="Escolha um período contábil para ver as sugestões de reclassificação."
+        />
       ) : (
-        <Alert className="mb-4">
-          <Lock className="size-4" />
-          <AlertTitle>Somente leitura</AlertTitle>
-          <AlertDescription>
-            A aprovação e a rejeição de reclassificações são restritas ao Admin.
-          </AlertDescription>
-        </Alert>
-      )}
+        <>
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pendente">Pendentes</SelectItem>
+                <SelectItem value="aprovada">Aprovadas</SelectItem>
+                <SelectItem value="rejeitada">Rejeitadas</SelectItem>
+                <SelectItem value="todas">Todas</SelectItem>
+              </SelectContent>
+            </Select>
 
-      <ComingSoon area="As reclassificações sugeridas" />
+            {isAdmin ? (
+              <Button
+                size="sm"
+                onClick={() => generateMutation.mutate()}
+                disabled={generateMutation.isPending}
+              >
+                {generateMutation.isPending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Sparkles className="size-4" />
+                )}
+                Gerar sugestões
+              </Button>
+            ) : null}
+
+            {status === "pendente" && pendingCount > 0 ? (
+              <Badge variant="secondary">{pendingCount} aguardando decisão</Badge>
+            ) : null}
+          </div>
+
+          {profileLoading || isAdmin ? null : (
+            <Alert className="mb-4">
+              <Lock className="size-4" />
+              <AlertTitle>Somente leitura</AlertTitle>
+              <AlertDescription>
+                A aprovação e a rejeição de reclassificações são restritas ao Admin.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <Card>
+            <CardContent className="p-0">
+              {suggestions.isLoading ? (
+                <LoadingRows />
+              ) : suggestions.isError ? (
+                <ErrorState message={(suggestions.error as Error).message} />
+              ) : rows.length === 0 ? (
+                <EmptyState
+                  title="Nenhuma sugestão"
+                  description="Gere sugestões para as contas do período que ainda não têm natureza confirmada."
+                />
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Conta</TableHead>
+                      <TableHead>Natureza atual</TableHead>
+                      <TableHead>Sugestão</TableHead>
+                      <TableHead>Confiança</TableHead>
+                      <TableHead>Justificativa</TableHead>
+                      <TableHead className="text-right">Decisão</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map((row) => (
+                      <TableRow key={row.id}>
+                        <TableCell className="font-medium">
+                          {row.chart_of_accounts?.source_name ?? "Conta removida"}
+                          {row.chart_of_accounts?.source_code ? (
+                            <span className="ml-2 text-xs text-muted-foreground">
+                              {row.chart_of_accounts.source_code}
+                            </span>
+                          ) : null}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {natureLabel(row.current_nature)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{natureLabel(row.suggested_nature)}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          {row.confidence_score == null
+                            ? "—"
+                            : `${Math.round(Number(row.confidence_score) * 100)}%`}
+                        </TableCell>
+                        <TableCell className="max-w-[320px] text-sm text-muted-foreground">
+                          {row.reasoning ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {row.status !== "pendente" ? (
+                            <Badge
+                              variant={row.status === "aprovada" ? "default" : "secondary"}
+                            >
+                              {STATUS_LABEL[row.status] ?? row.status}
+                            </Badge>
+                          ) : isAdmin ? (
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                size="sm"
+                                disabled={busyId === row.id}
+                                onClick={() =>
+                                  decisionMutation.mutate({
+                                    suggestion_id: row.id,
+                                    decision: "aprovada",
+                                  })
+                                }
+                              >
+                                {busyId === row.id ? (
+                                  <Loader2 className="size-4 animate-spin" />
+                                ) : (
+                                  <Check className="size-4" />
+                                )}
+                                Aprovar
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={busyId === row.id}
+                                onClick={() =>
+                                  decisionMutation.mutate({
+                                    suggestion_id: row.id,
+                                    decision: "rejeitada",
+                                  })
+                                }
+                              >
+                                <X className="size-4" />
+                                Rejeitar
+                              </Button>
+                            </div>
+                          ) : (
+                            <Badge variant="secondary">Pendente</Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
     </>
   );
 }
