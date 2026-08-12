@@ -1,0 +1,204 @@
+# Documentação de Páginas — Rotta Financeiro (ERP Financeiro MVP)
+
+> Frontend gerado no **Lovable** (React + Tailwind + shadcn/ui) com integração nativa ao **Supabase**. Toda a lógica pesada (parsing de PDF/Excel, reclassificação por IA, geração de demonstrativos) roda em **Supabase Edge Functions**, invisível ao usuário final. Autenticação por email/senha da equipe interna; isolamento por papel (**Admin** e **Usuário**), single-tenant (uma empresa: Rotta).
+
+Convenções de estados usadas em todas as páginas:
+- **Vazio:** nenhum registro criado ainda — mostra ilustração/placeholder e chamada para a próxima ação.
+- **Carregando:** skeletons (shimmer) nas listas, tabelas e cards enquanto os dados vêm do Supabase.
+- **Erro:** banner vermelho com mensagem amigável e botão "Tentar novamente"; erros de permissão redirecionam ou exibem aviso de acesso negado.
+
+---
+
+### /login
+
+- **Rota:** `/login`
+- **Propósito:** Autenticar os membros internos do Rotta por email e senha para acessar a plataforma.
+- **Seções da tela:**
+  - Logo do Rotta / Rota Alimentos e nome da plataforma "Rotta Financeiro".
+  - Formulário de login: campo de email, campo de senha, botão "Entrar".
+  - Link "Esqueci minha senha" (fluxo de recuperação via email).
+  - Rodapé discreto (versão do app / MVP).
+- **Estados:**
+  - **Vazio:** formulário limpo pronto para preenchimento (estado padrão).
+  - **Carregando:** botão "Entrar" com spinner e campos desabilitados durante a validação.
+  - **Erro:** mensagem inline "Email ou senha inválidos" ou "Usuário desativado — contate o Admin"; sem revelar qual campo falhou por segurança.
+- **Permissões:** Pública (não autenticado). Não há cadastro aberto — contas são criadas apenas pelo Admin em `/usuarios`. Após login, o usuário é redirecionado ao `/dashboard`.
+
+---
+
+### /dashboard
+
+- **Rota:** `/dashboard`
+- **Propósito:** Apresentar o painel de resultado e o BI com indicadores financeiros e gráficos do período selecionado.
+- **Seções da tela:**
+  - Seletor de período contábil (dropdown alimentado por `accounting_periods`) no topo.
+  - Cards de indicadores principais: margem bruta, EBITDA, resultado líquido, posição de caixa, receita total, custo total (de `dashboard_indicators`).
+  - Gráficos de BI: composição de receita x custo x despesa, evolução da posição de caixa, barras/pizza por natureza contábil.
+  - Bloco de status do período: contagem de sugestões pendentes, apontamentos abertos e se os demonstrativos já foram gerados (via `get_period_summary`).
+  - Atalhos rápidos: "Importar arquivos", "Revisar balancete", "Gerar demonstrativos".
+- **Estados:**
+  - **Vazio:** quando o período não tem indicadores calculados ainda — mensagem "Nenhum indicador calculado para este período" com botão "Gerar demonstrativos" (se houver lançamentos) ou "Importar arquivos".
+  - **Carregando:** skeletons nos cards e placeholders de gráfico enquanto `dashboard_indicators` e `financial_statements` carregam.
+  - **Erro:** banner "Não foi possível carregar os indicadores" com botão "Tentar novamente".
+- **Permissões:** Admin e Usuário podem visualizar. Sem diferença de conteúdo por papel — ambos apenas consultam os indicadores e gráficos.
+
+---
+
+### /periodos
+
+- **Rota:** `/periodos`
+- **Propósito:** Listar, criar e gerenciar os períodos contábeis de fechamento sobre os quais os arquivos são importados.
+- **Seções da tela:**
+  - Lista/tabela de períodos: label (ex.: "Janeiro/2026"), mês de referência, status (aberto / em revisão / fechado), data do último recálculo, quem criou.
+  - Botão "Novo período" (abre modal com label e mês de referência).
+  - Badges de status coloridos e ações por linha: "Selecionar", "Editar status" (Admin), "Ver resumo".
+  - Painel lateral/resumo do período selecionado: sugestões pendentes, apontamentos abertos, demonstrativos gerados.
+- **Estados:**
+  - **Vazio:** "Nenhum período criado ainda" com botão destacado "Criar primeiro período" (visível a Admin).
+  - **Carregando:** skeleton de linhas na tabela.
+  - **Erro:** banner de erro com "Tentar novamente".
+- **Permissões:** Admin e Usuário podem visualizar e selecionar períodos. Apenas **Admin** pode criar, editar status (aberto/em revisão/fechado) e excluir períodos — para o Usuário os botões de criação/edição de status ficam ocultos ou desabilitados.
+
+---
+
+### /importar
+
+- **Rota:** `/importar`
+- **Propósito:** Fazer upload dos arquivos PDF/Excel exportados do G2 e do Sicoob e acompanhar o processamento por IA.
+- **Seções da tela:**
+  - Seletor de período de destino da importação.
+  - Área de upload (drag-and-drop + botão) com seleção do tipo de arquivo: balancete, pedido de compra, nota fiscal, romaneio de abate, contas a pagar, contas a receber, relatório de vendas, extrato Sicoob.
+  - Lista de arquivos importados no período: nome original, tipo, status de processamento (pendente / processando / processado / erro), quem subiu, data.
+  - Indicador de progresso do parsing (Realtime) e mensagem de recálculo automático quando o arquivo cai sobre período já processado ("Valores atualizados — ver em Atualizações").
+  - Detalhe de erro por arquivo (mensagem de `processing_error`) com opção de reenviar.
+- **Estados:**
+  - **Vazio:** "Nenhum arquivo importado neste período" com área de upload em destaque.
+  - **Carregando:** barra de progresso do upload e badge "processando" atualizado em tempo real via Supabase Realtime.
+  - **Erro:** linha marcada em vermelho com o motivo do erro de parsing e botão "Reprocessar"; erro de upload exibe banner.
+- **Permissões:** Admin e Usuário podem importar arquivos. O Usuário pode atualizar/excluir apenas os arquivos que ele mesmo subiu; o **Admin** pode excluir qualquer arquivo.
+
+---
+
+### /balancete
+
+- **Rota:** `/balancete`
+- **Propósito:** Revisar e editar manualmente os lançamentos do balancete importado — valores, natureza e reclassificação de contas.
+- **Seções da tela:**
+  - Seletor de período.
+  - Tabela editável central (de `ledger_entries`): conta de origem, valor bruto importado, valor revisado (editável), natureza aplicada (dropdown com as 8 naturezas), data do lançamento, indicador de edição manual.
+  - Destaque visual das linhas com edição manual (`is_manually_edited`) e das linhas sem natureza definida.
+  - Filtros e busca: por natureza, por arquivo de origem, por status (editado / sem natureza).
+  - Ações em massa: aplicar natureza a várias linhas, exportar seleção.
+  - Botão "Gerar demonstrativos" (dispara `generate-statements`).
+- **Estados:**
+  - **Vazio:** "Nenhum lançamento importado neste período" com botão "Importar arquivos".
+  - **Carregando:** skeleton da tabela.
+  - **Erro:** banner de erro ao salvar edição (com retry) mantendo o valor digitado; erro geral de carregamento com "Tentar novamente".
+- **Permissões:** Admin e Usuário podem visualizar e **editar** valores/lançamentos (a edição manual prevalece sobre o dado bruto). Apenas **Admin** pode excluir lançamentos. Reclassificação de natureza confirmada segue as regras do plano de contas (definição definitiva é do Admin).
+
+---
+
+### /reclassificacoes
+
+- **Rota:** `/reclassificacoes`
+- **Propósito:** Exibir as sugestões de reclassificação geradas pela IA para o Admin aprovar ou rejeitar, alimentando o padrão da empresa.
+- **Seções da tela:**
+  - Seletor de período.
+  - Lista de sugestões (`reclassification_suggestions`): conta, natureza atual → natureza sugerida, justificativa da IA (`reasoning`), score de confiança, status (pendente / aprovada / rejeitada).
+  - Botões por linha: "Aprovar" e "Rejeitar" (dispara `apply-reclassification-decision`).
+  - Ações em massa: aprovar/rejeitar várias sugestões de uma vez.
+  - Filtro por status e por faixa de confiança.
+  - Aviso explicativo: "Cada decisão treina o padrão de classificação do Rotta".
+- **Estados:**
+  - **Vazio:** "Nenhuma sugestão pendente" (quando tudo foi decidido ou ainda não houve parsing).
+  - **Carregando:** skeleton das linhas de sugestão.
+  - **Erro:** banner ao falhar a aprovação/rejeição, mantendo a sugestão como pendente e permitindo nova tentativa.
+- **Permissões:** Admin e Usuário podem **visualizar** as sugestões. Apenas **Admin** pode aprovar/rejeitar (os botões de decisão ficam ocultos/desabilitados para o Usuário) — regra: só o Admin define o mapeamento e alimenta o aprendizado.
+
+---
+
+### /plano-de-contas
+
+- **Rota:** `/plano-de-contas`
+- **Propósito:** Mapear cada conta do plano do Rotta (sem padrão) para uma das oito naturezas contábeis oficiais.
+- **Seções da tela:**
+  - Tabela do plano de contas (`chart_of_accounts`): código de origem, descrição original do G2, natureza mapeada (dropdown), status confirmado, vezes confirmado (`times_confirmed`), confiança da última sugestão.
+  - Filtros: contas não confirmadas, por natureza, busca por nome/código.
+  - Ação por linha: definir/alterar natureza e marcar como confirmada.
+  - Indicador de progresso do mapeamento (ex.: "42 de 60 contas confirmadas").
+- **Estados:**
+  - **Vazio:** "Nenhuma conta mapeada ainda — importe um balancete para começar" com atalho para `/importar`.
+  - **Carregando:** skeleton da tabela.
+  - **Erro:** banner de erro ao salvar mapeamento, com retry.
+- **Permissões:** Admin e Usuário podem **visualizar**. Apenas **Admin** pode criar, editar e confirmar o mapeamento (INSERT/UPDATE/DELETE restritos a Admin por RLS) — para o Usuário a tabela é somente leitura.
+
+---
+
+### /apontamentos
+
+- **Rota:** `/apontamentos`
+- **Propósito:** Listar inconsistências e erros detectados, com sugestões de correção na origem (G2), para marcação de resolvido/ignorado.
+- **Seções da tela:**
+  - Seletor de período.
+  - Lista de apontamentos (`audit_findings`): tipo (conta mal classificada, lançamento incorreto, valor divergente, conta sem natureza, duplicidade), descrição, sugestão de correção no G2, severidade (baixa/média/alta), status.
+  - Filtros por tipo, severidade e status (aberto / resolvido / ignorado).
+  - Ações por item: "Marcar como resolvido", "Ignorar".
+  - Contadores/resumo por severidade no topo.
+- **Estados:**
+  - **Vazio:** "Nenhuma inconsistência encontrada neste período" (mensagem positiva) — indica que os dados estão consistentes ou que ainda não houve detecção.
+  - **Carregando:** skeleton da lista.
+  - **Erro:** banner com retry ao carregar; erro ao atualizar status mantém o item no estado anterior.
+- **Permissões:** Admin e Usuário podem visualizar e **marcar resolvido/ignorado**. Apenas **Admin** pode excluir apontamentos. Sem diferença relevante de conteúdo por papel além da exclusão.
+
+---
+
+### /demonstrativos
+
+- **Rota:** `/demonstrativos`
+- **Propósito:** Visualizar DRE, Balanço Patrimonial e Fluxo de Caixa estruturados e exportá-los em PDF e Excel.
+- **Seções da tela:**
+  - Seletor de período.
+  - Abas ou navegação entre os três demonstrativos: DRE, Balanço Patrimonial, Fluxo de Caixa (renderizados a partir do JSON de `financial_statements`).
+  - Tabela hierárquica de grupos/linhas/valores para cada demonstrativo, com subtotais e totais.
+  - Botão "Gerar/Atualizar demonstrativos" (dispara `generate-statements`) e data da última geração.
+  - Botões "Exportar PDF" (com logo do Rotta) e "Exportar Excel" (dispara `export-report`, download via signed URL do bucket `exports`).
+- **Estados:**
+  - **Vazio:** "Demonstrativos ainda não gerados para este período" com botão "Gerar demonstrativos" (habilitado quando há lançamentos classificados).
+  - **Carregando:** skeleton das tabelas; botões de exportação com spinner durante a geração do arquivo.
+  - **Erro:** banner "Falha ao gerar/exportar" com retry; caso não haja lançamentos suficientes, aviso orientando revisar o balancete.
+- **Permissões:** Admin e Usuário podem visualizar, gerar e exportar os demonstrativos. Sem diferença de conteúdo por papel.
+
+---
+
+### /atualizacoes
+
+- **Rota:** `/atualizacoes`
+- **Propósito:** Mostrar a lista de valores que foram atualizados após reimportações sobre um período já processado, sinalizando edições manuais preservadas.
+- **Seções da tela:**
+  - Seletor de período.
+  - Lista de diffs (`recalculation_logs`): lançamento afetado, campo alterado (valor bruto, natureza), valor anterior → novo valor, arquivo de origem da atualização, data.
+  - Destaque para linhas onde a edição manual foi **preservada** (`manual_edit_preserved`).
+  - Filtro por arquivo de origem e por data do recálculo.
+  - Resumo no topo: "X valores atualizados na última reimportação".
+- **Estados:**
+  - **Vazio:** "Nenhuma atualização registrada — nada foi reprocessado ainda neste período".
+  - **Carregando:** skeleton da lista.
+  - **Erro:** banner com retry.
+- **Permissões:** Admin e Usuário podem visualizar (registro imutável, somente leitura). Sem diferença de conteúdo por papel.
+
+---
+
+### /usuarios
+
+- **Rota:** `/usuarios`
+- **Propósito:** Cadastrar, editar e desativar usuários internos e definir o papel de cada um (Admin ou Usuário).
+- **Seções da tela:**
+  - Tabela de usuários (`profiles`): nome completo, email, papel (Admin/Usuário), status ativo/inativo, data de criação.
+  - Botão "Novo usuário" (abre modal com nome, email e papel; dispara `manage-user`, que envia convite por email via Resend).
+  - Ações por linha: editar papel, ativar/desativar, reenviar convite.
+  - Filtros por papel e status.
+- **Estados:**
+  - **Vazio:** "Nenhum usuário cadastrado além de você" com botão "Adicionar usuário".
+  - **Carregando:** skeleton da tabela.
+  - **Erro:** banner ao falhar a criação/edição (ex.: email já existente) com mensagem clara e retry.
+- **Permissões:** **Somente Admin** acessa esta página. O Usuário que tentar acessar recebe aviso de acesso negado e é redirecionado ao `/dashboard`. Todas as operações de gestão de contas são exclusivas do Admin (RLS + Edge Function `manage-user` com service role).

@@ -10,33 +10,183 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as AuthenticatedApontamentosRouteImport } from './routes/_authenticated/apontamentos'
+import { Route as AuthenticatedAtualizacoesRouteImport } from './routes/_authenticated/atualizacoes'
+import { Route as AuthenticatedBalanceteRouteImport } from './routes/_authenticated/balancete'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedDemonstrativosRouteImport } from './routes/_authenticated/demonstrativos'
+import { Route as AuthenticatedImportarRouteImport } from './routes/_authenticated/importar'
+import { Route as AuthenticatedPeriodosRouteImport } from './routes/_authenticated/periodos'
+import { Route as AuthenticatedPlanoDeContasRouteImport } from './routes/_authenticated/plano-de-contas'
+import { Route as AuthenticatedReclassificacoesRouteImport } from './routes/_authenticated/reclassificacoes'
+import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedApontamentosRoute =
+  AuthenticatedApontamentosRouteImport.update({
+    id: '/apontamentos',
+    path: '/apontamentos',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAtualizacoesRoute =
+  AuthenticatedAtualizacoesRouteImport.update({
+    id: '/atualizacoes',
+    path: '/atualizacoes',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedBalanceteRoute = AuthenticatedBalanceteRouteImport.update({
+  id: '/balancete',
+  path: '/balancete',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedDemonstrativosRoute =
+  AuthenticatedDemonstrativosRouteImport.update({
+    id: '/demonstrativos',
+    path: '/demonstrativos',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedImportarRoute = AuthenticatedImportarRouteImport.update({
+  id: '/importar',
+  path: '/importar',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPeriodosRoute = AuthenticatedPeriodosRouteImport.update({
+  id: '/periodos',
+  path: '/periodos',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPlanoDeContasRoute =
+  AuthenticatedPlanoDeContasRouteImport.update({
+    id: '/plano-de-contas',
+    path: '/plano-de-contas',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedReclassificacoesRoute =
+  AuthenticatedReclassificacoesRouteImport.update({
+    id: '/reclassificacoes',
+    path: '/reclassificacoes',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedUsuariosRoute = AuthenticatedUsuariosRouteImport.update({
+  id: '/usuarios',
+  path: '/usuarios',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/apontamentos': typeof AuthenticatedApontamentosRoute
+  '/atualizacoes': typeof AuthenticatedAtualizacoesRoute
+  '/balancete': typeof AuthenticatedBalanceteRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/demonstrativos': typeof AuthenticatedDemonstrativosRoute
+  '/importar': typeof AuthenticatedImportarRoute
+  '/periodos': typeof AuthenticatedPeriodosRoute
+  '/plano-de-contas': typeof AuthenticatedPlanoDeContasRoute
+  '/reclassificacoes': typeof AuthenticatedReclassificacoesRoute
+  '/usuarios': typeof AuthenticatedUsuariosRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/apontamentos': typeof AuthenticatedApontamentosRoute
+  '/atualizacoes': typeof AuthenticatedAtualizacoesRoute
+  '/balancete': typeof AuthenticatedBalanceteRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/demonstrativos': typeof AuthenticatedDemonstrativosRoute
+  '/importar': typeof AuthenticatedImportarRoute
+  '/periodos': typeof AuthenticatedPeriodosRoute
+  '/plano-de-contas': typeof AuthenticatedPlanoDeContasRoute
+  '/reclassificacoes': typeof AuthenticatedReclassificacoesRoute
+  '/usuarios': typeof AuthenticatedUsuariosRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/login': typeof LoginRoute
+  '/_authenticated/apontamentos': typeof AuthenticatedApontamentosRoute
+  '/_authenticated/atualizacoes': typeof AuthenticatedAtualizacoesRoute
+  '/_authenticated/balancete': typeof AuthenticatedBalanceteRoute
+  '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/demonstrativos': typeof AuthenticatedDemonstrativosRoute
+  '/_authenticated/importar': typeof AuthenticatedImportarRoute
+  '/_authenticated/periodos': typeof AuthenticatedPeriodosRoute
+  '/_authenticated/plano-de-contas': typeof AuthenticatedPlanoDeContasRoute
+  '/_authenticated/reclassificacoes': typeof AuthenticatedReclassificacoesRoute
+  '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/apontamentos'
+    | '/atualizacoes'
+    | '/balancete'
+    | '/dashboard'
+    | '/demonstrativos'
+    | '/importar'
+    | '/periodos'
+    | '/plano-de-contas'
+    | '/reclassificacoes'
+    | '/usuarios'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/login'
+    | '/apontamentos'
+    | '/atualizacoes'
+    | '/balancete'
+    | '/dashboard'
+    | '/demonstrativos'
+    | '/importar'
+    | '/periodos'
+    | '/plano-de-contas'
+    | '/reclassificacoes'
+    | '/usuarios'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/login'
+    | '/_authenticated/apontamentos'
+    | '/_authenticated/atualizacoes'
+    | '/_authenticated/balancete'
+    | '/_authenticated/dashboard'
+    | '/_authenticated/demonstrativos'
+    | '/_authenticated/importar'
+    | '/_authenticated/periodos'
+    | '/_authenticated/plano-de-contas'
+    | '/_authenticated/reclassificacoes'
+    | '/_authenticated/usuarios'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  LoginRoute: typeof LoginRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +198,126 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/apontamentos': {
+      id: '/_authenticated/apontamentos'
+      path: '/apontamentos'
+      fullPath: '/apontamentos'
+      preLoaderRoute: typeof AuthenticatedApontamentosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/atualizacoes': {
+      id: '/_authenticated/atualizacoes'
+      path: '/atualizacoes'
+      fullPath: '/atualizacoes'
+      preLoaderRoute: typeof AuthenticatedAtualizacoesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/balancete': {
+      id: '/_authenticated/balancete'
+      path: '/balancete'
+      fullPath: '/balancete'
+      preLoaderRoute: typeof AuthenticatedBalanceteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/demonstrativos': {
+      id: '/_authenticated/demonstrativos'
+      path: '/demonstrativos'
+      fullPath: '/demonstrativos'
+      preLoaderRoute: typeof AuthenticatedDemonstrativosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/importar': {
+      id: '/_authenticated/importar'
+      path: '/importar'
+      fullPath: '/importar'
+      preLoaderRoute: typeof AuthenticatedImportarRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/periodos': {
+      id: '/_authenticated/periodos'
+      path: '/periodos'
+      fullPath: '/periodos'
+      preLoaderRoute: typeof AuthenticatedPeriodosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/plano-de-contas': {
+      id: '/_authenticated/plano-de-contas'
+      path: '/plano-de-contas'
+      fullPath: '/plano-de-contas'
+      preLoaderRoute: typeof AuthenticatedPlanoDeContasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/reclassificacoes': {
+      id: '/_authenticated/reclassificacoes'
+      path: '/reclassificacoes'
+      fullPath: '/reclassificacoes'
+      preLoaderRoute: typeof AuthenticatedReclassificacoesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/usuarios': {
+      id: '/_authenticated/usuarios'
+      path: '/usuarios'
+      fullPath: '/usuarios'
+      preLoaderRoute: typeof AuthenticatedUsuariosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedApontamentosRoute: typeof AuthenticatedApontamentosRoute
+  AuthenticatedAtualizacoesRoute: typeof AuthenticatedAtualizacoesRoute
+  AuthenticatedBalanceteRoute: typeof AuthenticatedBalanceteRoute
+  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedDemonstrativosRoute: typeof AuthenticatedDemonstrativosRoute
+  AuthenticatedImportarRoute: typeof AuthenticatedImportarRoute
+  AuthenticatedPeriodosRoute: typeof AuthenticatedPeriodosRoute
+  AuthenticatedPlanoDeContasRoute: typeof AuthenticatedPlanoDeContasRoute
+  AuthenticatedReclassificacoesRoute: typeof AuthenticatedReclassificacoesRoute
+  AuthenticatedUsuariosRoute: typeof AuthenticatedUsuariosRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedApontamentosRoute: AuthenticatedApontamentosRoute,
+  AuthenticatedAtualizacoesRoute: AuthenticatedAtualizacoesRoute,
+  AuthenticatedBalanceteRoute: AuthenticatedBalanceteRoute,
+  AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedDemonstrativosRoute: AuthenticatedDemonstrativosRoute,
+  AuthenticatedImportarRoute: AuthenticatedImportarRoute,
+  AuthenticatedPeriodosRoute: AuthenticatedPeriodosRoute,
+  AuthenticatedPlanoDeContasRoute: AuthenticatedPlanoDeContasRoute,
+  AuthenticatedReclassificacoesRoute: AuthenticatedReclassificacoesRoute,
+  AuthenticatedUsuariosRoute: AuthenticatedUsuariosRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  LoginRoute: LoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
