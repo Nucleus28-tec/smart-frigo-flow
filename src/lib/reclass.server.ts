@@ -116,6 +116,7 @@ async function suggestBatch(
     },
     body: JSON.stringify({
       model: "openai/gpt-5.6-sol",
+      stream: true,
       instructions:
         "Você é um contador brasileiro que classifica contas de um balancete do sistema G2 " +
         "de um frigorífico. Para cada conta informada, escolha exatamente uma natureza entre: " +
