@@ -34,15 +34,16 @@ import {
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { to: "/dashboard", label: "Dashboard", icon: BarChart3 },
-  { to: "/periodos", label: "Períodos", icon: CalendarRange },
-  { to: "/importar", label: "Importar", icon: Upload },
-  { to: "/balancete", label: "Balancete", icon: Table2 },
-  { to: "/reclassificacoes", label: "Reclassificações", icon: Wand2 },
-  { to: "/plano-de-contas", label: "Plano de Contas", icon: ListTree },
-  { to: "/apontamentos", label: "Apontamentos", icon: AlertTriangle },
-  { to: "/demonstrativos", label: "Demonstrativos", icon: FileSpreadsheet },
-  { to: "/atualizacoes", label: "Atualizações", icon: RefreshCw },
+  { to: "/dashboard", label: "Dashboard", icon: BarChart3, adminOnly: false },
+  { to: "/periodos", label: "Períodos", icon: CalendarRange, adminOnly: false },
+  { to: "/importar", label: "Importar", icon: Upload, adminOnly: false },
+  { to: "/balancete", label: "Balancete", icon: Table2, adminOnly: false },
+  { to: "/reclassificacoes", label: "Reclassificações", icon: Wand2, adminOnly: false },
+  { to: "/plano-de-contas", label: "Plano de Contas", icon: ListTree, adminOnly: true },
+  { to: "/apontamentos", label: "Apontamentos", icon: AlertTriangle, adminOnly: false },
+  { to: "/demonstrativos", label: "Demonstrativos", icon: FileSpreadsheet, adminOnly: false },
+  { to: "/atualizacoes", label: "Atualizações", icon: RefreshCw, adminOnly: false },
+  { to: "/usuarios", label: "Usuários", icon: Users, adminOnly: true },
 ] as const;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
