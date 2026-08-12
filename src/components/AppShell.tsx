@@ -133,23 +133,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Menu className="size-5" />
           </button>
 
-          <div className="min-w-[200px]">
+          <div className="flex min-w-[200px] items-center gap-2">
             {periods.length > 0 ? (
-              <Select
-                {...(selectedPeriodId ? { value: selectedPeriodId } : {})}
-                onValueChange={selectPeriod}
-              >
-                <SelectTrigger className="w-[220px]">
-                  <SelectValue placeholder="Selecione o período" />
-                </SelectTrigger>
-                <SelectContent>
-                  {periods.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <>
+                <Select
+                  {...(selectedPeriodId ? { value: selectedPeriodId } : {})}
+                  onValueChange={selectPeriod}
+                >
+                  <SelectTrigger className="w-[220px]">
+                    <SelectValue placeholder="Selecione o período" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {periods.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedPeriod ? (
+                  <Badge variant="outline">
+                    {PERIOD_STATUS_LABEL[
+                      selectedPeriod.status as keyof typeof PERIOD_STATUS_LABEL
+                    ] ?? selectedPeriod.status}
+                  </Badge>
+                ) : null}
+              </>
             ) : (
               <span className="text-sm text-muted-foreground">Nenhum período criado</span>
             )}
