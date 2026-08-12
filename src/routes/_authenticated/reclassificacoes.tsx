@@ -27,7 +27,7 @@ export const Route = createFileRoute("/_authenticated/reclassificacoes")({
 });
 
 function ReclassificacoesPage() {
-  const { data: profile } = useProfile();
+  const { data: profile, isLoading } = useProfile();
   const isAdmin = profile?.role === "admin";
 
   return (
@@ -37,7 +37,7 @@ function ReclassificacoesPage() {
         description="Sugestões da IA para reclassificar contas, com aprovação humana obrigatória."
       />
 
-      {isAdmin ? (
+      {isLoading ? null : isAdmin ? (
         <div className="mb-4 flex gap-2">
           <Button size="sm" disabled>
             Aprovar
