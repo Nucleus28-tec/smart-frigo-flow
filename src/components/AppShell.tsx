@@ -63,7 +63,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     navigate({ to: "/login", replace: true });
   }
 
-  const items = isAdmin ? [...NAV, { to: "/usuarios", label: "Usuários", icon: Users }] : NAV;
+  const items = NAV.filter((item) => isAdmin || !item.adminOnly);
 
   return (
     <div className="flex min-h-screen bg-background">
