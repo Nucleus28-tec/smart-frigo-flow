@@ -576,6 +576,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_reclassification_decision: {
+        Args: { _decision: string; _suggestion_id: string }
+        Returns: Json
+      }
       get_period_summary: { Args: { _period_id: string }; Returns: Json }
       is_admin: { Args: never; Returns: boolean }
       log_activity: {
