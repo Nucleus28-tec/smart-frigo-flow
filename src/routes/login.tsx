@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
+import { ensureProfile } from "@/lib/session.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,11 +48,32 @@ function LoginPage() {
     e.preventDefault();
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
     if (error) {
+      setLoading(false);
       toast.error("Não foi possível entrar", { description: error.message });
       return;
     }
+
+    try {
+      const profile = await ensureProfile();
+      if (!profile.is_active) {
+        await supabase.auth.signOut();
+        setLoading(false);
+        toast.error("Acesso desativado", {
+          description: "Acesso desativado. Fale com o administrador.",
+        });
+        return;
+      }
+    } catch (err) {
+      await supabase.auth.signOut();
+      setLoading(false);
+      toast.error("Não foi possível validar seu acesso", {
+        description: err instanceof Error ? err.message : "Tente novamente.",
+      });
+      return;
+    }
+
+    setLoading(false);
     navigate({ to: "/dashboard", replace: true });
   }
 
