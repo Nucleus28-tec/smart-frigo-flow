@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/_admin/route'
 import { Route as AuthenticatedApontamentosRouteImport } from './routes/_authenticated/apontamentos'
 import { Route as AuthenticatedAtualizacoesRouteImport } from './routes/_authenticated/atualizacoes'
 import { Route as AuthenticatedBalanceteRouteImport } from './routes/_authenticated/balancete'
@@ -21,7 +22,7 @@ import { Route as AuthenticatedImportarRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedPeriodosRouteImport } from './routes/_authenticated/periodos'
 import { Route as AuthenticatedPlanoDeContasRouteImport } from './routes/_authenticated/plano-de-contas'
 import { Route as AuthenticatedReclassificacoesRouteImport } from './routes/_authenticated/reclassificacoes'
-import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
+import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated/_admin/usuarios'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -36,6 +37,10 @@ const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedAdminRouteRoute = AuthenticatedAdminRouteRouteImport.update({
+  id: '/_admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedApontamentosRoute =
   AuthenticatedApontamentosRouteImport.update({
@@ -87,11 +92,12 @@ const AuthenticatedReclassificacoesRoute =
     path: '/reclassificacoes',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedUsuariosRoute = AuthenticatedUsuariosRouteImport.update({
-  id: '/usuarios',
-  path: '/usuarios',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
+const AuthenticatedAdminUsuariosRoute =
+  AuthenticatedAdminUsuariosRouteImport.update({
+    id: '/usuarios',
+    path: '/usuarios',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -105,7 +111,7 @@ export interface FileRoutesByFullPath {
   '/periodos': typeof AuthenticatedPeriodosRoute
   '/plano-de-contas': typeof AuthenticatedPlanoDeContasRoute
   '/reclassificacoes': typeof AuthenticatedReclassificacoesRoute
-  '/usuarios': typeof AuthenticatedUsuariosRoute
+  '/usuarios': typeof AuthenticatedAdminUsuariosRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -119,13 +125,14 @@ export interface FileRoutesByTo {
   '/periodos': typeof AuthenticatedPeriodosRoute
   '/plano-de-contas': typeof AuthenticatedPlanoDeContasRoute
   '/reclassificacoes': typeof AuthenticatedReclassificacoesRoute
-  '/usuarios': typeof AuthenticatedUsuariosRoute
+  '/usuarios': typeof AuthenticatedAdminUsuariosRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/login': typeof LoginRoute
+  '/_authenticated/_admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/_authenticated/apontamentos': typeof AuthenticatedApontamentosRoute
   '/_authenticated/atualizacoes': typeof AuthenticatedAtualizacoesRoute
   '/_authenticated/balancete': typeof AuthenticatedBalanceteRoute
@@ -135,7 +142,7 @@ export interface FileRoutesById {
   '/_authenticated/periodos': typeof AuthenticatedPeriodosRoute
   '/_authenticated/plano-de-contas': typeof AuthenticatedPlanoDeContasRoute
   '/_authenticated/reclassificacoes': typeof AuthenticatedReclassificacoesRoute
-  '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
+  '/_authenticated/_admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -171,6 +178,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/login'
+    | '/_authenticated/_admin'
     | '/_authenticated/apontamentos'
     | '/_authenticated/atualizacoes'
     | '/_authenticated/balancete'
@@ -180,7 +188,7 @@ export interface FileRouteTypes {
     | '/_authenticated/periodos'
     | '/_authenticated/plano-de-contas'
     | '/_authenticated/reclassificacoes'
-    | '/_authenticated/usuarios'
+    | '/_authenticated/_admin/usuarios'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -211,6 +219,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/_admin': {
+      id: '/_authenticated/_admin'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedAdminRouteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/apontamentos': {
       id: '/_authenticated/apontamentos'
@@ -275,17 +290,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedReclassificacoesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/usuarios': {
-      id: '/_authenticated/usuarios'
+    '/_authenticated/_admin/usuarios': {
+      id: '/_authenticated/_admin/usuarios'
       path: '/usuarios'
       fullPath: '/usuarios'
-      preLoaderRoute: typeof AuthenticatedUsuariosRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      preLoaderRoute: typeof AuthenticatedAdminUsuariosRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
     }
   }
 }
 
+interface AuthenticatedAdminRouteRouteChildren {
+  AuthenticatedAdminUsuariosRoute: typeof AuthenticatedAdminUsuariosRoute
+}
+
+const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren =
+  {
+    AuthenticatedAdminUsuariosRoute: AuthenticatedAdminUsuariosRoute,
+  }
+
+const AuthenticatedAdminRouteRouteWithChildren =
+  AuthenticatedAdminRouteRoute._addFileChildren(
+    AuthenticatedAdminRouteRouteChildren,
+  )
+
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAdminRouteRoute: typeof AuthenticatedAdminRouteRouteWithChildren
   AuthenticatedApontamentosRoute: typeof AuthenticatedApontamentosRoute
   AuthenticatedAtualizacoesRoute: typeof AuthenticatedAtualizacoesRoute
   AuthenticatedBalanceteRoute: typeof AuthenticatedBalanceteRoute
@@ -295,10 +325,10 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPeriodosRoute: typeof AuthenticatedPeriodosRoute
   AuthenticatedPlanoDeContasRoute: typeof AuthenticatedPlanoDeContasRoute
   AuthenticatedReclassificacoesRoute: typeof AuthenticatedReclassificacoesRoute
-  AuthenticatedUsuariosRoute: typeof AuthenticatedUsuariosRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAdminRouteRoute: AuthenticatedAdminRouteRouteWithChildren,
   AuthenticatedApontamentosRoute: AuthenticatedApontamentosRoute,
   AuthenticatedAtualizacoesRoute: AuthenticatedAtualizacoesRoute,
   AuthenticatedBalanceteRoute: AuthenticatedBalanceteRoute,
@@ -308,7 +338,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPeriodosRoute: AuthenticatedPeriodosRoute,
   AuthenticatedPlanoDeContasRoute: AuthenticatedPlanoDeContasRoute,
   AuthenticatedReclassificacoesRoute: AuthenticatedReclassificacoesRoute,
-  AuthenticatedUsuariosRoute: AuthenticatedUsuariosRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
