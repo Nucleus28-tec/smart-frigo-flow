@@ -190,7 +190,7 @@ export async function generateSuggestions(
   const apiKey = process.env["LOVABLE_API_KEY"];
   if (!apiKey) throw new Error("LOVABLE_API_KEY não configurada para as sugestões de IA.");
 
-  const batchSize = 30;
+  const batchSize = 20;
   const results: AiSuggestion[] = [];
   for (let i = 0; i < accounts.length; i += batchSize) {
     const batch = accounts.slice(i, i + batchSize);

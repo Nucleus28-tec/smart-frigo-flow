@@ -46,7 +46,7 @@ export const suggestReclassifications = createServerFn({ method: "POST" })
       .in("id", accountIds)
       .eq("is_confirmed", false)
       .order("source_name", { ascending: true })
-      .limit(150);
+      .limit(60);
     if (accountsError) throw new Error(accountsError.message);
 
     // Sugestões pendentes já existentes no período (evita duplicar).
