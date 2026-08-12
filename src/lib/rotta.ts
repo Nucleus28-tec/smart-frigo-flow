@@ -53,3 +53,46 @@ export function formatDateTime(value: string | null | undefined) {
     minute: "2-digit",
   });
 }
+
+export const NATURE_OPTIONS = [
+  "ativo_circulante",
+  "ativo_nao_circulante",
+  "passivo_circulante",
+  "passivo_nao_circulante",
+  "patrimonio_liquido",
+  "receita",
+  "custo",
+  "despesa",
+] as const;
+
+export function formatCurrency(value: number | string | null | undefined) {
+  if (value === null || value === undefined || value === "") return "—";
+  const numeric = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numeric)) return "—";
+  return numeric.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 2,
+  });
+}
+
+/** Converte um valor digitado em formato brasileiro para número. */
+export function parseCurrencyInput(input: string): number | null {
+  let text = input.trim();
+  if (!text) return null;
+  let negative = false;
+  if (/^\(.*\)$/.test(text)) {
+    negative = true;
+    text = text.slice(1, -1);
+  }
+  if (text.startsWith("-")) {
+    negative = true;
+    text = text.slice(1);
+  }
+  text = text.replace(/R\$/gi, "").replace(/\s/g, "");
+  if (text.includes(",")) text = text.replace(/\./g, "").replace(",", ".");
+  if (!/^\d*\.?\d+$/.test(text)) return null;
+  const value = Number(text);
+  if (!Number.isFinite(value)) return null;
+  return negative ? -value : value;
+}
