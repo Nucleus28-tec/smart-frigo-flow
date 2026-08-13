@@ -175,11 +175,18 @@ function ImportarPage() {
     onSuccess: (result) => {
       invalidate();
       void queryClient.invalidateQueries({ queryKey: ["recalculation_logs", selectedPeriodId] });
-      if ("firstImport" in result && !result.firstImport) {
+      const merge = result as Partial<{
+        firstImport: boolean;
+        updated: number;
+        inserted: number;
+        removed: number;
+        manualPreserved: number;
+      }>;
+      if (merge.firstImport === false) {
         toast.success(
-          `Recálculo concluído: ${result.updated} valores atualizados, ${result.inserted} novos, ${result.removed} removidos` +
-            (result.manualPreserved > 0
-              ? ` — ${result.manualPreserved} edições manuais preservadas.`
+          `Recálculo concluído: ${merge.updated ?? 0} valores atualizados, ${merge.inserted ?? 0} novos, ${merge.removed ?? 0} removidos` +
+            ((merge.manualPreserved ?? 0) > 0
+              ? ` — ${merge.manualPreserved} edições manuais preservadas.`
               : "."),
           { description: "Veja o detalhe em Atualizações." },
         );
