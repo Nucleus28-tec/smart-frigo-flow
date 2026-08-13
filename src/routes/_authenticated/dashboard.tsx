@@ -369,7 +369,7 @@ function DashboardPage() {
             </CardContent>
           </Card>
         </div>
-      )}
+      ) : null}
 
       {/* Contagens operacionais (RPC get_period_summary) */}
       {summary.isError ? (
