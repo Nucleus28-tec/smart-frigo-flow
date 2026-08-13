@@ -591,7 +591,15 @@ export type Database = {
         }
         Returns: string
       }
+      merge_file_entries: {
+        Args: { _entries: Json; _file_id: string }
+        Returns: Json
+      }
       recalculate_period_indicators: {
+        Args: { _period_id: string }
+        Returns: Json
+      }
+      recalculate_period_indicators_internal: {
         Args: { _period_id: string }
         Returns: Json
       }

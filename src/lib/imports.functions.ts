@@ -181,23 +181,31 @@ export const parseImportedFile = createServerFn({ method: "POST" })
         );
       }
 
-      // Reprocessamento substitui as linhas deste arquivo.
-      await supabaseAdmin.from("ledger_entries").delete().eq("file_id", file.id);
-
-      const rows = entries.map((entry) => ({
-        period_id: file.period_id,
-        file_id: file.id,
+      // Reprocessamento faz merge: preserva edições manuais e registra os diffs.
+      const payload = entries.map((entry) => ({
         source_account_name: entry.source_account_name,
         raw_value: entry.raw_value,
         entry_date: entry.entry_date,
       }));
 
-      for (let i = 0; i < rows.length; i += 500) {
-        const { error: insertError } = await supabaseAdmin
-          .from("ledger_entries")
-          .insert(rows.slice(i, i + 500));
-        if (insertError) throw new Error(insertError.message);
-      }
+      const { data: mergeResult, error: mergeError } = await (
+        supabaseAdmin as unknown as {
+          rpc: (
+            name: string,
+            args: Record<string, unknown>,
+          ) => Promise<{ data: unknown; error: { message: string } | null }>;
+        }
+      ).rpc("merge_file_entries", { _file_id: file.id, _entries: payload });
+      if (mergeError) throw new Error(mergeError.message);
+
+      const merge = (mergeResult ?? {}) as {
+        inserted?: number;
+        updated?: number;
+        removed?: number;
+        manual_preserved?: number;
+        first_import?: boolean;
+        total?: number;
+      };
 
       // Alimenta o plano de contas com as contas do arquivo e vincula os lançamentos.
       const { syncAccountsForPeriod } = await import("@/lib/ledger.server");
@@ -209,13 +217,28 @@ export const parseImportedFile = createServerFn({ method: "POST" })
         .eq("id", file.id);
 
       await context.supabase.rpc("log_activity", {
-        _action: "processou arquivo importado",
+        _action: merge.first_import ? "processou arquivo importado" : "reprocessou arquivo (recálculo)",
         _entity_type: "imported_files",
         _entity_id: file.id,
-        _metadata: { entries: rows.length, original_name: file.original_name },
+        _metadata: {
+          entries: merge.total ?? payload.length,
+          original_name: file.original_name,
+          inserted: merge.inserted ?? 0,
+          updated: merge.updated ?? 0,
+          removed: merge.removed ?? 0,
+          manual_preserved: merge.manual_preserved ?? 0,
+        },
       });
 
-      return { entries: rows.length, status: "processado" as const };
+      return {
+        entries: merge.total ?? payload.length,
+        status: "processado" as const,
+        inserted: merge.inserted ?? 0,
+        updated: merge.updated ?? 0,
+        removed: merge.removed ?? 0,
+        manualPreserved: merge.manual_preserved ?? 0,
+        firstImport: merge.first_import ?? true,
+      };
     } catch (e) {
       const message = e instanceof Error ? e.message : "Erro desconhecido ao processar o arquivo.";
       await supabaseAdmin

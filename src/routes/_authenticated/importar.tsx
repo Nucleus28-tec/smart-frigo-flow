@@ -174,6 +174,24 @@ function ImportarPage() {
     mutationFn: (fileId: string) => parseFile({ data: { file_id: fileId } }),
     onSuccess: (result) => {
       invalidate();
+      void queryClient.invalidateQueries({ queryKey: ["recalculation_logs", selectedPeriodId] });
+      const merge = result as Partial<{
+        firstImport: boolean;
+        updated: number;
+        inserted: number;
+        removed: number;
+        manualPreserved: number;
+      }>;
+      if (merge.firstImport === false) {
+        toast.success(
+          `Recálculo concluído: ${merge.updated ?? 0} valores atualizados, ${merge.inserted ?? 0} novos, ${merge.removed ?? 0} removidos` +
+            ((merge.manualPreserved ?? 0) > 0
+              ? ` — ${merge.manualPreserved} edições manuais preservadas.`
+              : "."),
+          { description: "Veja o detalhe em Atualizações." },
+        );
+        return;
+      }
       toast.success(
         result.entries > 0
           ? `Arquivo processado: ${result.entries} lançamentos gravados.`
