@@ -591,6 +591,10 @@ export type Database = {
         }
         Returns: string
       }
+      recalculate_period_indicators: {
+        Args: { _period_id: string }
+        Returns: Json
+      }
       sync_accounts_for_period: { Args: { _period_id: string }; Returns: Json }
     }
     Enums: {
