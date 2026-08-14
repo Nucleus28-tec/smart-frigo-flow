@@ -58,43 +58,6 @@ function isNature(value: unknown): value is ReclassNature {
   return typeof value === "string" && (RECLASS_NATURES as readonly string[]).includes(value);
 }
 
-async function readGatewayJson(response: Response): Promise<unknown> {
-  const raw = await response.text();
-  // A rota /v1/responses pode responder em SSE quando stream=true; aqui usamos
-  // resposta única, mas mantemos tolerância a ambos os formatos.
-  const trimmed = raw.trimStart();
-  if (trimmed.startsWith("data:") || trimmed.startsWith("event:")) {
-    let text = "";
-    for (const line of raw.split("\n")) {
-      if (!line.startsWith("data:")) continue;
-      const payload = line.slice(5).trim();
-      if (!payload || payload === "[DONE]") continue;
-      try {
-        const event = JSON.parse(payload) as {
-          type?: string;
-          delta?: string;
-          response?: unknown;
-        };
-        if (event.type === "response.output_text.delta" && typeof event.delta === "string") {
-          text += event.delta;
-        }
-      } catch {
-        /* ignora fragmentos inválidos */
-      }
-    }
-    return JSON.parse(text);
-  }
-  const parsed = JSON.parse(raw) as {
-    output_text?: string;
-    output?: Array<{ content?: Array<{ text?: string }> }>;
-  };
-  const text =
-    parsed.output_text ??
-    parsed.output?.flatMap((item) => item.content ?? []).find((c) => c.text)?.text;
-  if (!text) throw new Error("Resposta da IA sem conteúdo.");
-  return JSON.parse(text);
-}
-
 async function suggestBatch(
   apiKey: string,
   accounts: PendingAccount[],
@@ -108,7 +71,7 @@ async function suggestBatch(
     .map((a) => `- id=${a.id} | código=${a.source_code ?? "-"} | conta="${a.source_name}"`)
     .join("\n");
 
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/responses", {
+  const response = await fetch(AI_GATEWAY_CHAT_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -116,31 +79,30 @@ async function suggestBatch(
       "X-Lovable-AIG-SDK": "fetch",
     },
     body: JSON.stringify({
-      model: "openai/gpt-5.6-sol",
+      model: AI_MODEL,
       stream: true,
-      instructions:
-        "Você é um contador brasileiro que classifica contas de um balancete do sistema G2 " +
-        "de um frigorífico. Para cada conta informada, escolha exatamente uma natureza entre: " +
-        `${RECLASS_NATURES.join(", ")}. ` +
-        "Respeite o padrão já aprovado pela empresa quando a conta for semelhante. " +
-        "A justificativa deve ter no máximo duas frases, em português. " +
-        "A confiança é um número entre 0 e 1. Não invente contas: responda apenas os ids recebidos.",
-      input: [
+      messages: [
+        {
+          role: "system",
+          content:
+            "Você é um contador brasileiro que classifica contas de um balancete do sistema G2 " +
+            "de um frigorífico. Para cada conta informada, escolha exatamente uma natureza entre: " +
+            `${RECLASS_NATURES.join(", ")}. ` +
+            "Respeite o padrão já aprovado pela empresa quando a conta for semelhante. " +
+            "A justificativa deve ter no máximo duas frases, em português. " +
+            "A confiança é um número entre 0 e 1. Não invente contas: responda apenas os ids recebidos. " +
+            "Responda em json seguindo o schema informado.",
+        },
         {
           role: "user",
-          content: [
-            {
-              type: "input_text",
-              text:
-                `Padrão já confirmado pela empresa:\n${patternText}\n\n` +
-                `Contas a classificar:\n${accountsText}`,
-            },
-          ],
+          content:
+            `Padrão já confirmado pela empresa:\n${patternText}\n\n` +
+            `Contas a classificar:\n${accountsText}`,
         },
       ],
-      text: {
-        format: {
-          type: "json_schema",
+      response_format: {
+        type: "json_schema",
+        json_schema: {
           name: "reclassificacoes",
           strict: true,
           schema: SUGGESTION_SCHEMA,
@@ -160,7 +122,10 @@ async function suggestBatch(
     throw new Error(`Falha ao gerar sugestões (${response.status}). ${detail.slice(0, 300)}`);
   }
 
-  const parsed = (await readGatewayJson(response)) as {
+  const text = await readChatStream(response);
+  if (!text.trim()) throw new Error("Resposta da IA sem conteúdo.");
+
+  const parsed = JSON.parse(text) as {
     sugestoes?: Array<{
       id?: string;
       natureza?: string;
