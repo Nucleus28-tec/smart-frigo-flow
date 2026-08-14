@@ -158,17 +158,17 @@ function BalancetePage() {
     }
     const sum = (key: string) =>
       (map.get(key) ?? []).reduce((acc, e) => acc + Number(appliedValue(e)), 0);
-    const totals = Object.fromEntries(
-      [...NATURE_OPTIONS, "sem_natureza"].map((key) => [key, sum(key)]),
-    ) as Record<string, number>;
+    const totals: Record<string, number> = {};
+    for (const key of [...NATURE_OPTIONS, "sem_natureza"]) totals[key] = sum(key);
+    const t = (key: string) => totals[key] ?? 0;
 
-    const ativo = Math.abs(totals.ativo_circulante + totals.ativo_nao_circulante);
+    const ativo = Math.abs(t("ativo_circulante") + t("ativo_nao_circulante"));
     const passivoPl = Math.abs(
-      totals.passivo_circulante + totals.passivo_nao_circulante + totals.patrimonio_liquido,
+      t("passivo_circulante") + t("passivo_nao_circulante") + t("patrimonio_liquido"),
     );
-    const receita = Math.abs(totals.receita);
-    const custo = Math.abs(totals.custo);
-    const despesa = Math.abs(totals.despesa);
+    const receita = Math.abs(t("receita"));
+    const custo = Math.abs(t("custo"));
+    const despesa = Math.abs(t("despesa"));
 
     return {
       map,
