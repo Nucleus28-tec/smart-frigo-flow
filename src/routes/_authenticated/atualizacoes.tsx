@@ -1,12 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { Sparkles } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { EmptyState, ErrorState, LoadingRows, PageHeader } from "@/components/PageState";
 import { formatCurrency, formatDateTime } from "@/lib/rotta";
 import { usePeriod } from "@/hooks/usePeriod";
+import { useProfile } from "@/hooks/useProfile";
+import { testAiConnection } from "@/lib/ai.functions";
 
 export const Route = createFileRoute("/_authenticated/atualizacoes")({
   component: AtualizacoesPage,
@@ -104,6 +109,9 @@ function AtualizacoesPage() {
             : "Selecione um período para ver os valores atualizados."
         }
       />
+
+      <AiStatusCard />
+
 
       {!selectedPeriodId ? (
         <EmptyState
@@ -238,5 +246,59 @@ function AtualizacoesPage() {
         </CardContent>
       </Card>
     </>
+  );
+}
+
+function AiStatusCard() {
+  const profile = useProfile();
+  const isAdmin = profile.data?.role === "admin";
+  const runTest = useServerFn(testAiConnection);
+  const test = useMutation({ mutationFn: () => runTest({ data: undefined }) });
+
+  if (!isAdmin) return null;
+
+  const result = test.data;
+
+  return (
+    <Card className="mb-6">
+      <CardHeader className="flex flex-row items-center justify-between gap-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Sparkles className="size-4 text-primary" aria-hidden="true" />
+          Inteligência artificial (Google Gemini)
+        </CardTitle>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => test.mutate()}
+          disabled={test.isPending}
+        >
+          {test.isPending ? "Testando..." : "Testar conexão com a IA"}
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-2 text-sm">
+        <p className="text-muted-foreground">
+          A leitura de PDFs e as sugestões de reclassificação usam a sua própria chave do Google AI
+          Studio, sem depender de créditos da Lovable.
+        </p>
+        {test.isError ? (
+          <p className="text-destructive">
+            {(test.error as Error)?.message ?? "Não foi possível executar o teste."}
+          </p>
+        ) : null}
+        {result ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={result.ok ? "default" : "destructive"}>
+              {result.ok ? "Conectado" : "Falhou"}
+            </Badge>
+            <span className="text-muted-foreground">
+              Modelo {result.model} · {result.latencyMs} ms
+            </span>
+            <span className={result.ok ? "text-muted-foreground" : "text-destructive"}>
+              {result.message}
+            </span>
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
   );
 }
