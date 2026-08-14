@@ -63,7 +63,9 @@ function ApontamentosPage() {
   });
 
   const rows = findings.data ?? [];
-  const { isAdmin } = useProfile();
+  const { data: profile } = useProfile();
+  const isAdmin = profile?.role === "admin";
+
   const detect = useServerFn(detectInconsistencies);
   const detectMutation = useMutation({
     mutationFn: async () => detect({ data: { period_id: selectedPeriodId! } }),
