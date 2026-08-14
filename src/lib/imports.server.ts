@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import { AI_GATEWAY_CHAT_URL, AI_MODEL, readChatStream } from "./ai-model";
 
 export type ParsedEntry = {
   source_account_code: string | null;
@@ -186,7 +187,7 @@ export async function parsePdfWithAi(
   const base64 = bytesToBase64(new Uint8Array(bytes));
   if (!base64) throw new Error("Arquivo PDF vazio.");
 
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/responses", {
+  const response = await fetch(AI_GATEWAY_CHAT_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -194,33 +195,39 @@ export async function parsePdfWithAi(
       "X-Lovable-AIG-SDK": "fetch",
     },
     body: JSON.stringify({
-      model: "openai/gpt-5.6-sol",
+      model: AI_MODEL,
       stream: true,
-      instructions:
-        "Você extrai lançamentos de balancetes contábeis brasileiros exportados do sistema G2. " +
-        "Retorne TODAS as linhas de conta do documento, sem inventar dados. " +
-        "Ignore cabeçalhos, rodapés e linhas de totalização geral. " +
-        "O campo valor deve ser o saldo atual/final da conta em número (negativo quando devedor for indicado por D, parênteses ou sinal). " +
-        "O campo data usa o formato AAAA-MM-DD e vem nulo quando não existir no documento.",
-      input: [
+      messages: [
+        {
+          role: "system",
+          content:
+            "Você extrai lançamentos de balancetes contábeis brasileiros exportados do sistema G2. " +
+            "Retorne TODAS as linhas de conta do documento, sem inventar dados. " +
+            "Ignore cabeçalhos, rodapés e linhas de totalização geral. " +
+            "O campo valor deve ser o saldo atual/final da conta em número (negativo quando devedor for indicado por D, parênteses ou sinal). " +
+            "O campo data usa o formato AAAA-MM-DD e vem nulo quando não existir no documento. " +
+            "Responda em json seguindo o schema informado.",
+        },
         {
           role: "user",
           content: [
             {
-              type: "input_text",
+              type: "text",
               text: "Extraia todas as contas e valores deste balancete.",
             },
             {
-              type: "input_file",
-              filename,
-              file_data: `data:${mimeType};base64,${base64}`,
+              type: "file",
+              file: {
+                filename,
+                file_data: `data:${mimeType};base64,${base64}`,
+              },
             },
           ],
         },
       ],
-      text: {
-        format: {
-          type: "json_schema",
+      response_format: {
+        type: "json_schema",
+        json_schema: {
           name: "balancete",
           strict: true,
           schema: EXTRACTION_SCHEMA,
@@ -236,38 +243,7 @@ export async function parsePdfWithAi(
     throw new Error(`Falha na leitura do PDF pela IA (${response.status}). ${detail.slice(0, 300)}`);
   }
 
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let text = "";
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const parts = buffer.split("\n\n");
-    buffer = parts.pop() ?? "";
-    for (const part of parts) {
-      const line = part.split("\n").find((l) => l.startsWith("data:"));
-      if (!line) continue;
-      const payload = line.slice(5).trim();
-      if (!payload || payload === "[DONE]") continue;
-      try {
-        const event = JSON.parse(payload) as {
-          type?: string;
-          delta?: string;
-          response?: { output_text?: string };
-        };
-        if (event.type === "response.output_text.delta" && typeof event.delta === "string") {
-          text += event.delta;
-        } else if (event.type === "response.completed" && event.response?.output_text) {
-          if (!text) text = event.response.output_text;
-        }
-      } catch {
-        // ignora eventos não-JSON
-      }
-    }
-  }
+  const text = await readChatStream(response);
 
   if (!text.trim()) throw new Error("A IA não retornou conteúdo para este PDF.");
 
