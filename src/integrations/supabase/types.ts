@@ -599,6 +599,7 @@ export type Database = {
         Args: { _entries: Json; _file_id: string }
         Returns: Json
       }
+      nightly_refresh_periods: { Args: never; Returns: Json }
       recalculate_period_indicators: {
         Args: { _period_id: string }
         Returns: Json
