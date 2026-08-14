@@ -263,6 +263,11 @@ function UsuariosPage() {
           message={(users.error as Error)?.message}
           onRetry={() => void users.refetch()}
         />
+      ) : (users.data ?? []).length === 0 ? (
+        <EmptyState
+          title="Nenhum usuário cadastrado"
+          description="Use “Novo usuário” para criar o primeiro acesso da equipe e gerar o link de convite."
+        />
       ) : (
         <Card>
           <CardContent className="p-0">
