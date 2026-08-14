@@ -95,7 +95,6 @@ async function suggestBatch(
       },
     ],
   });
-  };
 
   const validIds = new Set(accounts.map((a) => a.id));
   const out: AiSuggestion[] = [];
