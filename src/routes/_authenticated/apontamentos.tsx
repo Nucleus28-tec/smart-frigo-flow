@@ -1,10 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { usePeriod } from "@/hooks/usePeriod";
+import { useProfile } from "@/hooks/useProfile";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -15,6 +19,8 @@ import {
 } from "@/components/ui/table";
 import { EmptyState, ErrorState, LoadingRows, PageHeader } from "@/components/PageState";
 import { formatDateTime } from "@/lib/rotta";
+import { detectInconsistencies } from "@/lib/audit.functions";
+
 
 type Finding = {
   id: string;
