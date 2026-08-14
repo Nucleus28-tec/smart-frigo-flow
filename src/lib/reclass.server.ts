@@ -119,14 +119,11 @@ export async function generateSuggestions(
   accounts: PendingAccount[],
   patterns: ConfirmedPattern[],
 ): Promise<AiSuggestion[]> {
-  const apiKey = process.env["LOVABLE_API_KEY"];
-  if (!apiKey) throw new Error("LOVABLE_API_KEY não configurada para as sugestões de IA.");
-
   const batchSize = 20;
   const results: AiSuggestion[] = [];
   for (let i = 0; i < accounts.length; i += batchSize) {
     const batch = accounts.slice(i, i + batchSize);
-    results.push(...(await suggestBatch(apiKey, batch, patterns)));
+    results.push(...(await suggestBatch(batch, patterns)));
   }
   return results;
 }
