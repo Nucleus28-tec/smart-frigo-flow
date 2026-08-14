@@ -11,6 +11,7 @@ import { usePeriod } from "@/hooks/usePeriod";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Select,
@@ -86,6 +87,8 @@ function ReclassificacoesPage() {
 
   const [status, setStatus] = useState("pendente");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [bulk, setBulk] = useState<{ done: number; total: number } | null>(null);
 
   const generate = useServerFn(suggestReclassifications);
   const decide = useServerFn(applyReclassificationDecision);
@@ -145,6 +148,55 @@ function ReclassificacoesPage() {
     () => rows.filter((r) => r.status === "pendente").length,
     [rows],
   );
+  const pendingIds = useMemo(
+    () => rows.filter((r) => r.status === "pendente").map((r) => r.id),
+    [rows],
+  );
+  const selectedSet = useMemo(() => new Set(selected), [selected]);
+  const selectedPending = pendingIds.filter((id) => selectedSet.has(id));
+  const allSelected = pendingIds.length > 0 && selectedPending.length === pendingIds.length;
+
+  function toggleRow(id: string, checked: boolean) {
+    setSelected((prev) => (checked ? [...prev, id] : prev.filter((x) => x !== id)));
+  }
+
+  function toggleAll(checked: boolean) {
+    setSelected(checked ? pendingIds : []);
+  }
+
+  async function runBulk(decision: "aprovada" | "rejeitada") {
+    const ids = selectedPending;
+    if (!ids.length) return;
+    setBulk({ done: 0, total: ids.length });
+    let ok = 0;
+    let failed = 0;
+    for (const id of ids) {
+      try {
+        await decide({ data: { suggestion_id: id, decision } });
+        ok += 1;
+      } catch {
+        failed += 1;
+      }
+      setBulk((prev) => (prev ? { ...prev, done: prev.done + 1 } : prev));
+    }
+    setBulk(null);
+    setSelected([]);
+    void queryClient.invalidateQueries({ queryKey: ["reclassification_suggestions"] });
+    void queryClient.invalidateQueries({ queryKey: ["chart_of_accounts"] });
+    void queryClient.invalidateQueries({ queryKey: ["ledger_entries"] });
+    if (failed) {
+      toast.warning(
+        `${ok} sugestão(ões) processada(s), ${failed} falhou(aram).`,
+      );
+    } else {
+      toast.success(
+        decision === "aprovada"
+          ? `${ok} sugestão(ões) aprovada(s).`
+          : `${ok} sugestão(ões) rejeitada(s).`,
+      );
+    }
+  }
+
 
   return (
     <>
@@ -193,6 +245,40 @@ function ReclassificacoesPage() {
             ) : null}
           </div>
 
+          {isAdmin && selectedPending.length > 0 ? (
+            <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border bg-card p-3">
+              <span className="text-sm font-medium">
+                {selectedPending.length} selecionada(s)
+              </span>
+              <Button size="sm" disabled={Boolean(bulk)} onClick={() => void runBulk("aprovada")}>
+                {bulk ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Check className="size-4" />
+                )}
+                {bulk ? `Aprovando ${bulk.done}/${bulk.total}` : "Aprovar selecionadas"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={Boolean(bulk)}
+                onClick={() => void runBulk("rejeitada")}
+              >
+                <X className="size-4" />
+                Rejeitar selecionadas
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={Boolean(bulk)}
+                onClick={() => setSelected([])}
+              >
+                Limpar seleção
+              </Button>
+            </div>
+          ) : null}
+
+
           {profileLoading || isAdmin ? null : (
             <Alert className="mb-4">
               <Lock className="size-4" />
@@ -229,6 +315,16 @@ function ReclassificacoesPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      {isAdmin ? (
+                        <TableHead className="w-10">
+                          <Checkbox
+                            checked={allSelected}
+                            disabled={pendingIds.length === 0 || Boolean(bulk)}
+                            onCheckedChange={(v) => toggleAll(v === true)}
+                            aria-label="Selecionar todas as pendentes"
+                          />
+                        </TableHead>
+                      ) : null}
                       <TableHead>Conta</TableHead>
                       <TableHead>Natureza atual</TableHead>
                       <TableHead>Sugestão</TableHead>
@@ -240,7 +336,20 @@ function ReclassificacoesPage() {
                   <TableBody>
                     {rows.map((row) => (
                       <TableRow key={row.id}>
+                        {isAdmin ? (
+                          <TableCell>
+                            {row.status === "pendente" ? (
+                              <Checkbox
+                                checked={selectedSet.has(row.id)}
+                                disabled={Boolean(bulk)}
+                                onCheckedChange={(v) => toggleRow(row.id, v === true)}
+                                aria-label="Selecionar sugestão"
+                              />
+                            ) : null}
+                          </TableCell>
+                        ) : null}
                         <TableCell className="font-medium">
+
                           {row.chart_of_accounts?.source_name ?? "Conta removida"}
                           {row.chart_of_accounts?.source_code ? (
                             <span className="ml-2 text-xs text-muted-foreground">
