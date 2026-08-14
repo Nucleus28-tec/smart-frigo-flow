@@ -54,7 +54,7 @@ export const detectInconsistencies = createServerFn({ method: "POST" })
         findings.push({
           ...base,
           entry_id: row.id,
-          finding_type: "valor_zerado",
+          finding_type: "valor_divergente",
           description: `A conta "${row.source_account_name}" está com saldo zero no balancete.`,
           suggested_fix: "Confira no G2 se a conta deveria ter movimento no período.",
           severity: "baixa",
@@ -64,7 +64,7 @@ export const detectInconsistencies = createServerFn({ method: "POST" })
         findings.push({
           ...base,
           entry_id: row.id,
-          finding_type: "sinal_invertido",
+          finding_type: "lancamento_incorreto",
           description: `Receita "${row.source_account_name}" com saldo devedor (${value}).`,
           suggested_fix: "Verifique o lançamento na origem (G2): receita deve ter saldo credor.",
           severity: "media",
@@ -74,7 +74,7 @@ export const detectInconsistencies = createServerFn({ method: "POST" })
         findings.push({
           ...base,
           entry_id: row.id,
-          finding_type: "sinal_invertido",
+          finding_type: "lancamento_incorreto",
           description: `${row.nature === "custo" ? "Custo" : "Despesa"} "${row.source_account_name}" com saldo credor invertido (${value}).`,
           suggested_fix: "Confira estornos ou classificação da conta no G2.",
           severity: "media",
@@ -93,7 +93,7 @@ export const detectInconsistencies = createServerFn({ method: "POST" })
         findings.push({
           ...base,
           entry_id: null,
-          finding_type: "conta_duplicada",
+          finding_type: "duplicidade",
           description: `A conta "${name}" aparece ${count} vezes no período.`,
           suggested_fix: "Confirme no G2 se a exportação duplicou linhas do balancete.",
           severity: "media",
@@ -116,7 +116,7 @@ export const detectInconsistencies = createServerFn({ method: "POST" })
       findings.push({
         ...base,
         entry_id: null,
-        finding_type: "balanco_desbalanceado",
+        finding_type: "valor_divergente",
         description: `Ativo (${ativo.toFixed(2)}) diferente de Passivo + PL (${passivoPl.toFixed(2)}).`,
         suggested_fix: "Revise a classificação das contas e os saldos importados do G2.",
         severity: "alta",
