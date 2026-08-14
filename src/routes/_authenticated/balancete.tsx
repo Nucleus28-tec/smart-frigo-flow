@@ -381,6 +381,19 @@ function BalancetePage() {
     return (
       <Fragment key={key}>
         <TableRow className="bg-muted/60 hover:bg-muted/60">
+          <TableCell className="w-[44px] pl-4">
+            <Checkbox
+              checked={list.every((e) => selected.has(e.id))}
+              disabled={isClosed}
+              aria-label={`Selecionar todas as contas de ${label}`}
+              onCheckedChange={(checked) =>
+                setManySelected(
+                  list.map((e) => e.id),
+                  checked === true,
+                )
+              }
+            />
+          </TableCell>
           <TableCell colSpan={4}>
             <button
               type="button"
@@ -411,7 +424,7 @@ function BalancetePage() {
   function renderGroupTotal(label: string, value: number) {
     return (
       <TableRow className="border-t-2 border-border hover:bg-transparent">
-        <TableCell colSpan={4} className="text-sm font-semibold uppercase tracking-wide">
+        <TableCell colSpan={5} className="text-sm font-semibold uppercase tracking-wide">
           {label}
         </TableCell>
         <TableCell className="text-right font-semibold tabular-nums">
