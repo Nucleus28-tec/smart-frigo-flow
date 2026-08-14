@@ -1,6 +1,7 @@
 /** Roteador unificado de IA: alterna entre Gemini próprio e Lovable AI Gateway,
  *  com fallback automático quando o provedor ativo falha. */
 import { callLovableAi, type AiPart as LovableAiPart } from "./ai-lovable.server";
+import { parseAiJson } from "./ai-json";
 import { callGemini, callGeminiJson } from "./ai-model";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
