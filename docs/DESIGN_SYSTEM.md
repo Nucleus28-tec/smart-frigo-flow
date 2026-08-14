@@ -43,3 +43,20 @@ Nunca usar cores hardcoded (`text-white`, `bg-[#...]`) — sempre tokens.
 - **Badges**: pílulas suaves — `brand`/`success` verde claro, `warning` âmbar, `destructive` vermelho claro, `outline` neutro.
 - **Sidebar**: branca com borda direita, item ativo em bloco preto com ícone verde, demais itens cinza-escuro.
 - **Estados**: skeletons cinza, vazio com ícone em círculo verde claro, erro em caixa vermelha suave.
+
+## Temas claro e noite
+
+- `ThemeProvider` (`src/hooks/useTheme.tsx`) aplica a classe `dark` no `<html>`; modos: claro, noite e sistema, persistidos em `localStorage` (`rotta-theme`).
+- Script inline no `__root.tsx` aplica o tema antes da primeira pintura (sem flash).
+- `ThemeToggle` fica no header do app e no canto da tela de login.
+
+## Iluminação verde (hover/focus)
+
+Utilitários em `src/styles.css`, baseados nos tokens `--glow-border`, `--glow-tint`, `--glow-soft`, `--glow-ring`, `--glow-strong-shadow` (mais intensos no tema noite):
+
+- `glow-interactive` — inputs, textareas e select: borda verde no hover, halo verde no foco.
+- `glow-surface` — cards e botões outline: borda verde suave + brilho no hover.
+- `glow-row` — linhas de tabela: fundo verde tênue + faixa verde à esquerda.
+- `glow-strong` — botões primário/brand: glow verde no hover.
+
+`prefers-reduced-motion` desativa as transições mantendo as cores.
