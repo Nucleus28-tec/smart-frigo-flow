@@ -1,10 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { usePeriod } from "@/hooks/usePeriod";
+import { useProfile } from "@/hooks/useProfile";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -15,6 +19,8 @@ import {
 } from "@/components/ui/table";
 import { EmptyState, ErrorState, LoadingRows, PageHeader } from "@/components/PageState";
 import { formatDateTime } from "@/lib/rotta";
+import { detectInconsistencies } from "@/lib/audit.functions";
+
 
 type Finding = {
   id: string;
@@ -57,6 +63,18 @@ function ApontamentosPage() {
   });
 
   const rows = findings.data ?? [];
+  const { data: profile } = useProfile();
+  const isAdmin = profile?.role === "admin";
+
+  const detect = useServerFn(detectInconsistencies);
+  const detectMutation = useMutation({
+    mutationFn: async () => detect({ data: { period_id: selectedPeriodId! } }),
+    onSuccess: (result: { created: number }) => {
+      toast.success(`${result.created} apontamento(s) atualizado(s).`);
+      void findings.refetch();
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
 
   return (
     <>
@@ -67,7 +85,18 @@ function ApontamentosPage() {
             ? `Inconsistências detectadas em ${selectedPeriod.label}, com sugestão de correção na origem (G2).`
             : "Inconsistências detectadas no período, com sugestão de correção na origem (G2)."
         }
+        actions={
+          isAdmin && selectedPeriodId ? (
+            <Button
+              onClick={() => detectMutation.mutate()}
+              disabled={detectMutation.isPending}
+            >
+              {detectMutation.isPending ? "Verificando…" : "Verificar inconsistências"}
+            </Button>
+          ) : null
+        }
       />
+
 
       {!selectedPeriodId ? (
         <EmptyState

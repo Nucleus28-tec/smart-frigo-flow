@@ -14,9 +14,12 @@ export type GeminiCallOptions = {
   /** Schema no dialeto `responseSchema` do Gemini; quando presente força saída JSON. */
   schema?: unknown;
   model?: string;
+  /** Limite de tokens da resposta (padrão alto para extrações longas). */
+  maxOutputTokens?: number;
   /** Prefixo usado nas mensagens de erro mostradas ao usuário. */
   errorContext?: string;
 };
+
 
 function geminiApiKey(): string {
   const key = process.env["GEMINI_API_KEY"];
@@ -62,12 +65,16 @@ export async function callGemini(options: GeminiCallOptions): Promise<string> {
   if (options.systemInstruction) {
     body["systemInstruction"] = { parts: [{ text: options.systemInstruction }] };
   }
+  const generationConfig: Record<string, unknown> = {
+    maxOutputTokens: options.maxOutputTokens ?? 65536,
+    temperature: 0,
+  };
   if (options.schema) {
-    body["generationConfig"] = {
-      responseMimeType: "application/json",
-      responseSchema: options.schema,
-    };
+    generationConfig["responseMimeType"] = "application/json";
+    generationConfig["responseSchema"] = options.schema;
   }
+  body["generationConfig"] = generationConfig;
+
 
   const response = await fetch(`${GEMINI_BASE_URL}/${model}:generateContent`, {
     method: "POST",
@@ -84,7 +91,10 @@ export async function callGemini(options: GeminiCallOptions): Promise<string> {
   }
 
   const payload = (await response.json()) as {
-    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+    candidates?: Array<{
+      content?: { parts?: Array<{ text?: string }> };
+      finishReason?: string;
+    }>;
     promptFeedback?: { blockReason?: string };
   };
 
@@ -92,12 +102,18 @@ export async function callGemini(options: GeminiCallOptions): Promise<string> {
     throw new Error(`${context}: conteúdo bloqueado pelo Gemini (${payload.promptFeedback.blockReason}).`);
   }
 
-  const text = (payload.candidates?.[0]?.content?.parts ?? [])
-    .map((part) => part.text ?? "")
-    .join("");
+  const candidate = payload.candidates?.[0];
+  const text = (candidate?.content?.parts ?? []).map((part) => part.text ?? "").join("");
+
+  if (candidate?.finishReason === "MAX_TOKENS") {
+    throw new Error(
+      `${context}: a resposta da IA foi truncada por tamanho. O documento será lido em partes menores.`,
+    );
+  }
 
   return text;
 }
+
 
 /** Chama o Gemini com schema e devolve o JSON já interpretado. */
 export async function callGeminiJson<T>(options: GeminiCallOptions & { schema: unknown }): Promise<T> {
