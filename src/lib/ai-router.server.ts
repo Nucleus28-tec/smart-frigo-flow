@@ -97,9 +97,7 @@ function toLovableParts(parts: AiPart[]): LovableAiPart[] {
   });
 }
 
-function buildLovableOptions(
-  options: AiCallOptions,
-): LovableAiPart[] | Record<string, unknown> {
+function buildLovableOptions(options: AiCallOptions): Record<string, unknown> {
   const base: Record<string, unknown> = {
     parts: toLovableParts(options.parts),
     schema: options.schema,
