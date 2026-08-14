@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
-import { usePeriodContext } from "@/hooks/usePeriod";
+import { usePeriod } from "@/hooks/usePeriod";
 import { useProfile } from "@/hooks/useProfile";
 import { exportReport, generateStatements } from "@/lib/reports.functions";
 import { formatCurrency } from "@/lib/rotta";
@@ -67,8 +67,8 @@ function StatementCard({ statement }: { statement: Statement }) {
 }
 
 function DemonstrativosPage() {
-  const { selectedPeriod } = usePeriodContext();
-  const { profile } = useProfile();
+  const { selectedPeriod } = usePeriod();
+  const { data: profile } = useProfile();
   const isAdmin = profile?.role === "admin";
   const queryClient = useQueryClient();
   const periodId = selectedPeriod?.id ?? null;
