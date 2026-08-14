@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import { callGeminiJson } from "./ai-model";
+import { callAiJson } from "./ai-router.server";
 
 export type ParsedEntry = {
   source_account_code: string | null;
@@ -220,13 +220,13 @@ async function splitPdfPages(bytes: ArrayBuffer): Promise<Uint8Array[]> {
 }
 
 async function readPdfChunk(data: string, mimeType: string): Promise<ParsedEntry[]> {
-  const parsed = await callGeminiJson<{ entries?: Array<Record<string, unknown>> }>({
+  const parsed = await callAiJson<{ entries?: Array<Record<string, unknown>> }>({
     errorContext: "Leitura do PDF",
     schema: EXTRACTION_SCHEMA,
     systemInstruction: SYSTEM_INSTRUCTION,
     parts: [
-      { text: "Extraia todas as contas e valores das páginas deste balancete." },
-      { inline_data: { mime_type: mimeType, data } },
+      { type: "text", text: "Extraia todas as contas e valores das páginas deste balancete." },
+      { type: "file", mimeType, data },
     ],
   });
   return mapAiRows(parsed.entries ?? []);

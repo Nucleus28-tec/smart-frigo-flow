@@ -1,5 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import {
   BarChart3,
@@ -15,6 +15,7 @@ import {
   LogOut,
   Menu,
   X,
+  Bot,
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -33,6 +34,8 @@ import {
 } from "@/components/ui/select";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
+import { useServerFn } from "@tanstack/react-start";
+import { getAiProvider, setAiProvider } from "@/lib/ai-settings.functions";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: BarChart3, adminOnly: false },
@@ -56,6 +59,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
 
   const isAdmin = profile?.role === "admin";
+
+  const fetchProvider = useServerFn(getAiProvider);
+  const saveProvider = useServerFn(setAiProvider);
+
+  const { data: providerData, isLoading: isLoadingProvider } = useQuery({
+    queryKey: ["ai-provider"],
+    queryFn: () => fetchProvider(),
+    enabled: isAdmin,
+  });
+
+  const providerMutation = useMutation({
+    mutationFn: (provider: "gemini" | "lovable") =>
+      saveProvider({ data: { provider } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ai-provider"] });
+    },
+  });
 
   async function handleSignOut() {
     await queryClient.cancelQueries();
@@ -178,6 +198,30 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="ml-auto flex items-center gap-3">
+            {isAdmin && (
+              <div className="hidden items-center gap-2 sm:flex">
+                <Bot className="size-4 text-muted-foreground" />
+                {isLoadingProvider ? (
+                  <Skeleton className="h-9 w-40" />
+                ) : (
+                  <Select
+                    value={providerData?.provider ?? "gemini"}
+                    onValueChange={(value) =>
+                      providerMutation.mutate(value as "gemini" | "lovable")
+                    }
+                    disabled={providerMutation.isPending}
+                  >
+                    <SelectTrigger className="w-44">
+                      <SelectValue placeholder="Provedor de IA" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="gemini">Gemini (própria)</SelectItem>
+                      <SelectItem value="lovable">Lovable AI Gateway</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            )}
             {isLoading ? (
               <Skeleton className="h-8 w-40" />
             ) : (
