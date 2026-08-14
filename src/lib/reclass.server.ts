@@ -1,4 +1,5 @@
 /** Geração de sugestões de reclassificação via IA (Lovable AI Gateway). */
+import { AI_GATEWAY_CHAT_URL, AI_MODEL, readChatStream } from "./ai-model";
 
 export const RECLASS_NATURES = [
   "ativo_circulante",
