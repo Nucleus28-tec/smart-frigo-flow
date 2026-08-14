@@ -14,7 +14,7 @@ export function LoadingRows({ rows = 5 }: { rows?: number }) {
 
 export function ErrorState({ message, onRetry }: { message?: string; onRetry?: () => void }) {
   return (
-    <div className="flex items-start gap-3 rounded-md border border-destructive/40 bg-destructive/10 p-4">
+    <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/8 p-4">
       <AlertTriangle className="mt-0.5 size-5 text-destructive" />
       <div className="flex-1">
         <p className="text-sm font-medium text-destructive">Não foi possível carregar os dados</p>
@@ -41,9 +41,9 @@ export function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-card px-6 py-14 text-center">
-      <div className="mb-3 rounded-full bg-muted p-3">
-        <Inbox className="size-6 text-muted-foreground" />
+    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-surface px-6 py-16 text-center">
+      <div className="mb-3 rounded-full bg-brand-soft p-3">
+        <Inbox className="size-6 text-brand-soft-foreground" />
       </div>
       <h3 className="text-base font-semibold text-foreground">{title}</h3>
       {description ? (
@@ -66,7 +66,7 @@ export function PageHeader({
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
+        <h1 className="text-2xl font-semibold tracking-[-0.02em] text-foreground lg:text-[28px]">{title}</h1>
         {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
       </div>
       {actions ? <div className="flex gap-2">{actions}</div> : null}
