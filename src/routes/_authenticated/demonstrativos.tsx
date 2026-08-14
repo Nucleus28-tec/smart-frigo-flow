@@ -128,11 +128,10 @@ function DemonstrativosPage() {
       />
 
       {!periodId ? (
-        <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            Selecione um período contábil para visualizar os demonstrativos.
-          </CardContent>
-        </Card>
+        <EmptyState
+          title="Nenhum período selecionado"
+          description="Escolha um período contábil no topo da tela para visualizar DRE, Balanço e Fluxo de Caixa."
+        />
       ) : (
         <div className="space-y-6">
           <div className="flex flex-wrap items-center gap-2">
