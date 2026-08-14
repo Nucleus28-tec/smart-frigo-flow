@@ -267,7 +267,15 @@ function BalancetePage() {
         key={entry.id}
         className={entry.is_manually_edited ? "bg-amber-500/10 hover:bg-amber-500/15" : ""}
       >
-        <TableCell className="pl-8 font-medium">
+        <TableCell className="w-[44px] pl-4">
+          <Checkbox
+            checked={selected.has(entry.id)}
+            disabled={isClosed}
+            aria-label={`Selecionar ${entry.source_account_name}`}
+            onCheckedChange={() => toggleSelected(entry.id)}
+          />
+        </TableCell>
+        <TableCell className="pl-2 font-medium">
           <span className="block">{entry.source_account_name}</span>
           {entry.is_manually_edited ? (
             <Badge variant="outline" className="mt-1 border-amber-500/60">
