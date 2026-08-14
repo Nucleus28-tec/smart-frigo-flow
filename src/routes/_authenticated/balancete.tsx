@@ -559,11 +559,66 @@ function BalancetePage() {
             </p>
           ) : null}
 
+          {selected.size > 0 ? (
+            <div className="sticky top-2 z-20 mb-4 flex flex-col gap-3 rounded-md border border-primary/40 bg-card px-4 py-3 shadow-sm sm:flex-row sm:items-center">
+              <span className="text-sm font-medium">
+                {selected.size} conta(s) selecionada(s)
+              </span>
+              <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                <Select value={bulkNature} onValueChange={setBulkNature}>
+                  <SelectTrigger className="sm:w-[240px]" aria-label="Natureza para aplicar em massa">
+                    <SelectValue placeholder="Escolha a natureza" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {NATURE_OPTIONS.map((nature) => (
+                      <SelectItem key={nature} value={nature}>
+                        {NATURE_LABEL[nature]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  disabled={isClosed || !bulkNature || bulkProgress !== null}
+                  onClick={() => void applyBulkNature()}
+                >
+                  {bulkProgress ? (
+                    <>
+                      <Loader2 className="mr-2 size-4 animate-spin" />
+                      {bulkProgress.done}/{bulkProgress.total}
+                    </>
+                  ) : (
+                    "Classificar selecionadas"
+                  )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  disabled={bulkProgress !== null}
+                  onClick={() => setSelected(new Set())}
+                >
+                  Limpar
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
           <Card>
             <CardContent className="p-0">
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[44px] pl-4">
+                      <Checkbox
+                        checked={allVisibleSelected}
+                        disabled={isClosed}
+                        aria-label="Selecionar todas as contas visíveis"
+                        onCheckedChange={(checked) =>
+                          setManySelected(
+                            rows.map((e) => e.id),
+                            checked === true,
+                          )
+                        }
+                      />
+                    </TableHead>
                     <TableHead>Conta</TableHead>
                     <TableHead className="w-[230px]">Natureza</TableHead>
                     <TableHead className="text-right">Valor bruto</TableHead>
