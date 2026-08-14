@@ -65,12 +65,16 @@ export async function callGemini(options: GeminiCallOptions): Promise<string> {
   if (options.systemInstruction) {
     body["systemInstruction"] = { parts: [{ text: options.systemInstruction }] };
   }
+  const generationConfig: Record<string, unknown> = {
+    maxOutputTokens: options.maxOutputTokens ?? 65536,
+    temperature: 0,
+  };
   if (options.schema) {
-    body["generationConfig"] = {
-      responseMimeType: "application/json",
-      responseSchema: options.schema,
-    };
+    generationConfig["responseMimeType"] = "application/json";
+    generationConfig["responseSchema"] = options.schema;
   }
+  body["generationConfig"] = generationConfig;
+
 
   const response = await fetch(`${GEMINI_BASE_URL}/${model}:generateContent`, {
     method: "POST",
