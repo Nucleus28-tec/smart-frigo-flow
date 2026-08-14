@@ -78,6 +78,7 @@ function BalancetePage() {
   const [onlyEdited, setOnlyEdited] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftValue, setDraftValue] = useState("");
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   const isClosed = selectedPeriod?.status === "fechado";
   const saveEntry = useServerFn(updateLedgerEntry);
