@@ -22,7 +22,6 @@ function applyTheme(mode: ThemeMode) {
   if (typeof document === "undefined") return "light" as const;
   const dark = mode === "dark" || (mode === "system" && systemPrefersDark());
   document.documentElement.classList.toggle("dark", dark);
-  document.documentElement.style.colorScheme = dark ? "dark" : "light";
   return dark ? ("dark" as const) : ("light" as const);
 }
 
