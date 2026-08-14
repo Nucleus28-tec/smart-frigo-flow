@@ -244,9 +244,3 @@ export async function callLovableAiJson<T>(
   if (!text.trim()) throw new Error(`${context}: a IA não retornou conteúdo.`);
   return parseAiJson<T>(text, context);
 }
-
-    return JSON.parse(text) as T;
-  } catch {
-    throw new Error(`${context}: não foi possível interpretar o retorno da IA.`);
-  }
-}
