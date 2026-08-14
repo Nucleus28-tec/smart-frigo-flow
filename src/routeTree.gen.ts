@@ -25,6 +25,7 @@ import { Route as AuthenticatedPlanoDeContasRouteImport } from './routes/_authen
 import { Route as AuthenticatedReclassificacoesRouteImport } from './routes/_authenticated/reclassificacoes'
 import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated/_admin/usuarios'
 import { Route as AuthenticatedAgentesIndexRouteImport } from './routes/_authenticated/agentes/index'
+import { Route as AuthenticatedAgentesThreadIdRouteImport } from './routes/_authenticated/agentes/$threadId'
 import { Route as ApiAgentsChatRouteImport } from './routes/api/agents/chat'
 import { Route as ApiPublicHooksNightlyDailyRefreshRouteImport } from './routes/api/public/hooks/nightly-daily-refresh'
 
@@ -113,6 +114,12 @@ const AuthenticatedAgentesIndexRoute =
     path: '/agentes/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAgentesThreadIdRoute =
+  AuthenticatedAgentesThreadIdRouteImport.update({
+    id: '/agentes/$threadId',
+    path: '/agentes/$threadId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiAgentsChatRoute = ApiAgentsChatRouteImport.update({
   id: '/api/agents/chat',
   path: '/api/agents/chat',
@@ -139,6 +146,7 @@ export interface FileRoutesByFullPath {
   '/plano-de-contas': typeof AuthenticatedPlanoDeContasRoute
   '/reclassificacoes': typeof AuthenticatedReclassificacoesRoute
   '/usuarios': typeof AuthenticatedAdminUsuariosRoute
+  '/agentes/$threadId': typeof AuthenticatedAgentesThreadIdRoute
   '/api/agents/chat': typeof ApiAgentsChatRoute
   '/agentes/': typeof AuthenticatedAgentesIndexRoute
   '/api/public/hooks/nightly-daily-refresh': typeof ApiPublicHooksNightlyDailyRefreshRoute
@@ -157,6 +165,7 @@ export interface FileRoutesByTo {
   '/plano-de-contas': typeof AuthenticatedPlanoDeContasRoute
   '/reclassificacoes': typeof AuthenticatedReclassificacoesRoute
   '/usuarios': typeof AuthenticatedAdminUsuariosRoute
+  '/agentes/$threadId': typeof AuthenticatedAgentesThreadIdRoute
   '/api/agents/chat': typeof ApiAgentsChatRoute
   '/agentes': typeof AuthenticatedAgentesIndexRoute
   '/api/public/hooks/nightly-daily-refresh': typeof ApiPublicHooksNightlyDailyRefreshRoute
@@ -178,6 +187,7 @@ export interface FileRoutesById {
   '/_authenticated/plano-de-contas': typeof AuthenticatedPlanoDeContasRoute
   '/_authenticated/reclassificacoes': typeof AuthenticatedReclassificacoesRoute
   '/_authenticated/_admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
+  '/_authenticated/agentes/$threadId': typeof AuthenticatedAgentesThreadIdRoute
   '/api/agents/chat': typeof ApiAgentsChatRoute
   '/_authenticated/agentes/': typeof AuthenticatedAgentesIndexRoute
   '/api/public/hooks/nightly-daily-refresh': typeof ApiPublicHooksNightlyDailyRefreshRoute
@@ -198,6 +208,7 @@ export interface FileRouteTypes {
     | '/plano-de-contas'
     | '/reclassificacoes'
     | '/usuarios'
+    | '/agentes/$threadId'
     | '/api/agents/chat'
     | '/agentes/'
     | '/api/public/hooks/nightly-daily-refresh'
@@ -216,6 +227,7 @@ export interface FileRouteTypes {
     | '/plano-de-contas'
     | '/reclassificacoes'
     | '/usuarios'
+    | '/agentes/$threadId'
     | '/api/agents/chat'
     | '/agentes'
     | '/api/public/hooks/nightly-daily-refresh'
@@ -236,6 +248,7 @@ export interface FileRouteTypes {
     | '/_authenticated/plano-de-contas'
     | '/_authenticated/reclassificacoes'
     | '/_authenticated/_admin/usuarios'
+    | '/_authenticated/agentes/$threadId'
     | '/api/agents/chat'
     | '/_authenticated/agentes/'
     | '/api/public/hooks/nightly-daily-refresh'
@@ -364,6 +377,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAgentesIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/agentes/$threadId': {
+      id: '/_authenticated/agentes/$threadId'
+      path: '/agentes/$threadId'
+      fullPath: '/agentes/$threadId'
+      preLoaderRoute: typeof AuthenticatedAgentesThreadIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/agents/chat': {
       id: '/api/agents/chat'
       path: '/api/agents/chat'
@@ -406,6 +426,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPeriodosRoute: typeof AuthenticatedPeriodosRoute
   AuthenticatedPlanoDeContasRoute: typeof AuthenticatedPlanoDeContasRoute
   AuthenticatedReclassificacoesRoute: typeof AuthenticatedReclassificacoesRoute
+  AuthenticatedAgentesThreadIdRoute: typeof AuthenticatedAgentesThreadIdRoute
   AuthenticatedAgentesIndexRoute: typeof AuthenticatedAgentesIndexRoute
 }
 
@@ -420,6 +441,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPeriodosRoute: AuthenticatedPeriodosRoute,
   AuthenticatedPlanoDeContasRoute: AuthenticatedPlanoDeContasRoute,
   AuthenticatedReclassificacoesRoute: AuthenticatedReclassificacoesRoute,
+  AuthenticatedAgentesThreadIdRoute: AuthenticatedAgentesThreadIdRoute,
   AuthenticatedAgentesIndexRoute: AuthenticatedAgentesIndexRoute,
 }
 

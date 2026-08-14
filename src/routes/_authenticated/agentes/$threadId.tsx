@@ -84,7 +84,7 @@ function AgentThreadPage() {
   const threads = (threadsQuery.data?.threads ?? []) as ThreadRow[];
   const thread = threadQuery.data?.thread;
   const agent = (thread?.agent === "cfo" ? "cfo" : "contador") as AgentKey;
-  const messages = (threadQuery.data?.messages ?? []) as UIMessage[];
+  const messages = (threadQuery.data?.messages ?? []) as unknown as UIMessage[];
   const periodId = thread?.period_id ?? selectedPeriodId;
 
   return (
