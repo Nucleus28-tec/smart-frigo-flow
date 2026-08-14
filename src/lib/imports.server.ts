@@ -174,31 +174,8 @@ const EXTRACTION_SCHEMA = {
   required: ["entries"],
 } as const;
 
-/** Lê um PDF de balancete usando a API do Google Gemini e devolve os lançamentos. */
-export async function parsePdfWithAi(
-  bytes: ArrayBuffer,
-  _filename: string,
-  mimeType: string,
-): Promise<ParsedEntry[]> {
-  const base64 = bytesToBase64(new Uint8Array(bytes));
-  if (!base64) throw new Error("Arquivo PDF vazio.");
-
-  const parsed = await callGeminiJson<{ entries?: Array<Record<string, unknown>> }>({
-    errorContext: "Leitura do PDF",
-    schema: EXTRACTION_SCHEMA,
-    systemInstruction:
-      "Você extrai lançamentos de balancetes contábeis brasileiros exportados do sistema G2. " +
-      "Retorne TODAS as linhas de conta do documento, sem inventar dados. " +
-      "Ignore cabeçalhos, rodapés e linhas de totalização geral. " +
-      "O campo valor deve ser o saldo atual/final da conta em número (negativo quando devedor for indicado por D, parênteses ou sinal). " +
-      "O campo data usa o formato AAAA-MM-DD e vem nulo quando não existir no documento.",
-    parts: [
-      { text: "Extraia todas as contas e valores deste balancete." },
-      { inline_data: { mime_type: mimeType, data: base64 } },
-    ],
-  });
-
-  return (parsed.entries ?? [])
+function mapAiRows(rows: Array<Record<string, unknown>>): ParsedEntry[] {
+  return rows
     .map((row) => {
       const name = String(row["conta"] ?? "").trim();
       const value =
@@ -215,3 +192,78 @@ export async function parsePdfWithAi(
     })
     .filter((entry): entry is ParsedEntry => entry !== null);
 }
+
+const SYSTEM_INSTRUCTION =
+  "Você extrai lançamentos de balancetes contábeis brasileiros exportados do sistema G2. " +
+  "Retorne TODAS as linhas de conta das páginas enviadas, sem inventar dados. " +
+  "Ignore cabeçalhos, rodapés e linhas de totalização geral. " +
+  "O campo valor deve ser o saldo atual/final da conta em número (negativo quando devedor for indicado por D, parênteses ou sinal). " +
+  "O campo data usa o formato AAAA-MM-DD e vem nulo quando não existir no documento.";
+
+/** Quantidade de páginas por chamada — evita truncar a resposta da IA em balancetes longos. */
+const PAGES_PER_CHUNK = 4;
+
+async function splitPdfPages(bytes: ArrayBuffer): Promise<Uint8Array[]> {
+  const { PDFDocument } = await import("pdf-lib");
+  const source = await PDFDocument.load(bytes, { ignoreEncryption: true });
+  const total = source.getPageCount();
+  const chunks: Uint8Array[] = [];
+  for (let start = 0; start < total; start += PAGES_PER_CHUNK) {
+    const target = await PDFDocument.create();
+    const indices = [];
+    for (let i = start; i < Math.min(start + PAGES_PER_CHUNK, total); i += 1) indices.push(i);
+    const pages = await target.copyPages(source, indices);
+    pages.forEach((page) => target.addPage(page));
+    chunks.push(await target.save());
+  }
+  return chunks;
+}
+
+async function readPdfChunk(data: string, mimeType: string): Promise<ParsedEntry[]> {
+  const parsed = await callGeminiJson<{ entries?: Array<Record<string, unknown>> }>({
+    errorContext: "Leitura do PDF",
+    schema: EXTRACTION_SCHEMA,
+    systemInstruction: SYSTEM_INSTRUCTION,
+    parts: [
+      { text: "Extraia todas as contas e valores das páginas deste balancete." },
+      { inline_data: { mime_type: mimeType, data } },
+    ],
+  });
+  return mapAiRows(parsed.entries ?? []);
+}
+
+/** Lê um PDF de balancete usando a API do Google Gemini e devolve os lançamentos. */
+export async function parsePdfWithAi(
+  bytes: ArrayBuffer,
+  _filename: string,
+  mimeType: string,
+): Promise<ParsedEntry[]> {
+  if (!bytes.byteLength) throw new Error("Arquivo PDF vazio.");
+
+  let chunks: Uint8Array[];
+  try {
+    chunks = await splitPdfPages(bytes);
+  } catch {
+    chunks = [new Uint8Array(bytes)];
+  }
+  if (!chunks.length) chunks = [new Uint8Array(bytes)];
+
+  const entries: ParsedEntry[] = [];
+  const failures: string[] = [];
+
+  for (let index = 0; index < chunks.length; index += 1) {
+    const base64 = bytesToBase64(chunks[index]!);
+    try {
+      entries.push(...(await readPdfChunk(base64, mimeType)));
+    } catch (error) {
+      failures.push(`bloco ${index + 1}: ${(error as Error).message}`);
+    }
+  }
+
+  if (!entries.length && failures.length) {
+    throw new Error(failures[0]!);
+  }
+
+  return entries;
+}
+
