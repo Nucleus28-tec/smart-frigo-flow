@@ -105,6 +105,9 @@ function AtualizacoesPage() {
         }
       />
 
+      <AiStatusCard />
+
+
       {!selectedPeriodId ? (
         <EmptyState
           title="Nenhum período selecionado"
