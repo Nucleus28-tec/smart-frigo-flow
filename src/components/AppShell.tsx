@@ -198,6 +198,30 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="ml-auto flex items-center gap-3">
+            {isAdmin && (
+              <div className="hidden items-center gap-2 sm:flex">
+                <Bot className="size-4 text-muted-foreground" />
+                {isLoadingProvider ? (
+                  <Skeleton className="h-9 w-40" />
+                ) : (
+                  <Select
+                    value={providerData?.provider ?? "gemini"}
+                    onValueChange={(value) =>
+                      providerMutation.mutate(value as "gemini" | "lovable")
+                    }
+                    disabled={providerMutation.isPending}
+                  >
+                    <SelectTrigger className="w-44">
+                      <SelectValue placeholder="Provedor de IA" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="gemini">Gemini (própria)</SelectItem>
+                      <SelectItem value="lovable">Lovable AI Gateway</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            )}
             {isLoading ? (
               <Skeleton className="h-8 w-40" />
             ) : (
