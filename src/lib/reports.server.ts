@@ -25,7 +25,11 @@ function money(value: number) {
 
 /** Remove caracteres fora do WinAnsi suportado pelas fontes padrão do PDF. */
 function safe(text: string) {
-  return text.replace(/[^\x20-\xFF]/g, "");
+  return text
+    .replace(/[\u2013\u2014]/g, "-")
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201c\u201d]/g, '"')
+    .replace(/[^\x20-\xFF]/g, "");
 }
 
 export async function buildStatementsPdf(options: {
