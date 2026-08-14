@@ -153,106 +153,50 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
+/** Schema no dialeto responseSchema do Gemini. */
 const EXTRACTION_SCHEMA = {
   type: "object",
-  additionalProperties: false,
   properties: {
     entries: {
       type: "array",
       items: {
         type: "object",
-        additionalProperties: false,
         properties: {
-          codigo: { type: ["string", "null"] },
+          codigo: { type: "string", nullable: true },
           conta: { type: "string" },
           valor: { type: "number" },
-          data: { type: ["string", "null"] },
+          data: { type: "string", nullable: true },
         },
-        required: ["codigo", "conta", "valor", "data"],
+        required: ["conta", "valor"],
       },
     },
   },
   required: ["entries"],
 } as const;
 
-/** Lê um PDF de balancete usando o AI Gateway da Lovable e devolve os lançamentos. */
+/** Lê um PDF de balancete usando a API do Google Gemini e devolve os lançamentos. */
 export async function parsePdfWithAi(
   bytes: ArrayBuffer,
-  filename: string,
+  _filename: string,
   mimeType: string,
 ): Promise<ParsedEntry[]> {
-  const apiKey = process.env["LOVABLE_API_KEY"];
-  if (!apiKey) throw new Error("LOVABLE_API_KEY não configurada para a leitura de PDF.");
-
   const base64 = bytesToBase64(new Uint8Array(bytes));
   if (!base64) throw new Error("Arquivo PDF vazio.");
 
-  const response = await fetch(AI_GATEWAY_CHAT_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Lovable-API-Key": apiKey,
-      "X-Lovable-AIG-SDK": "fetch",
-    },
-    body: JSON.stringify({
-      model: AI_MODEL,
-      stream: true,
-      messages: [
-        {
-          role: "system",
-          content:
-            "Você extrai lançamentos de balancetes contábeis brasileiros exportados do sistema G2. " +
-            "Retorne TODAS as linhas de conta do documento, sem inventar dados. " +
-            "Ignore cabeçalhos, rodapés e linhas de totalização geral. " +
-            "O campo valor deve ser o saldo atual/final da conta em número (negativo quando devedor for indicado por D, parênteses ou sinal). " +
-            "O campo data usa o formato AAAA-MM-DD e vem nulo quando não existir no documento. " +
-            "Responda em json seguindo o schema informado.",
-        },
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: "Extraia todas as contas e valores deste balancete.",
-            },
-            {
-              type: "file",
-              file: {
-                filename,
-                file_data: `data:${mimeType};base64,${base64}`,
-              },
-            },
-          ],
-        },
-      ],
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: "balancete",
-          strict: true,
-          schema: EXTRACTION_SCHEMA,
-        },
-      },
-    }),
+  const parsed = await callGeminiJson<{ entries?: Array<Record<string, unknown>> }>({
+    errorContext: "Leitura do PDF",
+    schema: EXTRACTION_SCHEMA,
+    systemInstruction:
+      "Você extrai lançamentos de balancetes contábeis brasileiros exportados do sistema G2. " +
+      "Retorne TODAS as linhas de conta do documento, sem inventar dados. " +
+      "Ignore cabeçalhos, rodapés e linhas de totalização geral. " +
+      "O campo valor deve ser o saldo atual/final da conta em número (negativo quando devedor for indicado por D, parênteses ou sinal). " +
+      "O campo data usa o formato AAAA-MM-DD e vem nulo quando não existir no documento.",
+    parts: [
+      { text: "Extraia todas as contas e valores deste balancete." },
+      { inline_data: { mime_type: mimeType, data: base64 } },
+    ],
   });
-
-  if (!response.ok || !response.body) {
-    const detail = await response.text().catch(() => "");
-    if (response.status === 429) throw new Error("Limite de uso da IA atingido. Tente novamente.");
-    if (response.status === 402) throw new Error("Créditos de IA esgotados no workspace.");
-    throw new Error(`Falha na leitura do PDF pela IA (${response.status}). ${detail.slice(0, 300)}`);
-  }
-
-  const text = await readChatStream(response);
-
-  if (!text.trim()) throw new Error("A IA não retornou conteúdo para este PDF.");
-
-  let parsed: { entries?: Array<Record<string, unknown>> };
-  try {
-    parsed = JSON.parse(text) as { entries?: Array<Record<string, unknown>> };
-  } catch {
-    throw new Error("Não foi possível interpretar o retorno da IA para este PDF.");
-  }
 
   return (parsed.entries ?? [])
     .map((row) => {
