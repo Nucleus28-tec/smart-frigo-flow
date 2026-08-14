@@ -244,6 +244,40 @@ function ReclassificacoesPage() {
             ) : null}
           </div>
 
+          {isAdmin && selectedPending.length > 0 ? (
+            <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border bg-card p-3">
+              <span className="text-sm font-medium">
+                {selectedPending.length} selecionada(s)
+              </span>
+              <Button size="sm" disabled={Boolean(bulk)} onClick={() => void runBulk("aprovada")}>
+                {bulk ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Check className="size-4" />
+                )}
+                {bulk ? `Aprovando ${bulk.done}/${bulk.total}` : "Aprovar selecionadas"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={Boolean(bulk)}
+                onClick={() => void runBulk("rejeitada")}
+              >
+                <X className="size-4" />
+                Rejeitar selecionadas
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={Boolean(bulk)}
+                onClick={() => setSelected([])}
+              >
+                Limpar seleção
+              </Button>
+            </div>
+          ) : null}
+
+
           {profileLoading || isAdmin ? null : (
             <Alert className="mb-4">
               <Lock className="size-4" />
