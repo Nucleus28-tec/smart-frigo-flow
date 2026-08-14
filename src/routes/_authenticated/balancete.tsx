@@ -79,10 +79,14 @@ function BalancetePage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftValue, setDraftValue] = useState("");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkNature, setBulkNature] = useState<string>("");
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
 
   const isClosed = selectedPeriod?.status === "fechado";
   const saveEntry = useServerFn(updateLedgerEntry);
   const revertEntry = useServerFn(revertLedgerEntry);
+
 
   const entries = useQuery({
     queryKey: ["ledger_entries", selectedPeriodId],
@@ -195,6 +199,53 @@ function BalancetePage() {
     });
   }
 
+  function toggleSelected(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function setManySelected(ids: string[], checked: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) {
+        if (checked) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
+  }
+
+  const allVisibleSelected = rows.length > 0 && rows.every((e) => selected.has(e.id));
+
+  async function applyBulkNature() {
+    if (!bulkNature || selected.size === 0) return;
+    const ids = rows.filter((e) => selected.has(e.id)).map((e) => e.id);
+    setBulkProgress({ done: 0, total: ids.length });
+    let ok = 0;
+    let failed = 0;
+    for (let i = 0; i < ids.length; i += 5) {
+      const chunk = ids.slice(i, i + 5);
+      const results = await Promise.allSettled(
+        chunk.map((entry_id) => saveEntry({ data: { entry_id, nature: bulkNature as never } })),
+      );
+      for (const r of results) {
+        if (r.status === "fulfilled") ok += 1;
+        else failed += 1;
+      }
+      setBulkProgress({ done: Math.min(i + chunk.length, ids.length), total: ids.length });
+    }
+    setBulkProgress(null);
+    setSelected(new Set());
+    invalidate();
+    if (failed) toast.error(`${ok} conta(s) classificada(s), ${failed} falharam.`);
+    else toast.success(`${ok} conta(s) classificada(s) como ${NATURE_LABEL[bulkNature] ?? bulkNature}.`);
+  }
+
+
   function startEdit(entry: Entry) {
     setEditingId(entry.id);
     setDraftValue(String(appliedValue(entry)).replace(".", ","));
@@ -216,7 +267,15 @@ function BalancetePage() {
         key={entry.id}
         className={entry.is_manually_edited ? "bg-amber-500/10 hover:bg-amber-500/15" : ""}
       >
-        <TableCell className="pl-8 font-medium">
+        <TableCell className="w-[44px] pl-4">
+          <Checkbox
+            checked={selected.has(entry.id)}
+            disabled={isClosed}
+            aria-label={`Selecionar ${entry.source_account_name}`}
+            onCheckedChange={() => toggleSelected(entry.id)}
+          />
+        </TableCell>
+        <TableCell className="pl-2 font-medium">
           <span className="block">{entry.source_account_name}</span>
           {entry.is_manually_edited ? (
             <Badge variant="outline" className="mt-1 border-amber-500/60">
@@ -322,6 +381,19 @@ function BalancetePage() {
     return (
       <Fragment key={key}>
         <TableRow className="bg-muted/60 hover:bg-muted/60">
+          <TableCell className="w-[44px] pl-4">
+            <Checkbox
+              checked={list.every((e) => selected.has(e.id))}
+              disabled={isClosed}
+              aria-label={`Selecionar todas as contas de ${label}`}
+              onCheckedChange={(checked) =>
+                setManySelected(
+                  list.map((e) => e.id),
+                  checked === true,
+                )
+              }
+            />
+          </TableCell>
           <TableCell colSpan={4}>
             <button
               type="button"
@@ -352,7 +424,7 @@ function BalancetePage() {
   function renderGroupTotal(label: string, value: number) {
     return (
       <TableRow className="border-t-2 border-border hover:bg-transparent">
-        <TableCell colSpan={4} className="text-sm font-semibold uppercase tracking-wide">
+        <TableCell colSpan={5} className="text-sm font-semibold uppercase tracking-wide">
           {label}
         </TableCell>
         <TableCell className="text-right font-semibold tabular-nums">
@@ -487,11 +559,66 @@ function BalancetePage() {
             </p>
           ) : null}
 
+          {selected.size > 0 ? (
+            <div className="sticky top-2 z-20 mb-4 flex flex-col gap-3 rounded-md border border-primary/40 bg-card px-4 py-3 shadow-sm sm:flex-row sm:items-center">
+              <span className="text-sm font-medium">
+                {selected.size} conta(s) selecionada(s)
+              </span>
+              <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                <Select value={bulkNature} onValueChange={setBulkNature}>
+                  <SelectTrigger className="sm:w-[240px]" aria-label="Natureza para aplicar em massa">
+                    <SelectValue placeholder="Escolha a natureza" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {NATURE_OPTIONS.map((nature) => (
+                      <SelectItem key={nature} value={nature}>
+                        {NATURE_LABEL[nature]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  disabled={isClosed || !bulkNature || bulkProgress !== null}
+                  onClick={() => void applyBulkNature()}
+                >
+                  {bulkProgress ? (
+                    <>
+                      <Loader2 className="mr-2 size-4 animate-spin" />
+                      {bulkProgress.done}/{bulkProgress.total}
+                    </>
+                  ) : (
+                    "Classificar selecionadas"
+                  )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  disabled={bulkProgress !== null}
+                  onClick={() => setSelected(new Set())}
+                >
+                  Limpar
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
           <Card>
             <CardContent className="p-0">
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[44px] pl-4">
+                      <Checkbox
+                        checked={allVisibleSelected}
+                        disabled={isClosed}
+                        aria-label="Selecionar todas as contas visíveis"
+                        onCheckedChange={(checked) =>
+                          setManySelected(
+                            rows.map((e) => e.id),
+                            checked === true,
+                          )
+                        }
+                      />
+                    </TableHead>
                     <TableHead>Conta</TableHead>
                     <TableHead className="w-[230px]">Natureza</TableHead>
                     <TableHead className="text-right">Valor bruto</TableHead>
