@@ -1,6 +1,6 @@
 /** Cliente direto da API do Google Gemini (sem gateway da Lovable). */
 
-export const AI_MODEL = "gemini-2.5-flash";
+export const AI_MODEL = "gemini-3.6-flash";
 
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
