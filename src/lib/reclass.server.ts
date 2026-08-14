@@ -33,16 +33,15 @@ export type AiSuggestion = {
   confidence_score: number;
 };
 
+/** Schema no dialeto responseSchema do Gemini. */
 const SUGGESTION_SCHEMA = {
   type: "object",
-  additionalProperties: false,
   required: ["sugestoes"],
   properties: {
     sugestoes: {
       type: "array",
       items: {
         type: "object",
-        additionalProperties: false,
         required: ["id", "natureza", "justificativa", "confianca"],
         properties: {
           id: { type: "string" },
@@ -60,7 +59,6 @@ function isNature(value: unknown): value is ReclassNature {
 }
 
 async function suggestBatch(
-  apiKey: string,
   accounts: PendingAccount[],
   patterns: ConfirmedPattern[],
 ): Promise<AiSuggestion[]> {
@@ -72,67 +70,31 @@ async function suggestBatch(
     .map((a) => `- id=${a.id} | código=${a.source_code ?? "-"} | conta="${a.source_name}"`)
     .join("\n");
 
-  const response = await fetch(AI_GATEWAY_CHAT_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Lovable-API-Key": apiKey,
-      "X-Lovable-AIG-SDK": "fetch",
-    },
-    body: JSON.stringify({
-      model: AI_MODEL,
-      stream: true,
-      messages: [
-        {
-          role: "system",
-          content:
-            "Você é um contador brasileiro que classifica contas de um balancete do sistema G2 " +
-            "de um frigorífico. Para cada conta informada, escolha exatamente uma natureza entre: " +
-            `${RECLASS_NATURES.join(", ")}. ` +
-            "Respeite o padrão já aprovado pela empresa quando a conta for semelhante. " +
-            "A justificativa deve ter no máximo duas frases, em português. " +
-            "A confiança é um número entre 0 e 1. Não invente contas: responda apenas os ids recebidos. " +
-            "Responda em json seguindo o schema informado.",
-        },
-        {
-          role: "user",
-          content:
-            `Padrão já confirmado pela empresa:\n${patternText}\n\n` +
-            `Contas a classificar:\n${accountsText}`,
-        },
-      ],
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: "reclassificacoes",
-          strict: true,
-          schema: SUGGESTION_SCHEMA,
-        },
-      },
-    }),
-  });
-
-  if (!response.ok) {
-    const detail = await response.text().catch(() => "");
-    if (response.status === 429) throw new Error("Limite de uso da IA atingido. Tente novamente.");
-    if (response.status === 402 || response.status === 403) {
-      throw new Error(
-        "Créditos de IA esgotados ou limite do workspace atingido. Ajuste o limite para gerar sugestões.",
-      );
-    }
-    throw new Error(`Falha ao gerar sugestões (${response.status}). ${detail.slice(0, 300)}`);
-  }
-
-  const text = await readChatStream(response);
-  if (!text.trim()) throw new Error("Resposta da IA sem conteúdo.");
-
-  const parsed = JSON.parse(text) as {
+  const parsed = await callGeminiJson<{
     sugestoes?: Array<{
       id?: string;
       natureza?: string;
       justificativa?: string;
       confianca?: number;
     }>;
+  }>({
+    errorContext: "Sugestões de reclassificação",
+    schema: SUGGESTION_SCHEMA,
+    systemInstruction:
+      "Você é um contador brasileiro que classifica contas de um balancete do sistema G2 " +
+      "de um frigorífico. Para cada conta informada, escolha exatamente uma natureza entre: " +
+      `${RECLASS_NATURES.join(", ")}. ` +
+      "Respeite o padrão já aprovado pela empresa quando a conta for semelhante. " +
+      "A justificativa deve ter no máximo duas frases, em português. " +
+      "A confiança é um número entre 0 e 1. Não invente contas: responda apenas os ids recebidos.",
+    parts: [
+      {
+        text:
+          `Padrão já confirmado pela empresa:\n${patternText}\n\n` +
+          `Contas a classificar:\n${accountsText}`,
+      },
+    ],
+  });
   };
 
   const validIds = new Set(accounts.map((a) => a.id));
