@@ -63,6 +63,16 @@ function ApontamentosPage() {
   });
 
   const rows = findings.data ?? [];
+  const { isAdmin } = useProfile();
+  const detect = useServerFn(detectInconsistencies);
+  const detectMutation = useMutation({
+    mutationFn: async () => detect({ data: { period_id: selectedPeriodId! } }),
+    onSuccess: (result: { created: number }) => {
+      toast.success(`${result.created} apontamento(s) atualizado(s).`);
+      void findings.refetch();
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
 
   return (
     <>
@@ -73,7 +83,18 @@ function ApontamentosPage() {
             ? `Inconsistências detectadas em ${selectedPeriod.label}, com sugestão de correção na origem (G2).`
             : "Inconsistências detectadas no período, com sugestão de correção na origem (G2)."
         }
+        actions={
+          isAdmin && selectedPeriodId ? (
+            <Button
+              onClick={() => detectMutation.mutate()}
+              disabled={detectMutation.isPending}
+            >
+              {detectMutation.isPending ? "Verificando…" : "Verificar inconsistências"}
+            </Button>
+          ) : null
+        }
       />
+
 
       {!selectedPeriodId ? (
         <EmptyState
