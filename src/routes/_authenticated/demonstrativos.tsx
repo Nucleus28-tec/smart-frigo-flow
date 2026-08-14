@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Download, FileSpreadsheet, FileText, RefreshCw } from "lucide-react";
-import { PageHeader } from "@/components/PageState";
+import { EmptyState, ErrorState, PageHeader } from "@/components/PageState";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -128,11 +128,10 @@ function DemonstrativosPage() {
       />
 
       {!periodId ? (
-        <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            Selecione um período contábil para visualizar os demonstrativos.
-          </CardContent>
-        </Card>
+        <EmptyState
+          title="Nenhum período selecionado"
+          description="Escolha um período contábil no topo da tela para visualizar DRE, Balanço e Fluxo de Caixa."
+        />
       ) : (
         <div className="space-y-6">
           <div className="flex flex-wrap items-center gap-2">
@@ -169,15 +168,20 @@ function DemonstrativosPage() {
               <Skeleton className="h-64" />
               <Skeleton className="h-64" />
             </div>
+          ) : statementsQuery.isError ? (
+            <ErrorState
+              message={(statementsQuery.error as Error)?.message}
+              onRetry={() => void statementsQuery.refetch()}
+            />
           ) : (statementsQuery.data ?? []).length === 0 ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                Nenhum demonstrativo gerado para {selectedPeriod?.label}.{" "}
-                {isAdmin
-                  ? "Use “Gerar demonstrativos” para calcular a partir do balancete."
-                  : "Peça a um administrador para gerar os demonstrativos."}
-              </CardContent>
-            </Card>
+            <EmptyState
+              title="Demonstrativos ainda não gerados"
+              description={
+                isAdmin
+                  ? `Nenhum demonstrativo em ${selectedPeriod?.label ?? "este período"}. Importe o balancete na tela Importar e use “Gerar demonstrativos”.`
+                  : `Nenhum demonstrativo em ${selectedPeriod?.label ?? "este período"}. Peça a um administrador para gerá-los.`
+              }
+            />
           ) : (
             <div className="grid gap-4 lg:grid-cols-3">
               {(statementsQuery.data ?? []).map((statement) => (

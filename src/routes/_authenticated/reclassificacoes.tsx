@@ -206,13 +206,24 @@ function ReclassificacoesPage() {
           <Card>
             <CardContent className="p-0">
               {suggestions.isLoading ? (
-                <LoadingRows />
+                <div className="p-4">
+                  <LoadingRows />
+                </div>
               ) : suggestions.isError ? (
-                <ErrorState message={(suggestions.error as Error).message} />
+                <div className="p-4">
+                  <ErrorState
+                    message={(suggestions.error as Error).message}
+                    onRetry={() => void suggestions.refetch()}
+                  />
+                </div>
               ) : rows.length === 0 ? (
                 <EmptyState
-                  title="Nenhuma sugestão"
-                  description="Gere sugestões para as contas do período que ainda não têm natureza confirmada."
+                  title="Nenhuma sugestão pendente"
+                  description={
+                    isAdmin
+                      ? "Importe o balancete na tela Importar e use “Gerar sugestões” para classificar as contas sem natureza confirmada."
+                      : "Assim que o Admin gerar as sugestões da IA, elas aparecerão aqui."
+                  }
                 />
               ) : (
                 <Table>

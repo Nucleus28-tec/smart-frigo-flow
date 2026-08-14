@@ -114,7 +114,14 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 function DashboardPage() {
-  const { selectedPeriod, selectedPeriodId, periods, isLoading: loadingPeriods } = usePeriod();
+  const {
+    selectedPeriod,
+    selectedPeriodId,
+    periods,
+    isLoading: loadingPeriods,
+    error: periodsError,
+    refetch: refetchPeriods,
+  } = usePeriod();
   const { data: profile } = useProfile();
   const isAdmin = profile?.role === "admin";
   const queryClient = useQueryClient();
@@ -167,6 +174,18 @@ function DashboardPage() {
   });
 
   if (loadingPeriods) return <LoadingRows rows={4} />;
+
+  if (periodsError) {
+    return (
+      <>
+        <PageHeader title="Dashboard" />
+        <ErrorState
+          message={(periodsError as Error)?.message}
+          onRetry={() => void refetchPeriods()}
+        />
+      </>
+    );
+  }
 
   if (!selectedPeriodId) {
     return (
