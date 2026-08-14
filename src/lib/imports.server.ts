@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import { AI_GATEWAY_CHAT_URL, AI_MODEL, readChatStream } from "./ai-model";
+import { callGeminiJson } from "./ai-model";
 
 export type ParsedEntry = {
   source_account_code: string | null;
