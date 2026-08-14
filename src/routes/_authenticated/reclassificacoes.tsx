@@ -147,6 +147,55 @@ function ReclassificacoesPage() {
     () => rows.filter((r) => r.status === "pendente").length,
     [rows],
   );
+  const pendingIds = useMemo(
+    () => rows.filter((r) => r.status === "pendente").map((r) => r.id),
+    [rows],
+  );
+  const selectedSet = useMemo(() => new Set(selected), [selected]);
+  const selectedPending = pendingIds.filter((id) => selectedSet.has(id));
+  const allSelected = pendingIds.length > 0 && selectedPending.length === pendingIds.length;
+
+  function toggleRow(id: string, checked: boolean) {
+    setSelected((prev) => (checked ? [...prev, id] : prev.filter((x) => x !== id)));
+  }
+
+  function toggleAll(checked: boolean) {
+    setSelected(checked ? pendingIds : []);
+  }
+
+  async function runBulk(decision: "aprovada" | "rejeitada") {
+    const ids = selectedPending;
+    if (!ids.length) return;
+    setBulk({ done: 0, total: ids.length });
+    let ok = 0;
+    let failed = 0;
+    for (const id of ids) {
+      try {
+        await decide({ data: { suggestion_id: id, decision } });
+        ok += 1;
+      } catch {
+        failed += 1;
+      }
+      setBulk((prev) => (prev ? { ...prev, done: prev.done + 1 } : prev));
+    }
+    setBulk(null);
+    setSelected([]);
+    void queryClient.invalidateQueries({ queryKey: ["reclassification_suggestions"] });
+    void queryClient.invalidateQueries({ queryKey: ["chart_of_accounts"] });
+    void queryClient.invalidateQueries({ queryKey: ["ledger_entries"] });
+    if (failed) {
+      toast.warning(
+        `${ok} sugestão(ões) processada(s), ${failed} falhou(aram).`,
+      );
+    } else {
+      toast.success(
+        decision === "aprovada"
+          ? `${ok} sugestão(ões) aprovada(s).`
+          : `${ok} sugestão(ões) rejeitada(s).`,
+      );
+    }
+  }
+
 
   return (
     <>
