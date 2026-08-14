@@ -91,7 +91,10 @@ export async function callGemini(options: GeminiCallOptions): Promise<string> {
   }
 
   const payload = (await response.json()) as {
-    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+    candidates?: Array<{
+      content?: { parts?: Array<{ text?: string }> };
+      finishReason?: string;
+    }>;
     promptFeedback?: { blockReason?: string };
   };
 
@@ -99,12 +102,18 @@ export async function callGemini(options: GeminiCallOptions): Promise<string> {
     throw new Error(`${context}: conteúdo bloqueado pelo Gemini (${payload.promptFeedback.blockReason}).`);
   }
 
-  const text = (payload.candidates?.[0]?.content?.parts ?? [])
-    .map((part) => part.text ?? "")
-    .join("");
+  const candidate = payload.candidates?.[0];
+  const text = (candidate?.content?.parts ?? []).map((part) => part.text ?? "").join("");
+
+  if (candidate?.finishReason === "MAX_TOKENS") {
+    throw new Error(
+      `${context}: a resposta da IA foi truncada por tamanho. O documento será lido em partes menores.`,
+    );
+  }
 
   return text;
 }
+
 
 /** Chama o Gemini com schema e devolve o JSON já interpretado. */
 export async function callGeminiJson<T>(options: GeminiCallOptions & { schema: unknown }): Promise<T> {
