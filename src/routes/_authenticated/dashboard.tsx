@@ -114,7 +114,14 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 function DashboardPage() {
-  const { selectedPeriod, selectedPeriodId, periods, isLoading: loadingPeriods } = usePeriod();
+  const {
+    selectedPeriod,
+    selectedPeriodId,
+    periods,
+    isLoading: loadingPeriods,
+    error: periodsError,
+    refetch: refetchPeriods,
+  } = usePeriod();
   const { data: profile } = useProfile();
   const isAdmin = profile?.role === "admin";
   const queryClient = useQueryClient();
