@@ -1,7 +1,8 @@
 /** Cliente do Lovable AI Gateway usando AI SDK (OpenAI-compatible). */
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { generateText, Output } from "ai";
+import { generateText, jsonSchema, NoObjectGeneratedError, Output } from "ai";
 import { z } from "zod";
+import { extractJsonText, parseAiJson } from "./ai-json";
 
 const LOVABLE_AIG_RUN_ID_HEADER = "X-Lovable-AIG-Run-ID";
 
@@ -66,7 +67,7 @@ export function createLovableAiGatewayProvider(
   const provider = createOpenAICompatible({
     name: "lovable",
     baseURL: "https://ai.gateway.lovable.dev/v1",
-    supportsStructuredOutputs: false,
+    supportsStructuredOutputs: true,
     headers: {
       "Lovable-API-Key": lovableApiKey,
       "X-Lovable-AIG-SDK": "vercel-ai-sdk",
@@ -144,6 +145,48 @@ function isZodSchema(schema: unknown): schema is z.ZodType {
   return schema != null && typeof schema === "object" && "_def" in schema;
 }
 
+function isJsonSchemaObject(schema: unknown): schema is Record<string, unknown> {
+  return (
+    schema != null &&
+    typeof schema === "object" &&
+    !("_def" in schema) &&
+    typeof (schema as Record<string, unknown>)["type"] === "string"
+  );
+}
+
+/** Normaliza um JSON Schema (dialeto Gemini) para o modo estrito do gateway. */
+function strictify(node: unknown): unknown {
+  if (Array.isArray(node)) return node.map(strictify);
+  if (node == null || typeof node !== "object") return node;
+
+  const source = node as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(source)) {
+    if (key === "default") continue;
+    out[key] = strictify(value);
+  }
+
+  if (out["type"] === "object") {
+    const properties = (out["properties"] ?? {}) as Record<string, unknown>;
+    out["properties"] = properties;
+    out["required"] = Object.keys(properties);
+    out["additionalProperties"] = false;
+  }
+  return out;
+}
+
+function buildOutput(schema: unknown) {
+  if (isZodSchema(schema)) {
+    return Output.object({ schema });
+  }
+  if (isJsonSchemaObject(schema)) {
+    return Output.object({
+      schema: jsonSchema(strictify(schema) as Parameters<typeof jsonSchema>[0]),
+    });
+  }
+  return null;
+}
+
 /** Chama o Lovable AI Gateway e devolve o texto da resposta. */
 export async function callLovableAi(options: LovableCallOptions): Promise<string> {
   const key = lovableApiKey();
@@ -152,23 +195,9 @@ export async function callLovableAi(options: LovableCallOptions): Promise<string
   const model = gateway("google/gemini-3.6-flash");
 
   const messages = partsToMessages(options.parts);
+  const output = options.schema ? buildOutput(options.schema) : null;
 
   try {
-    if (options.schema && isZodSchema(options.schema)) {
-      const generateOpts: Record<string, unknown> = {
-        model,
-        messages,
-        temperature: 0,
-        maxOutputTokens: options.maxOutputTokens ?? 65536,
-        output: Output.object({ schema: options.schema }),
-      };
-      if (options.systemInstruction) {
-        generateOpts["system"] = options.systemInstruction;
-      }
-      const result = await generateText(generateOpts as Parameters<typeof generateText>[0]);
-      return JSON.stringify(result.output);
-    }
-
     const generateOpts: Record<string, unknown> = {
       model,
       messages,
@@ -178,6 +207,23 @@ export async function callLovableAi(options: LovableCallOptions): Promise<string
     if (options.systemInstruction) {
       generateOpts["system"] = options.systemInstruction;
     }
+    if (output) {
+      generateOpts["output"] = output;
+      try {
+        const result = await generateText(
+          generateOpts as Parameters<typeof generateText>[0],
+        );
+        return JSON.stringify(result.output);
+      } catch (error) {
+        // A saída não bateu com o schema: aproveita o texto bruto do modelo.
+        if (NoObjectGeneratedError.isInstance(error) && error.text) {
+          const salvaged = extractJsonText(error.text);
+          if (salvaged) return salvaged;
+        }
+        throw error;
+      }
+    }
+
     const result = await generateText(generateOpts as Parameters<typeof generateText>[0]);
     return result.text;
   } catch (error) {
@@ -197,9 +243,5 @@ export async function callLovableAiJson<T>(
   const context = options.errorContext ?? "IA";
   const text = await callLovableAi(options);
   if (!text.trim()) throw new Error(`${context}: a IA não retornou conteúdo.`);
-  try {
-    return JSON.parse(text) as T;
-  } catch {
-    throw new Error(`${context}: não foi possível interpretar o retorno da IA.`);
-  }
+  return parseAiJson<T>(text, context);
 }

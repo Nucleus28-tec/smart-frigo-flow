@@ -1,6 +1,7 @@
 /** Roteador unificado de IA: alterna entre Gemini próprio e Lovable AI Gateway,
  *  com fallback automático quando o provedor ativo falha. */
 import { callLovableAi, type AiPart as LovableAiPart } from "./ai-lovable.server";
+import { parseAiJson } from "./ai-json";
 import { callGemini, callGeminiJson } from "./ai-model";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
@@ -181,17 +182,13 @@ export async function callAi(options: AiCallOptions): Promise<string> {
 export async function callAiJson<T>(
   options: AiCallOptions & { schema: unknown },
 ): Promise<T> {
+  const provider = options.forceProvider ?? (await getActiveProvider());
+  const context = `${options.errorContext ?? "ai_router"} [${provider}]`;
   const text = await callAi(options);
   if (!text.trim()) {
-    throw new Error(`${options.errorContext ?? "ai_router"}: resposta vazia.`);
+    throw new Error(`${context}: resposta vazia.`);
   }
-  try {
-    return JSON.parse(text) as T;
-  } catch {
-    throw new Error(
-      `${options.errorContext ?? "ai_router"}: não foi possível interpretar o JSON retornado.`,
-    );
-  }
+  return parseAiJson<T>(text, context);
 }
 
 /** Retorna o provedor ativo sem executar chamada. */
