@@ -69,14 +69,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen bg-background">
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-sidebar text-sidebar-foreground transition-transform lg:static lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-transform lg:static lg:translate-x-0",
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="flex items-center justify-between border-b border-sidebar-border px-5 py-4">
-          <div>
-            <p className="text-sm font-semibold tracking-tight">Rotta Financeiro</p>
-            <p className="text-xs text-sidebar-foreground/60">Rota Alimentos</p>
+        <div className="flex items-center justify-between px-5 py-5">
+          <div className="flex items-center gap-2.5">
+            <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-xs font-bold text-primary-foreground">
+              R
+            </span>
+            <div>
+              <p className="text-sm font-semibold tracking-tight text-foreground">
+                Rotta Financeiro
+              </p>
+              <p className="text-xs text-muted-foreground">Rota Alimentos</p>
+            </div>
           </div>
           <button
             className="lg:hidden"
