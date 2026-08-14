@@ -1,7 +1,8 @@
 /** Cliente do Lovable AI Gateway usando AI SDK (OpenAI-compatible). */
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { generateText, Output } from "ai";
+import { generateText, jsonSchema, NoObjectGeneratedError, Output } from "ai";
 import { z } from "zod";
+import { extractJsonText, parseAiJson } from "./ai-json";
 
 const LOVABLE_AIG_RUN_ID_HEADER = "X-Lovable-AIG-Run-ID";
 
