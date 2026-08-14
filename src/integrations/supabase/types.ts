@@ -580,6 +580,10 @@ export type Database = {
         Args: { _decision: string; _suggestion_id: string }
         Returns: Json
       }
+      generate_period_statements: {
+        Args: { _period_id: string }
+        Returns: Json
+      }
       get_period_summary: { Args: { _period_id: string }; Returns: Json }
       is_admin: { Args: never; Returns: boolean }
       log_activity: {
