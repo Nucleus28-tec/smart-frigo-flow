@@ -248,3 +248,57 @@ function AtualizacoesPage() {
     </>
   );
 }
+
+function AiStatusCard() {
+  const profile = useProfile();
+  const isAdmin = profile.data?.role === "admin";
+  const runTest = useServerFn(testAiConnection);
+  const test = useMutation({ mutationFn: () => runTest({ data: undefined }) });
+
+  if (!isAdmin) return null;
+
+  const result = test.data;
+
+  return (
+    <Card className="mb-6">
+      <CardHeader className="flex flex-row items-center justify-between gap-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Sparkles className="size-4 text-primary" aria-hidden="true" />
+          Inteligência artificial (Google Gemini)
+        </CardTitle>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => test.mutate()}
+          disabled={test.isPending}
+        >
+          {test.isPending ? "Testando..." : "Testar conexão com a IA"}
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-2 text-sm">
+        <p className="text-muted-foreground">
+          A leitura de PDFs e as sugestões de reclassificação usam a sua própria chave do Google AI
+          Studio, sem depender de créditos da Lovable.
+        </p>
+        {test.isError ? (
+          <p className="text-destructive">
+            {(test.error as Error)?.message ?? "Não foi possível executar o teste."}
+          </p>
+        ) : null}
+        {result ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={result.ok ? "default" : "destructive"}>
+              {result.ok ? "Conectado" : "Falhou"}
+            </Badge>
+            <span className="text-muted-foreground">
+              Modelo {result.model} · {result.latencyMs} ms
+            </span>
+            <span className={result.ok ? "text-muted-foreground" : "text-destructive"}>
+              {result.message}
+            </span>
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
