@@ -60,6 +60,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const isAdmin = profile?.role === "admin";
 
+  const fetchProvider = useServerFn(getAiProvider);
+  const saveProvider = useServerFn(setAiProvider);
+
+  const { data: providerData, isLoading: isLoadingProvider } = useQuery({
+    queryKey: ["ai-provider"],
+    queryFn: () => fetchProvider(),
+    enabled: isAdmin,
+  });
+
+  const providerMutation = useMutation({
+    mutationFn: (provider: "gemini" | "lovable") =>
+      saveProvider({ data: { provider } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ai-provider"] });
+    },
+  });
+
   async function handleSignOut() {
     await queryClient.cancelQueries();
     queryClient.clear();
