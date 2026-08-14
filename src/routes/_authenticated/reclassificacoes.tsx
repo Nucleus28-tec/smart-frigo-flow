@@ -86,6 +86,8 @@ function ReclassificacoesPage() {
 
   const [status, setStatus] = useState("pendente");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [bulk, setBulk] = useState<{ done: number; total: number } | null>(null);
 
   const generate = useServerFn(suggestReclassifications);
   const decide = useServerFn(applyReclassificationDecision);
