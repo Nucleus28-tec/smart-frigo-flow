@@ -65,7 +65,7 @@ async function logFallback(
     await supabaseAdmin.rpc("log_activity", {
       _action: "ai_fallback",
       _entity_type: "ai_provider",
-      _entity_id: null,
+      _entity_id: undefined,
       _metadata: {
         failed_provider: failedProvider,
         fallback_provider: fallbackProvider,
@@ -84,7 +84,7 @@ function toGeminiParts(parts: AiPart[]) {
       return { text: p.text };
     }
     return {
-      inlineData: { mimeType: p.mimeType, data: p.data },
+      inline_data: { mime_type: p.mimeType, data: p.data },
     };
   });
 }
@@ -98,37 +98,54 @@ function toLovableParts(parts: AiPart[]): LovableAiPart[] {
   });
 }
 
+function buildLovableOptions(
+  options: AiCallOptions,
+): LovableAiPart[] | Record<string, unknown> {
+  const base: Record<string, unknown> = {
+    parts: toLovableParts(options.parts),
+    schema: options.schema,
+    maxOutputTokens: options.maxOutputTokens,
+    errorContext: options.errorContext,
+  };
+  if (options.systemInstruction) {
+    base["systemInstruction"] = options.systemInstruction;
+  }
+  return base;
+}
+
+function buildGeminiOptions(
+  options: AiCallOptions,
+): Record<string, unknown> {
+  const base: Record<string, unknown> = {
+    parts: toGeminiParts(options.parts),
+    maxOutputTokens: options.maxOutputTokens,
+    errorContext: options.errorContext,
+  };
+  if (options.systemInstruction) {
+    base["systemInstruction"] = options.systemInstruction;
+  }
+  if (options.schema) {
+    base["schema"] = options.schema;
+  }
+  return base;
+}
+
 async function callProvider(
   provider: AiProvider,
   options: AiCallOptions,
 ): Promise<string> {
   if (provider === "lovable") {
-    return callLovableAi({
-      parts: toLovableParts(options.parts),
-      systemInstruction: options.systemInstruction,
-      schema: options.schema,
-      maxOutputTokens: options.maxOutputTokens,
-      errorContext: options.errorContext,
-    });
+    return callLovableAi(buildLovableOptions(options) as Parameters<typeof callLovableAi>[0]);
   }
 
-  const parts = toGeminiParts(options.parts);
+  const geminiOpts = buildGeminiOptions(options);
   if (options.schema) {
-    return callGeminiJson<string>({
-      parts,
-      systemInstruction: options.systemInstruction,
-      responseSchema: options.schema,
-      maxOutputTokens: options.maxOutputTokens,
-      errorContext: options.errorContext,
-    }).then((r) => JSON.stringify(r));
+    return callGeminiJson<string>(
+      geminiOpts as Parameters<typeof callGeminiJson>[0],
+    ).then((r) => JSON.stringify(r));
   }
 
-  return callGemini({
-    parts,
-    systemInstruction: options.systemInstruction,
-    maxOutputTokens: options.maxOutputTokens,
-    errorContext: options.errorContext,
-  });
+  return callGemini(geminiOpts as Parameters<typeof callGemini>[0]);
 }
 
 /** Executa a chamada de IA no provedor ativo, com fallback automático. */
