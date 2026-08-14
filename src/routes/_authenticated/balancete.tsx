@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Check, Loader2, Pencil, Undo2, X } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Loader2, Pencil, Undo2, X } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { usePeriod } from "@/hooks/usePeriod";
@@ -78,6 +78,7 @@ function BalancetePage() {
   const [onlyEdited, setOnlyEdited] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftValue, setDraftValue] = useState("");
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   const isClosed = selectedPeriod?.status === "fechado";
   const saveEntry = useServerFn(updateLedgerEntry);
@@ -148,17 +149,51 @@ function BalancetePage() {
     });
   }, [entries.data, search, natureFilter, onlyEdited]);
 
-  const totals = useMemo(() => {
-    const byNature = new Map<string, number>();
-    let total = 0;
+  const grouped = useMemo(() => {
+    const map = new Map<string, Entry[]>();
     for (const entry of rows) {
-      const value = appliedValue(entry);
-      total += Number(value);
       const key = entry.nature ?? "sem_natureza";
-      byNature.set(key, (byNature.get(key) ?? 0) + Number(value));
+      const list = map.get(key);
+      if (list) list.push(entry);
+      else map.set(key, [entry]);
     }
-    return { byNature: Array.from(byNature.entries()), total };
+    const sum = (key: string) =>
+      (map.get(key) ?? []).reduce((acc, e) => acc + Number(appliedValue(e)), 0);
+    const totals: Record<string, number> = {};
+    for (const key of [...NATURE_OPTIONS, "sem_natureza"]) totals[key] = sum(key);
+    const t = (key: string) => totals[key] ?? 0;
+
+    const ativo = Math.abs(t("ativo_circulante") + t("ativo_nao_circulante"));
+    const passivoPl = Math.abs(
+      t("passivo_circulante") + t("passivo_nao_circulante") + t("patrimonio_liquido"),
+    );
+    const receita = Math.abs(t("receita"));
+    const custo = Math.abs(t("custo"));
+    const despesa = Math.abs(t("despesa"));
+
+    return {
+      map,
+      totals,
+      ativo,
+      passivoPl,
+      diferenca: ativo - passivoPl,
+      receita,
+      custo,
+      despesa,
+      lucroBruto: receita - custo,
+      resultado: receita - custo - despesa,
+      semNatureza: map.get("sem_natureza") ?? [],
+    };
   }, [rows]);
+
+  function toggleSection(key: string) {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
 
   function startEdit(entry: Entry) {
     setEditingId(entry.id);
@@ -173,6 +208,161 @@ function BalancetePage() {
     }
     updateMutation.mutate({ entry_id: entry.id, reviewed_value: parsed });
   }
+
+  function renderEntryRow(entry: Entry) {
+    const editing = editingId === entry.id;
+    return (
+      <TableRow
+        key={entry.id}
+        className={entry.is_manually_edited ? "bg-amber-500/10 hover:bg-amber-500/15" : ""}
+      >
+        <TableCell className="pl-8 font-medium">
+          <span className="block">{entry.source_account_name}</span>
+          {entry.is_manually_edited ? (
+            <Badge variant="outline" className="mt-1 border-amber-500/60">
+              Editado manualmente
+            </Badge>
+          ) : null}
+        </TableCell>
+        <TableCell>
+          <Select
+            value={entry.nature ?? ""}
+            disabled={isClosed || updateMutation.isPending}
+            onValueChange={(nature) => updateMutation.mutate({ entry_id: entry.id, nature })}
+          >
+            <SelectTrigger
+              aria-label={`Natureza de ${entry.source_account_name}`}
+              className="h-9"
+            >
+              <SelectValue placeholder="Sem natureza" />
+            </SelectTrigger>
+            <SelectContent>
+              {NATURE_OPTIONS.map((nature) => (
+                <SelectItem key={nature} value={nature}>
+                  {NATURE_LABEL[nature]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </TableCell>
+        <TableCell className="text-right tabular-nums text-muted-foreground">
+          {formatCurrency(entry.raw_value)}
+        </TableCell>
+        <TableCell className="text-right">
+          {editing ? (
+            <div className="flex items-center justify-end gap-1">
+              <Input
+                autoFocus
+                value={draftValue}
+                aria-label={`Valor revisado de ${entry.source_account_name}`}
+                onChange={(e) => setDraftValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") commitEdit(entry);
+                  if (e.key === "Escape") setEditingId(null);
+                }}
+                className="h-9 text-right"
+              />
+              <Button
+                size="sm"
+                variant="ghost"
+                aria-label="Salvar valor"
+                onClick={() => commitEdit(entry)}
+              >
+                {updateMutation.isPending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Check className="size-4" />
+                )}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                aria-label="Cancelar edição"
+                onClick={() => setEditingId(null)}
+              >
+                <X className="size-4" />
+              </Button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled={isClosed}
+              onClick={() => startEdit(entry)}
+              className="inline-flex items-center gap-2 rounded px-2 py-1 tabular-nums hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {entry.reviewed_value === null ? "—" : formatCurrency(entry.reviewed_value)}
+              <Pencil className="size-3.5 text-muted-foreground" />
+            </button>
+          )}
+        </TableCell>
+        <TableCell className="text-right font-medium tabular-nums">
+          {formatCurrency(appliedValue(entry))}
+        </TableCell>
+        <TableCell className="text-right">
+          {entry.is_manually_edited ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={isClosed || revertMutation.isPending}
+              onClick={() => revertMutation.mutate(entry.id)}
+            >
+              <Undo2 className="mr-1 size-4" />
+              Reverter
+            </Button>
+          ) : null}
+        </TableCell>
+      </TableRow>
+    );
+  }
+
+  function renderSection(key: string, label: string) {
+    const list = grouped.map.get(key) ?? [];
+    if (!list.length) return null;
+    const isCollapsed = collapsed.has(key);
+    return (
+      <Fragment key={key}>
+        <TableRow className="bg-muted/60 hover:bg-muted/60">
+          <TableCell colSpan={4}>
+            <button
+              type="button"
+              onClick={() => toggleSection(key)}
+              className="inline-flex items-center gap-2 text-sm font-semibold"
+            >
+              {isCollapsed ? (
+                <ChevronRight className="size-4" />
+              ) : (
+                <ChevronDown className="size-4" />
+              )}
+              {label}
+              <span className="text-xs font-normal text-muted-foreground">
+                {list.length} conta(s)
+              </span>
+            </button>
+          </TableCell>
+          <TableCell className="text-right font-semibold tabular-nums">
+            {formatCurrency(grouped.totals[key] ?? 0)}
+          </TableCell>
+          <TableCell />
+        </TableRow>
+        {isCollapsed ? null : list.map(renderEntryRow)}
+      </Fragment>
+    );
+  }
+
+  function renderGroupTotal(label: string, value: number) {
+    return (
+      <TableRow className="border-t-2 border-border hover:bg-transparent">
+        <TableCell colSpan={4} className="text-sm font-semibold uppercase tracking-wide">
+          {label}
+        </TableCell>
+        <TableCell className="text-right font-semibold tabular-nums">
+          {formatCurrency(value)}
+        </TableCell>
+        <TableCell />
+      </TableRow>
+    );
+  }
+
 
   if (!selectedPeriodId) {
     return (
@@ -253,6 +443,50 @@ function BalancetePage() {
         />
       ) : (
         <>
+          <div className="mb-4 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-md border border-border bg-card px-4 py-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Ativo</p>
+              <p className="text-lg font-semibold tabular-nums">
+                {formatCurrency(grouped.ativo)}
+              </p>
+            </div>
+            <div className="rounded-md border border-border bg-card px-4 py-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Passivo + PL
+              </p>
+              <p className="text-lg font-semibold tabular-nums">
+                {formatCurrency(grouped.passivoPl)}
+              </p>
+            </div>
+            <div
+              className={`rounded-md border px-4 py-3 ${
+                Math.abs(grouped.diferenca) < 0.01
+                  ? "border-border bg-card"
+                  : "border-amber-500/60 bg-amber-500/10"
+              }`}
+            >
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                {Math.abs(grouped.diferenca) < 0.01 ? "Balancete fechado" : "Diferença"}
+              </p>
+              <p className="text-lg font-semibold tabular-nums">
+                {formatCurrency(grouped.diferenca)}
+              </p>
+            </div>
+          </div>
+
+          {grouped.semNatureza.length ? (
+            <p className="mb-4 text-sm text-amber-700 dark:text-amber-400">
+              {grouped.semNatureza.length} conta(s) sem natureza — classifique-as para consolidar
+              o resultado.
+            </p>
+          ) : null}
+
+          {search.trim() || natureFilter !== "todas" || onlyEdited ? (
+            <p className="mb-4 text-sm text-muted-foreground">
+              Filtros ativos: os subtotais consideram apenas as contas visíveis.
+            </p>
+          ) : null}
+
           <Card>
             <CardContent className="p-0">
               <Table>
@@ -267,117 +501,35 @@ function BalancetePage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rows.map((entry) => {
-                    const editing = editingId === entry.id;
-                    return (
-                      <TableRow
-                        key={entry.id}
-                        className={
-                          entry.is_manually_edited ? "bg-amber-500/10 hover:bg-amber-500/15" : ""
-                        }
-                      >
-                        <TableCell className="font-medium">
-                          <span className="block">{entry.source_account_name}</span>
-                          {entry.is_manually_edited ? (
-                            <Badge variant="outline" className="mt-1 border-amber-500/60">
-                              Editado manualmente
-                            </Badge>
-                          ) : null}
-                        </TableCell>
-                        <TableCell>
-                          <Select
-                            value={entry.nature ?? ""}
-                            disabled={isClosed || updateMutation.isPending}
-                            onValueChange={(nature) =>
-                              updateMutation.mutate({ entry_id: entry.id, nature })
-                            }
-                          >
-                            <SelectTrigger
-                              aria-label={`Natureza de ${entry.source_account_name}`}
-                              className="h-9"
-                            >
-                              <SelectValue placeholder="Sem natureza" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {NATURE_OPTIONS.map((nature) => (
-                                <SelectItem key={nature} value={nature}>
-                                  {NATURE_LABEL[nature]}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums text-muted-foreground">
-                          {formatCurrency(entry.raw_value)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {editing ? (
-                            <div className="flex items-center justify-end gap-1">
-                              <Input
-                                autoFocus
-                                value={draftValue}
-                                aria-label={`Valor revisado de ${entry.source_account_name}`}
-                                onChange={(e) => setDraftValue(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") commitEdit(entry);
-                                  if (e.key === "Escape") setEditingId(null);
-                                }}
-                                className="h-9 text-right"
-                              />
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                aria-label="Salvar valor"
-                                onClick={() => commitEdit(entry)}
-                              >
-                                {updateMutation.isPending ? (
-                                  <Loader2 className="size-4 animate-spin" />
-                                ) : (
-                                  <Check className="size-4" />
-                                )}
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                aria-label="Cancelar edição"
-                                onClick={() => setEditingId(null)}
-                              >
-                                <X className="size-4" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              disabled={isClosed}
-                              onClick={() => startEdit(entry)}
-                              className="inline-flex items-center gap-2 rounded px-2 py-1 tabular-nums hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              {entry.reviewed_value === null
-                                ? "—"
-                                : formatCurrency(entry.reviewed_value)}
-                              <Pencil className="size-3.5 text-muted-foreground" />
-                            </button>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right font-medium tabular-nums">
-                          {formatCurrency(appliedValue(entry))}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {entry.is_manually_edited ? (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              disabled={isClosed || revertMutation.isPending}
-                              onClick={() => revertMutation.mutate(entry.id)}
-                            >
-                              <Undo2 className="mr-1 size-4" />
-                              Reverter
-                            </Button>
-                          ) : null}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                  {renderSection("sem_natureza", "Contas sem natureza")}
+
+                  {renderSection("ativo_circulante", "Ativo circulante")}
+                  {renderSection("ativo_nao_circulante", "Ativo não circulante")}
+                  {grouped.map.has("ativo_circulante") ||
+                  grouped.map.has("ativo_nao_circulante")
+                    ? renderGroupTotal("Total do Ativo", grouped.ativo)
+                    : null}
+
+                  {renderSection("passivo_circulante", "Passivo circulante")}
+                  {renderSection("passivo_nao_circulante", "Passivo não circulante")}
+                  {renderSection("patrimonio_liquido", "Patrimônio líquido")}
+                  {grouped.map.has("passivo_circulante") ||
+                  grouped.map.has("passivo_nao_circulante") ||
+                  grouped.map.has("patrimonio_liquido")
+                    ? renderGroupTotal("Total do Passivo + Patrimônio líquido", grouped.passivoPl)
+                    : null}
+
+                  {renderSection("receita", "Receita")}
+                  {renderSection("custo", "Custo")}
+                  {grouped.map.has("receita") || grouped.map.has("custo")
+                    ? renderGroupTotal("(=) Lucro bruto", grouped.lucroBruto)
+                    : null}
+                  {renderSection("despesa", "Despesa")}
+                  {grouped.map.has("receita") ||
+                  grouped.map.has("custo") ||
+                  grouped.map.has("despesa")
+                    ? renderGroupTotal("(=) Resultado do período", grouped.resultado)
+                    : null}
                 </TableBody>
               </Table>
             </CardContent>
@@ -385,30 +537,32 @@ function BalancetePage() {
 
           <Card className="mt-6">
             <CardContent className="pt-6">
-              <h2 className="mb-3 text-sm font-semibold">Totais por natureza (valor aplicado)</h2>
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {totals.byNature.map(([nature, value]) => (
+              <h2 className="mb-3 text-sm font-semibold">Resumo de fechamento</h2>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {[
+                  ["Total do Ativo", grouped.ativo],
+                  ["Total do Passivo + PL", grouped.passivoPl],
+                  ["Diferença (Ativo − Passivo/PL)", grouped.diferenca],
+                  ["Receita", grouped.receita],
+                  ["Custo", grouped.custo],
+                  ["Despesa", grouped.despesa],
+                  ["Lucro bruto", grouped.lucroBruto],
+                  ["Resultado do período", grouped.resultado],
+                ].map(([label, value]) => (
                   <div
-                    key={nature}
+                    key={label as string}
                     className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm"
                   >
-                    <span className="text-muted-foreground">
-                      {nature === "sem_natureza"
-                        ? "Sem natureza"
-                        : (NATURE_LABEL[nature] ?? nature)}
-                    </span>
-                    <span className="tabular-nums">{formatCurrency(value)}</span>
+                    <span className="text-muted-foreground">{label as string}</span>
+                    <span className="tabular-nums">{formatCurrency(value as number)}</span>
                   </div>
                 ))}
-              </div>
-              <div className="mt-4 flex items-center justify-between border-t border-border pt-3 text-sm font-semibold">
-                <span>Total geral</span>
-                <span className="tabular-nums">{formatCurrency(totals.total)}</span>
               </div>
             </CardContent>
           </Card>
         </>
       )}
+
     </>
   );
 }
