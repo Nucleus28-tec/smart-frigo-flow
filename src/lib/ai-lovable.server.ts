@@ -155,25 +155,30 @@ export async function callLovableAi(options: LovableCallOptions): Promise<string
 
   try {
     if (options.schema && isZodSchema(options.schema)) {
-      const result = await generateText({
+      const generateOpts: Record<string, unknown> = {
         model,
         messages,
         temperature: 0,
         maxOutputTokens: options.maxOutputTokens ?? 65536,
         output: Output.object({ schema: options.schema }),
-      });
+      };
+      if (options.systemInstruction) {
+        generateOpts.system = options.systemInstruction;
+      }
+      const result = await generateText(generateOpts as Parameters<typeof generateText>[0]);
       return JSON.stringify(result.output);
     }
 
-    const result = await generateText({
+    const generateOpts: Record<string, unknown> = {
       model,
       messages,
-      ...(options.systemInstruction
-        ? { system: options.systemInstruction }
-        : {}),
       temperature: 0,
       maxOutputTokens: options.maxOutputTokens ?? 65536,
-    });
+    };
+    if (options.systemInstruction) {
+      generateOpts.system = options.systemInstruction;
+    }
+    const result = await generateText(generateOpts as Parameters<typeof generateText>[0]);
     return result.text;
   } catch (error) {
     if (error instanceof Error && error.message) {
