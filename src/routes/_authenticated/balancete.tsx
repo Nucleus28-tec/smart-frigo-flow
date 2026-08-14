@@ -148,17 +148,51 @@ function BalancetePage() {
     });
   }, [entries.data, search, natureFilter, onlyEdited]);
 
-  const totals = useMemo(() => {
-    const byNature = new Map<string, number>();
-    let total = 0;
+  const grouped = useMemo(() => {
+    const map = new Map<string, Entry[]>();
     for (const entry of rows) {
-      const value = appliedValue(entry);
-      total += Number(value);
       const key = entry.nature ?? "sem_natureza";
-      byNature.set(key, (byNature.get(key) ?? 0) + Number(value));
+      const list = map.get(key);
+      if (list) list.push(entry);
+      else map.set(key, [entry]);
     }
-    return { byNature: Array.from(byNature.entries()), total };
+    const sum = (key: string) =>
+      (map.get(key) ?? []).reduce((acc, e) => acc + Number(appliedValue(e)), 0);
+    const totals = Object.fromEntries(
+      [...NATURE_OPTIONS, "sem_natureza"].map((key) => [key, sum(key)]),
+    ) as Record<string, number>;
+
+    const ativo = Math.abs(totals.ativo_circulante + totals.ativo_nao_circulante);
+    const passivoPl = Math.abs(
+      totals.passivo_circulante + totals.passivo_nao_circulante + totals.patrimonio_liquido,
+    );
+    const receita = Math.abs(totals.receita);
+    const custo = Math.abs(totals.custo);
+    const despesa = Math.abs(totals.despesa);
+
+    return {
+      map,
+      totals,
+      ativo,
+      passivoPl,
+      diferenca: ativo - passivoPl,
+      receita,
+      custo,
+      despesa,
+      lucroBruto: receita - custo,
+      resultado: receita - custo - despesa,
+      semNatureza: map.get("sem_natureza") ?? [],
+    };
   }, [rows]);
+
+  function toggleSection(key: string) {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
 
   function startEdit(entry: Entry) {
     setEditingId(entry.id);
@@ -173,6 +207,161 @@ function BalancetePage() {
     }
     updateMutation.mutate({ entry_id: entry.id, reviewed_value: parsed });
   }
+
+  function renderEntryRow(entry: Entry) {
+    const editing = editingId === entry.id;
+    return (
+      <TableRow
+        key={entry.id}
+        className={entry.is_manually_edited ? "bg-amber-500/10 hover:bg-amber-500/15" : ""}
+      >
+        <TableCell className="pl-8 font-medium">
+          <span className="block">{entry.source_account_name}</span>
+          {entry.is_manually_edited ? (
+            <Badge variant="outline" className="mt-1 border-amber-500/60">
+              Editado manualmente
+            </Badge>
+          ) : null}
+        </TableCell>
+        <TableCell>
+          <Select
+            value={entry.nature ?? ""}
+            disabled={isClosed || updateMutation.isPending}
+            onValueChange={(nature) => updateMutation.mutate({ entry_id: entry.id, nature })}
+          >
+            <SelectTrigger
+              aria-label={`Natureza de ${entry.source_account_name}`}
+              className="h-9"
+            >
+              <SelectValue placeholder="Sem natureza" />
+            </SelectTrigger>
+            <SelectContent>
+              {NATURE_OPTIONS.map((nature) => (
+                <SelectItem key={nature} value={nature}>
+                  {NATURE_LABEL[nature]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </TableCell>
+        <TableCell className="text-right tabular-nums text-muted-foreground">
+          {formatCurrency(entry.raw_value)}
+        </TableCell>
+        <TableCell className="text-right">
+          {editing ? (
+            <div className="flex items-center justify-end gap-1">
+              <Input
+                autoFocus
+                value={draftValue}
+                aria-label={`Valor revisado de ${entry.source_account_name}`}
+                onChange={(e) => setDraftValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") commitEdit(entry);
+                  if (e.key === "Escape") setEditingId(null);
+                }}
+                className="h-9 text-right"
+              />
+              <Button
+                size="sm"
+                variant="ghost"
+                aria-label="Salvar valor"
+                onClick={() => commitEdit(entry)}
+              >
+                {updateMutation.isPending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Check className="size-4" />
+                )}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                aria-label="Cancelar edição"
+                onClick={() => setEditingId(null)}
+              >
+                <X className="size-4" />
+              </Button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled={isClosed}
+              onClick={() => startEdit(entry)}
+              className="inline-flex items-center gap-2 rounded px-2 py-1 tabular-nums hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {entry.reviewed_value === null ? "—" : formatCurrency(entry.reviewed_value)}
+              <Pencil className="size-3.5 text-muted-foreground" />
+            </button>
+          )}
+        </TableCell>
+        <TableCell className="text-right font-medium tabular-nums">
+          {formatCurrency(appliedValue(entry))}
+        </TableCell>
+        <TableCell className="text-right">
+          {entry.is_manually_edited ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={isClosed || revertMutation.isPending}
+              onClick={() => revertMutation.mutate(entry.id)}
+            >
+              <Undo2 className="mr-1 size-4" />
+              Reverter
+            </Button>
+          ) : null}
+        </TableCell>
+      </TableRow>
+    );
+  }
+
+  function renderSection(key: string, label: string) {
+    const list = grouped.map.get(key) ?? [];
+    if (!list.length) return null;
+    const isCollapsed = collapsed.has(key);
+    return (
+      <Fragment key={key}>
+        <TableRow className="bg-muted/60 hover:bg-muted/60">
+          <TableCell colSpan={4}>
+            <button
+              type="button"
+              onClick={() => toggleSection(key)}
+              className="inline-flex items-center gap-2 text-sm font-semibold"
+            >
+              {isCollapsed ? (
+                <ChevronRight className="size-4" />
+              ) : (
+                <ChevronDown className="size-4" />
+              )}
+              {label}
+              <span className="text-xs font-normal text-muted-foreground">
+                {list.length} conta(s)
+              </span>
+            </button>
+          </TableCell>
+          <TableCell className="text-right font-semibold tabular-nums">
+            {formatCurrency(grouped.totals[key] ?? 0)}
+          </TableCell>
+          <TableCell />
+        </TableRow>
+        {isCollapsed ? null : list.map(renderEntryRow)}
+      </Fragment>
+    );
+  }
+
+  function renderGroupTotal(label: string, value: number) {
+    return (
+      <TableRow className="border-t-2 border-border hover:bg-transparent">
+        <TableCell colSpan={4} className="text-sm font-semibold uppercase tracking-wide">
+          {label}
+        </TableCell>
+        <TableCell className="text-right font-semibold tabular-nums">
+          {formatCurrency(value)}
+        </TableCell>
+        <TableCell />
+      </TableRow>
+    );
+  }
+
 
   if (!selectedPeriodId) {
     return (
