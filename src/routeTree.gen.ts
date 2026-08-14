@@ -24,6 +24,7 @@ import { Route as AuthenticatedPeriodosRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedPlanoDeContasRouteImport } from './routes/_authenticated/plano-de-contas'
 import { Route as AuthenticatedReclassificacoesRouteImport } from './routes/_authenticated/reclassificacoes'
 import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated/_admin/usuarios'
+import { Route as ApiAgentsChatRouteImport } from './routes/api/agents/chat'
 import { Route as ApiPublicHooksNightlyDailyRefreshRouteImport } from './routes/api/public/hooks/nightly-daily-refresh'
 
 const IndexRoute = IndexRouteImport.update({
@@ -105,6 +106,11 @@ const AuthenticatedAdminUsuariosRoute =
     path: '/usuarios',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const ApiAgentsChatRoute = ApiAgentsChatRouteImport.update({
+  id: '/api/agents/chat',
+  path: '/api/agents/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHooksNightlyDailyRefreshRoute =
   ApiPublicHooksNightlyDailyRefreshRouteImport.update({
     id: '/api/public/hooks/nightly-daily-refresh',
@@ -126,6 +132,7 @@ export interface FileRoutesByFullPath {
   '/plano-de-contas': typeof AuthenticatedPlanoDeContasRoute
   '/reclassificacoes': typeof AuthenticatedReclassificacoesRoute
   '/usuarios': typeof AuthenticatedAdminUsuariosRoute
+  '/api/agents/chat': typeof ApiAgentsChatRoute
   '/api/public/hooks/nightly-daily-refresh': typeof ApiPublicHooksNightlyDailyRefreshRoute
 }
 export interface FileRoutesByTo {
@@ -142,6 +149,7 @@ export interface FileRoutesByTo {
   '/plano-de-contas': typeof AuthenticatedPlanoDeContasRoute
   '/reclassificacoes': typeof AuthenticatedReclassificacoesRoute
   '/usuarios': typeof AuthenticatedAdminUsuariosRoute
+  '/api/agents/chat': typeof ApiAgentsChatRoute
   '/api/public/hooks/nightly-daily-refresh': typeof ApiPublicHooksNightlyDailyRefreshRoute
 }
 export interface FileRoutesById {
@@ -161,6 +169,7 @@ export interface FileRoutesById {
   '/_authenticated/plano-de-contas': typeof AuthenticatedPlanoDeContasRoute
   '/_authenticated/reclassificacoes': typeof AuthenticatedReclassificacoesRoute
   '/_authenticated/_admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
+  '/api/agents/chat': typeof ApiAgentsChatRoute
   '/api/public/hooks/nightly-daily-refresh': typeof ApiPublicHooksNightlyDailyRefreshRoute
 }
 export interface FileRouteTypes {
@@ -179,6 +188,7 @@ export interface FileRouteTypes {
     | '/plano-de-contas'
     | '/reclassificacoes'
     | '/usuarios'
+    | '/api/agents/chat'
     | '/api/public/hooks/nightly-daily-refresh'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -195,6 +205,7 @@ export interface FileRouteTypes {
     | '/plano-de-contas'
     | '/reclassificacoes'
     | '/usuarios'
+    | '/api/agents/chat'
     | '/api/public/hooks/nightly-daily-refresh'
   id:
     | '__root__'
@@ -213,6 +224,7 @@ export interface FileRouteTypes {
     | '/_authenticated/plano-de-contas'
     | '/_authenticated/reclassificacoes'
     | '/_authenticated/_admin/usuarios'
+    | '/api/agents/chat'
     | '/api/public/hooks/nightly-daily-refresh'
   fileRoutesById: FileRoutesById
 }
@@ -221,6 +233,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   DefinirSenhaRoute: typeof DefinirSenhaRoute
   LoginRoute: typeof LoginRoute
+  ApiAgentsChatRoute: typeof ApiAgentsChatRoute
   ApiPublicHooksNightlyDailyRefreshRoute: typeof ApiPublicHooksNightlyDailyRefreshRoute
 }
 
@@ -331,6 +344,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminUsuariosRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/api/agents/chat': {
+      id: '/api/agents/chat'
+      path: '/api/agents/chat'
+      fullPath: '/api/agents/chat'
+      preLoaderRoute: typeof ApiAgentsChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/nightly-daily-refresh': {
       id: '/api/public/hooks/nightly-daily-refresh'
       path: '/api/public/hooks/nightly-daily-refresh'
@@ -389,6 +409,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   DefinirSenhaRoute: DefinirSenhaRoute,
   LoginRoute: LoginRoute,
+  ApiAgentsChatRoute: ApiAgentsChatRoute,
   ApiPublicHooksNightlyDailyRefreshRoute:
     ApiPublicHooksNightlyDailyRefreshRoute,
 }
