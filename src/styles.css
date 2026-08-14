@@ -203,3 +203,64 @@
 @utility numeric {
   font-variant-numeric: tabular-nums;
 }
+
+/* ---- Iluminação verde nas interações ---- */
+
+@utility glow-interactive {
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    background-color 150ms ease;
+
+  &:hover {
+    border-color: var(--glow-border);
+    box-shadow: var(--glow-soft);
+  }
+
+  &:focus-visible,
+  &:focus-within {
+    border-color: var(--color-brand);
+    box-shadow: var(--glow-ring);
+    outline: none;
+  }
+}
+
+@utility glow-surface {
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+
+  &:hover {
+    border-color: var(--glow-border);
+    box-shadow: var(--glow-soft);
+  }
+}
+
+@utility glow-row {
+  transition:
+    background-color 150ms ease,
+    box-shadow 150ms ease;
+
+  &:hover {
+    background-color: var(--glow-tint);
+    box-shadow: inset 2px 0 0 0 var(--color-brand);
+  }
+}
+
+@utility glow-strong {
+  transition:
+    box-shadow 150ms ease,
+    background-color 150ms ease;
+
+  &:hover {
+    box-shadow: var(--glow-strong-shadow);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
