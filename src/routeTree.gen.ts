@@ -24,6 +24,7 @@ import { Route as AuthenticatedPeriodosRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedPlanoDeContasRouteImport } from './routes/_authenticated/plano-de-contas'
 import { Route as AuthenticatedReclassificacoesRouteImport } from './routes/_authenticated/reclassificacoes'
 import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated/_admin/usuarios'
+import { Route as AuthenticatedAgentesIndexRouteImport } from './routes/_authenticated/agentes/index'
 import { Route as ApiAgentsChatRouteImport } from './routes/api/agents/chat'
 import { Route as ApiPublicHooksNightlyDailyRefreshRouteImport } from './routes/api/public/hooks/nightly-daily-refresh'
 
@@ -106,6 +107,12 @@ const AuthenticatedAdminUsuariosRoute =
     path: '/usuarios',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAgentesIndexRoute =
+  AuthenticatedAgentesIndexRouteImport.update({
+    id: '/agentes/',
+    path: '/agentes/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiAgentsChatRoute = ApiAgentsChatRouteImport.update({
   id: '/api/agents/chat',
   path: '/api/agents/chat',
@@ -133,6 +140,7 @@ export interface FileRoutesByFullPath {
   '/reclassificacoes': typeof AuthenticatedReclassificacoesRoute
   '/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/api/agents/chat': typeof ApiAgentsChatRoute
+  '/agentes/': typeof AuthenticatedAgentesIndexRoute
   '/api/public/hooks/nightly-daily-refresh': typeof ApiPublicHooksNightlyDailyRefreshRoute
 }
 export interface FileRoutesByTo {
@@ -150,6 +158,7 @@ export interface FileRoutesByTo {
   '/reclassificacoes': typeof AuthenticatedReclassificacoesRoute
   '/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/api/agents/chat': typeof ApiAgentsChatRoute
+  '/agentes': typeof AuthenticatedAgentesIndexRoute
   '/api/public/hooks/nightly-daily-refresh': typeof ApiPublicHooksNightlyDailyRefreshRoute
 }
 export interface FileRoutesById {
@@ -170,6 +179,7 @@ export interface FileRoutesById {
   '/_authenticated/reclassificacoes': typeof AuthenticatedReclassificacoesRoute
   '/_authenticated/_admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/api/agents/chat': typeof ApiAgentsChatRoute
+  '/_authenticated/agentes/': typeof AuthenticatedAgentesIndexRoute
   '/api/public/hooks/nightly-daily-refresh': typeof ApiPublicHooksNightlyDailyRefreshRoute
 }
 export interface FileRouteTypes {
@@ -189,6 +199,7 @@ export interface FileRouteTypes {
     | '/reclassificacoes'
     | '/usuarios'
     | '/api/agents/chat'
+    | '/agentes/'
     | '/api/public/hooks/nightly-daily-refresh'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -206,6 +217,7 @@ export interface FileRouteTypes {
     | '/reclassificacoes'
     | '/usuarios'
     | '/api/agents/chat'
+    | '/agentes'
     | '/api/public/hooks/nightly-daily-refresh'
   id:
     | '__root__'
@@ -225,6 +237,7 @@ export interface FileRouteTypes {
     | '/_authenticated/reclassificacoes'
     | '/_authenticated/_admin/usuarios'
     | '/api/agents/chat'
+    | '/_authenticated/agentes/'
     | '/api/public/hooks/nightly-daily-refresh'
   fileRoutesById: FileRoutesById
 }
@@ -344,6 +357,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminUsuariosRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/agentes/': {
+      id: '/_authenticated/agentes/'
+      path: '/agentes'
+      fullPath: '/agentes/'
+      preLoaderRoute: typeof AuthenticatedAgentesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/agents/chat': {
       id: '/api/agents/chat'
       path: '/api/agents/chat'
@@ -386,6 +406,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPeriodosRoute: typeof AuthenticatedPeriodosRoute
   AuthenticatedPlanoDeContasRoute: typeof AuthenticatedPlanoDeContasRoute
   AuthenticatedReclassificacoesRoute: typeof AuthenticatedReclassificacoesRoute
+  AuthenticatedAgentesIndexRoute: typeof AuthenticatedAgentesIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -399,6 +420,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPeriodosRoute: AuthenticatedPeriodosRoute,
   AuthenticatedPlanoDeContasRoute: AuthenticatedPlanoDeContasRoute,
   AuthenticatedReclassificacoesRoute: AuthenticatedReclassificacoesRoute,
+  AuthenticatedAgentesIndexRoute: AuthenticatedAgentesIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
