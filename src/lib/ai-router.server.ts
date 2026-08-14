@@ -65,7 +65,6 @@ async function logFallback(
     await supabaseAdmin.rpc("log_activity", {
       _action: "ai_fallback",
       _entity_type: "ai_provider",
-      _entity_id: undefined,
       _metadata: {
         failed_provider: failedProvider,
         fallback_provider: fallbackProvider,
