@@ -1,5 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import {
   BarChart3,
@@ -15,6 +15,7 @@ import {
   LogOut,
   Menu,
   X,
+  Bot,
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -33,6 +34,8 @@ import {
 } from "@/components/ui/select";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
+import { useServerFn } from "@tanstack/react-start";
+import { getAiProvider, setAiProvider } from "@/lib/ai-settings.functions";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: BarChart3, adminOnly: false },
