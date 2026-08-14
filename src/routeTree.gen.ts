@@ -24,6 +24,7 @@ import { Route as AuthenticatedPeriodosRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedPlanoDeContasRouteImport } from './routes/_authenticated/plano-de-contas'
 import { Route as AuthenticatedReclassificacoesRouteImport } from './routes/_authenticated/reclassificacoes'
 import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated/_admin/usuarios'
+import { Route as ApiPublicHooksNightlyDailyRefreshRouteImport } from './routes/api/public/hooks/nightly-daily-refresh'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -104,6 +105,12 @@ const AuthenticatedAdminUsuariosRoute =
     path: '/usuarios',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const ApiPublicHooksNightlyDailyRefreshRoute =
+  ApiPublicHooksNightlyDailyRefreshRouteImport.update({
+    id: '/api/public/hooks/nightly-daily-refresh',
+    path: '/api/public/hooks/nightly-daily-refresh',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -119,6 +126,7 @@ export interface FileRoutesByFullPath {
   '/plano-de-contas': typeof AuthenticatedPlanoDeContasRoute
   '/reclassificacoes': typeof AuthenticatedReclassificacoesRoute
   '/usuarios': typeof AuthenticatedAdminUsuariosRoute
+  '/api/public/hooks/nightly-daily-refresh': typeof ApiPublicHooksNightlyDailyRefreshRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -134,6 +142,7 @@ export interface FileRoutesByTo {
   '/plano-de-contas': typeof AuthenticatedPlanoDeContasRoute
   '/reclassificacoes': typeof AuthenticatedReclassificacoesRoute
   '/usuarios': typeof AuthenticatedAdminUsuariosRoute
+  '/api/public/hooks/nightly-daily-refresh': typeof ApiPublicHooksNightlyDailyRefreshRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -152,6 +161,7 @@ export interface FileRoutesById {
   '/_authenticated/plano-de-contas': typeof AuthenticatedPlanoDeContasRoute
   '/_authenticated/reclassificacoes': typeof AuthenticatedReclassificacoesRoute
   '/_authenticated/_admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
+  '/api/public/hooks/nightly-daily-refresh': typeof ApiPublicHooksNightlyDailyRefreshRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -169,6 +179,7 @@ export interface FileRouteTypes {
     | '/plano-de-contas'
     | '/reclassificacoes'
     | '/usuarios'
+    | '/api/public/hooks/nightly-daily-refresh'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -184,6 +195,7 @@ export interface FileRouteTypes {
     | '/plano-de-contas'
     | '/reclassificacoes'
     | '/usuarios'
+    | '/api/public/hooks/nightly-daily-refresh'
   id:
     | '__root__'
     | '/'
@@ -201,6 +213,7 @@ export interface FileRouteTypes {
     | '/_authenticated/plano-de-contas'
     | '/_authenticated/reclassificacoes'
     | '/_authenticated/_admin/usuarios'
+    | '/api/public/hooks/nightly-daily-refresh'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -208,6 +221,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   DefinirSenhaRoute: typeof DefinirSenhaRoute
   LoginRoute: typeof LoginRoute
+  ApiPublicHooksNightlyDailyRefreshRoute: typeof ApiPublicHooksNightlyDailyRefreshRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -317,6 +331,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminUsuariosRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/api/public/hooks/nightly-daily-refresh': {
+      id: '/api/public/hooks/nightly-daily-refresh'
+      path: '/api/public/hooks/nightly-daily-refresh'
+      fullPath: '/api/public/hooks/nightly-daily-refresh'
+      preLoaderRoute: typeof ApiPublicHooksNightlyDailyRefreshRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -368,6 +389,8 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   DefinirSenhaRoute: DefinirSenhaRoute,
   LoginRoute: LoginRoute,
+  ApiPublicHooksNightlyDailyRefreshRoute:
+    ApiPublicHooksNightlyDailyRefreshRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
