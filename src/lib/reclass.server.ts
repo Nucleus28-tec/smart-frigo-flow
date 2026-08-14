@@ -1,5 +1,5 @@
-/** Geração de sugestões de reclassificação via IA (Lovable AI Gateway). */
-import { callGeminiJson } from "./ai-model";
+/** Geração de sugestões de reclassificação via IA (roteador unificado). */
+import { callAiJson } from "./ai-router.server";
 
 export const RECLASS_NATURES = [
   "ativo_circulante",
