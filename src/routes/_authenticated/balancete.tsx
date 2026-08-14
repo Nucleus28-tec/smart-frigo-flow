@@ -79,10 +79,14 @@ function BalancetePage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftValue, setDraftValue] = useState("");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkNature, setBulkNature] = useState<string>("");
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
 
   const isClosed = selectedPeriod?.status === "fechado";
   const saveEntry = useServerFn(updateLedgerEntry);
   const revertEntry = useServerFn(revertLedgerEntry);
+
 
   const entries = useQuery({
     queryKey: ["ledger_entries", selectedPeriodId],
