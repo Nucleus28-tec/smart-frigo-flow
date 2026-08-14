@@ -105,13 +105,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 to={item.to}
                 onClick={() => setOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 text-sm font-medium transition-all duration-150",
+                  "group flex items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 text-sm font-medium transition-all duration-150",
                   active
                     ? "bg-sidebar-primary text-sidebar-primary-foreground"
                     : "text-sidebar-foreground hover:border-[var(--glow-border)] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-[var(--glow-soft)]",
                 )}
               >
-                <Icon className={cn("size-4", active ? "text-brand" : "text-muted-foreground")} />
+                <Icon
+                  className={cn(
+                    "size-4 transition-colors",
+                    active ? "text-brand" : "text-muted-foreground group-hover:text-brand",
+                  )}
+                />
                 {item.label}
               </Link>
             );
