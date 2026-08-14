@@ -31,7 +31,7 @@ export const generateStatements = createServerFn({ method: "POST" })
       _entity_type: "financial_statements",
       _metadata: { period_id: data.period_id },
     });
-    return result as Record<string, unknown>;
+    return { ok: true as const, generated: JSON.stringify(result ?? {}) };
   });
 
 /** Gera PDF (com logo Rotta) ou Excel dos demonstrativos e devolve uma signed URL. */
