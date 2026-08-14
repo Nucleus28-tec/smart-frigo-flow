@@ -18,24 +18,33 @@ function systemPrefersDark() {
   return window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
 
+function resolveMode(mode: ThemeMode): "light" | "dark" {
+  if (mode === "dark") return "dark";
+  if (mode === "light") return "light";
+  return systemPrefersDark() ? "dark" : "light";
+}
+
+function readStoredMode(): ThemeMode {
+  if (typeof window === "undefined") return "system";
+  const stored = window.localStorage.getItem(THEME_STORAGE_KEY) as ThemeMode | null;
+  return stored === "light" || stored === "dark" || stored === "system" ? stored : "system";
+}
+
 function applyTheme(mode: ThemeMode) {
-  if (typeof document === "undefined") return "light" as const;
+  if (typeof document === "undefined") return resolveMode(mode);
   const dark = mode === "dark" || (mode === "system" && systemPrefersDark());
   document.documentElement.classList.toggle("dark", dark);
+  document.documentElement.style.colorScheme = dark ? "dark" : "light";
   return dark ? ("dark" as const) : ("light" as const);
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setModeState] = useState<ThemeMode>("system");
-  const [resolved, setResolved] = useState<"light" | "dark">("light");
+  const [mode, setModeState] = useState<ThemeMode>(() => readStoredMode());
+  const [resolved, setResolved] = useState<"light" | "dark">(() => resolveMode(readStoredMode()));
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(THEME_STORAGE_KEY) as ThemeMode | null;
-    const initial: ThemeMode =
-      stored === "light" || stored === "dark" || stored === "system" ? stored : "system";
-    setModeState(initial);
-    setResolved(applyTheme(initial));
-  }, []);
+    setResolved(applyTheme(mode));
+  }, [mode]);
 
   useEffect(() => {
     if (mode !== "system") return;
