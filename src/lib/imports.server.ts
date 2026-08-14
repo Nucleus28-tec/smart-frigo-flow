@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import { callGeminiJson } from "./ai-model";
+import { callAiJson } from "./ai-router.server";
 
 export type ParsedEntry = {
   source_account_code: string | null;
