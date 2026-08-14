@@ -119,6 +119,11 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.925 0 0);
   --sidebar-ring: oklch(0.74 0.19 149);
+  --glow-border: oklch(0.74 0.19 149 / 0.55);
+  --glow-tint: oklch(0.74 0.19 149 / 0.07);
+  --glow-soft: 0 0 0 1px oklch(0.74 0.19 149 / 0.15);
+  --glow-ring: 0 0 0 3px oklch(0.74 0.19 149 / 0.18);
+  --glow-strong-shadow: 0 0 16px -2px oklch(0.74 0.19 149 / 0.4);
 }
 
 
@@ -166,6 +171,11 @@
   --success-foreground: oklch(0.16 0.02 150);
   --warning: oklch(0.8 0.15 80);
   --warning-foreground: oklch(0.2 0.04 60);
+  --glow-border: oklch(0.78 0.19 149 / 0.7);
+  --glow-tint: oklch(0.78 0.19 149 / 0.12);
+  --glow-soft: 0 0 12px -2px oklch(0.78 0.19 149 / 0.35);
+  --glow-ring: 0 0 0 3px oklch(0.78 0.19 149 / 0.25);
+  --glow-strong-shadow: 0 0 22px -2px oklch(0.78 0.19 149 / 0.55);
 }
 
 @layer base {
@@ -203,3 +213,64 @@
 @utility numeric {
   font-variant-numeric: tabular-nums;
 }
+
+/* ---- Iluminação verde nas interações ---- */
+
+@utility glow-interactive {
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    background-color 150ms ease;
+
+  &:hover {
+    border-color: var(--glow-border);
+    box-shadow: var(--glow-soft);
+  }
+
+  &:focus-visible,
+  &:focus-within {
+    border-color: var(--color-brand);
+    box-shadow: var(--glow-ring);
+    outline: none;
+  }
+}
+
+@utility glow-surface {
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+
+  &:hover {
+    border-color: var(--glow-border);
+    box-shadow: var(--glow-soft);
+  }
+}
+
+@utility glow-row {
+  transition:
+    background-color 150ms ease,
+    box-shadow 150ms ease;
+
+  &:hover {
+    background-color: var(--glow-tint);
+    box-shadow: inset 2px 0 0 0 var(--color-brand);
+  }
+}
+
+@utility glow-strong {
+  transition:
+    box-shadow 150ms ease,
+    background-color 150ms ease;
+
+  &:hover {
+    box-shadow: var(--glow-strong-shadow);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+

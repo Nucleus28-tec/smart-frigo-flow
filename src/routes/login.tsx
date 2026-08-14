@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export const Route = createFileRoute("/login")({
   ssr: false,
@@ -80,7 +81,10 @@ function LoginPage() {
   if (checking) return null;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-sidebar px-4">
+    <div className="relative flex min-h-screen items-center justify-center bg-sidebar px-4">
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-semibold tracking-tight text-sidebar-foreground">
