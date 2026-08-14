@@ -169,15 +169,20 @@ function DemonstrativosPage() {
               <Skeleton className="h-64" />
               <Skeleton className="h-64" />
             </div>
+          ) : statementsQuery.isError ? (
+            <ErrorState
+              message={(statementsQuery.error as Error)?.message}
+              onRetry={() => void statementsQuery.refetch()}
+            />
           ) : (statementsQuery.data ?? []).length === 0 ? (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                Nenhum demonstrativo gerado para {selectedPeriod?.label}.{" "}
-                {isAdmin
-                  ? "Use “Gerar demonstrativos” para calcular a partir do balancete."
-                  : "Peça a um administrador para gerar os demonstrativos."}
-              </CardContent>
-            </Card>
+            <EmptyState
+              title="Demonstrativos ainda não gerados"
+              description={
+                isAdmin
+                  ? `Nenhum demonstrativo em ${selectedPeriod?.label ?? "este período"}. Importe o balancete na tela Importar e use “Gerar demonstrativos”.`
+                  : `Nenhum demonstrativo em ${selectedPeriod?.label ?? "este período"}. Peça a um administrador para gerá-los.`
+              }
+            />
           ) : (
             <div className="grid gap-4 lg:grid-cols-3">
               {(statementsQuery.data ?? []).map((statement) => (
