@@ -175,6 +175,18 @@ function DashboardPage() {
 
   if (loadingPeriods) return <LoadingRows rows={4} />;
 
+  if (periodsError) {
+    return (
+      <>
+        <PageHeader title="Dashboard" />
+        <ErrorState
+          message={(periodsError as Error)?.message}
+          onRetry={() => void refetchPeriods()}
+        />
+      </>
+    );
+  }
+
   if (!selectedPeriodId) {
     return (
       <>
