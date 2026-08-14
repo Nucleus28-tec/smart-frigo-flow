@@ -176,5 +176,30 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
   }
+
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.02em;
+  }
+
+  th,
+  td {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@utility label-caps {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted-foreground);
+}
+
+@utility numeric {
+  font-variant-numeric: tabular-nums;
 }
