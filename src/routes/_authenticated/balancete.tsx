@@ -199,6 +199,53 @@ function BalancetePage() {
     });
   }
 
+  function toggleSelected(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function setManySelected(ids: string[], checked: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) {
+        if (checked) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
+  }
+
+  const allVisibleSelected = rows.length > 0 && rows.every((e) => selected.has(e.id));
+
+  async function applyBulkNature() {
+    if (!bulkNature || selected.size === 0) return;
+    const ids = rows.filter((e) => selected.has(e.id)).map((e) => e.id);
+    setBulkProgress({ done: 0, total: ids.length });
+    let ok = 0;
+    let failed = 0;
+    for (let i = 0; i < ids.length; i += 5) {
+      const chunk = ids.slice(i, i + 5);
+      const results = await Promise.allSettled(
+        chunk.map((entry_id) => saveEntry({ data: { entry_id, nature: bulkNature as never } })),
+      );
+      for (const r of results) {
+        if (r.status === "fulfilled") ok += 1;
+        else failed += 1;
+      }
+      setBulkProgress({ done: Math.min(i + chunk.length, ids.length), total: ids.length });
+    }
+    setBulkProgress(null);
+    setSelected(new Set());
+    invalidate();
+    if (failed) toast.error(`${ok} conta(s) classificada(s), ${failed} falharam.`);
+    else toast.success(`${ok} conta(s) classificada(s) como ${NATURE_LABEL[bulkNature] ?? bulkNature}.`);
+  }
+
+
   function startEdit(entry: Entry) {
     setEditingId(entry.id);
     setDraftValue(String(appliedValue(entry)).replace(".", ","));
