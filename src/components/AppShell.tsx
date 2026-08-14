@@ -182,6 +182,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </Badge>
               </div>
             )}
+            <ThemeToggle />
             <Button variant="outline" size="sm" onClick={handleSignOut}>
               <LogOut className="size-4" />
               Sair
