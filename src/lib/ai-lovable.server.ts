@@ -163,7 +163,7 @@ export async function callLovableAi(options: LovableCallOptions): Promise<string
         output: Output.object({ schema: options.schema }),
       };
       if (options.systemInstruction) {
-        generateOpts.system = options.systemInstruction;
+        generateOpts["system"] = options.systemInstruction;
       }
       const result = await generateText(generateOpts as Parameters<typeof generateText>[0]);
       return JSON.stringify(result.output);
@@ -176,7 +176,7 @@ export async function callLovableAi(options: LovableCallOptions): Promise<string
       maxOutputTokens: options.maxOutputTokens ?? 65536,
     };
     if (options.systemInstruction) {
-      generateOpts.system = options.systemInstruction;
+      generateOpts["system"] = options.systemInstruction;
     }
     const result = await generateText(generateOpts as Parameters<typeof generateText>[0]);
     return result.text;
