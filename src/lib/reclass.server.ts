@@ -70,7 +70,7 @@ async function suggestBatch(
     .map((a) => `- id=${a.id} | código=${a.source_code ?? "-"} | conta="${a.source_name}"`)
     .join("\n");
 
-  const parsed = await callGeminiJson<{
+  const parsed = await callAiJson<{
     sugestoes?: Array<{
       id?: string;
       natureza?: string;
@@ -89,6 +89,7 @@ async function suggestBatch(
       "A confiança é um número entre 0 e 1. Não invente contas: responda apenas os ids recebidos.",
     parts: [
       {
+        type: "text",
         text:
           `Padrão já confirmado pela empresa:\n${patternText}\n\n` +
           `Contas a classificar:\n${accountsText}`,
