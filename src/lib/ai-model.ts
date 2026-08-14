@@ -14,9 +14,12 @@ export type GeminiCallOptions = {
   /** Schema no dialeto `responseSchema` do Gemini; quando presente força saída JSON. */
   schema?: unknown;
   model?: string;
+  /** Limite de tokens da resposta (padrão alto para extrações longas). */
+  maxOutputTokens?: number;
   /** Prefixo usado nas mensagens de erro mostradas ao usuário. */
   errorContext?: string;
 };
+
 
 function geminiApiKey(): string {
   const key = process.env["GEMINI_API_KEY"];
