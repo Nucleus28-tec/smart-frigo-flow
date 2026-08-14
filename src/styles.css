@@ -171,6 +171,11 @@
   --success-foreground: oklch(0.16 0.02 150);
   --warning: oklch(0.8 0.15 80);
   --warning-foreground: oklch(0.2 0.04 60);
+  --glow-border: oklch(0.78 0.19 149 / 0.7);
+  --glow-tint: oklch(0.78 0.19 149 / 0.12);
+  --glow-soft: 0 0 12px -2px oklch(0.78 0.19 149 / 0.35);
+  --glow-ring: 0 0 0 3px oklch(0.78 0.19 149 / 0.25);
+  --glow-strong-shadow: 0 0 22px -2px oklch(0.78 0.19 149 / 0.55);
 }
 
 @layer base {
