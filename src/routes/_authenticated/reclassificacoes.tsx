@@ -314,6 +314,16 @@ function ReclassificacoesPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      {isAdmin ? (
+                        <TableHead className="w-10">
+                          <Checkbox
+                            checked={allSelected}
+                            disabled={pendingIds.length === 0 || Boolean(bulk)}
+                            onCheckedChange={(v) => toggleAll(v === true)}
+                            aria-label="Selecionar todas as pendentes"
+                          />
+                        </TableHead>
+                      ) : null}
                       <TableHead>Conta</TableHead>
                       <TableHead>Natureza atual</TableHead>
                       <TableHead>Sugestão</TableHead>
@@ -325,7 +335,20 @@ function ReclassificacoesPage() {
                   <TableBody>
                     {rows.map((row) => (
                       <TableRow key={row.id}>
+                        {isAdmin ? (
+                          <TableCell>
+                            {row.status === "pendente" ? (
+                              <Checkbox
+                                checked={selectedSet.has(row.id)}
+                                disabled={Boolean(bulk)}
+                                onCheckedChange={(v) => toggleRow(row.id, v === true)}
+                                aria-label="Selecionar sugestão"
+                              />
+                            ) : null}
+                          </TableCell>
+                        ) : null}
                         <TableCell className="font-medium">
+
                           {row.chart_of_accounts?.source_name ?? "Conta removida"}
                           {row.chart_of_accounts?.source_code ? (
                             <span className="ml-2 text-xs text-muted-foreground">
