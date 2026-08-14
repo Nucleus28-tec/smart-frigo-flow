@@ -168,7 +168,9 @@ export async function callLovableAi(options: LovableCallOptions): Promise<string
     const result = await generateText({
       model,
       messages,
-      system: options.systemInstruction,
+      ...(options.systemInstruction
+        ? { system: options.systemInstruction }
+        : {}),
       temperature: 0,
       maxOutputTokens: options.maxOutputTokens ?? 65536,
     });
