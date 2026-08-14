@@ -39,6 +39,7 @@ import { getAiProvider, setAiProvider } from "@/lib/ai-settings.functions";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: BarChart3, adminOnly: false },
+  { to: "/agentes", label: "IA Agentes", icon: Bot, adminOnly: false },
   { to: "/periodos", label: "Períodos", icon: CalendarRange, adminOnly: false },
   { to: "/importar", label: "Importar", icon: Upload, adminOnly: false },
   { to: "/balancete", label: "Balancete", icon: Table2, adminOnly: false },
