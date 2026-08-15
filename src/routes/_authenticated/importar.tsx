@@ -243,30 +243,34 @@ function ImportarPage() {
     onError: (error: Error) => toast.error(error.message),
   });
 
-  /** Lê o razão no navegador e envia as pernas em blocos. */
-  async function importRazaoNoNavegador(fileId: string, periodId: string, source: File) {
-    setProgress({ label: "Lendo o PDF do razão...", pct: 2 });
-    const pages = await extractPdfPages(source, (page, total) =>
-      setProgress({ label: `Lendo página ${page} de ${total}...`, pct: (page / total) * 45 }),
-    );
-    const { legs } = parseRazao(pages);
-    if (legs.length === 0) throw new Error("Nenhum lançamento reconhecido neste arquivo.");
-
+  /** Envia as pernas em blocos e finaliza (casamento + recálculo do período). */
+  async function enviarPernas(
+    fileId: string,
+    periodId: string,
+    legs: Parameters<typeof sendJournalChunk>[0] extends never ? never[] : Array<never>,
+  ): Promise<void>;
+  async function enviarPernas(
+    fileId: string,
+    periodId: string,
+    legs: unknown[],
+    base = 45,
+  ): Promise<void> {
     const CHUNK = 1500;
     let inserted = 0;
     for (let i = 0; i < legs.length; i += CHUNK) {
       const chunk = legs.slice(i, i + CHUNK);
       const result = await sendJournalChunk({
-        data: { file_id: fileId, legs: chunk, reset: i === 0 },
+        data: { file_id: fileId, legs: chunk as never, reset: i === 0 },
       });
       inserted += result.inserted ?? 0;
+      const done = Math.min(i + CHUNK, legs.length);
       setProgress({
-        label: `Gravando lançamentos (${Math.min(i + CHUNK, legs.length)} de ${legs.length})...`,
-        pct: 45 + (Math.min(i + CHUNK, legs.length) / legs.length) * 45,
+        label: `Gravando lançamentos (${done} de ${legs.length})...`,
+        pct: base + (done / legs.length) * (95 - base),
       });
     }
 
-    setProgress({ label: "Casando contas e recalculando o período...", pct: 95 });
+    setProgress({ label: "Casando contas e recalculando o período...", pct: 96 });
     const done = await finalizeJournal({ data: { period_id: periodId, file_id: fileId } });
     setProgress(null);
     toast.success(
@@ -274,10 +278,21 @@ function ImportarPage() {
       {
         description:
           done.pending > 0
-            ? `${done.pending} conta(s) aguardam confirmação em Razão › Vínculos.`
+            ? `${done.pending} conta(s) aguardam confirmação em Razão › Pendências.`
             : "Todas as contas foram vinculadas.",
       },
     );
+  }
+
+  /** Lê o razão em PDF no navegador e envia as pernas em blocos. */
+  async function importRazaoNoNavegador(fileId: string, periodId: string, source: File) {
+    setProgress({ label: "Lendo o PDF do razão...", pct: 2 });
+    const pages = await extractPdfPages(source, (page, total) =>
+      setProgress({ label: `Lendo página ${page} de ${total}...`, pct: (page / total) * 45 }),
+    );
+    const { legs } = parseRazao(pages);
+    if (legs.length === 0) throw new Error("Nenhum lançamento reconhecido neste arquivo.");
+    await enviarPernas(fileId, periodId, legs);
   }
 
   /** Grava o espelho oficial do balancete (árvore de contas do G2). */
@@ -295,36 +310,58 @@ function ImportarPage() {
     }
   }
 
+  async function enviarArquivo(source: File, periodId: string) {
+    const { path, token } = await createUrl({
+      data: { period_id: periodId, file_type: fileType as never, original_name: source.name },
+    });
+    const { error: uploadError } = await supabase.storage
+      .from("imports")
+      .uploadToSignedUrl(path, token, source);
+    if (uploadError) throw new Error(uploadError.message);
+    const { file_id } = await registerFile({
+      data: {
+        period_id: periodId,
+        file_type: fileType as never,
+        original_name: source.name,
+        storage_path: path,
+        mime_type: source.type || "application/octet-stream",
+      },
+    });
+    return file_id;
+  }
+
+  function limparSelecao() {
+    setFile(null);
+    if (inputRef.current) inputRef.current.value = "";
+  }
+
   async function handleUpload() {
     if (!selectedPeriodId || !file) return;
+
+    // Razão em planilha: mapeamento de colunas e validação antes de salvar.
+    if (fileType === "razao" && isSpreadsheet(file)) {
+      try {
+        const data = await readSheet(file);
+        const saved = loadSavedMapping();
+        const auto = autoMap(data.columns);
+        const restored: Mapping = {};
+        for (const [key, column] of Object.entries(saved)) {
+          if (column && data.columns.includes(column)) restored[key as keyof Mapping] = column;
+        }
+        setSheet(data);
+        setSheetFile(file);
+        setMapping({ ...auto, ...restored });
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Não foi possível ler a planilha.");
+      }
+      return;
+    }
+
     setUploading(true);
     try {
-      const { path, token } = await createUrl({
-        data: {
-          period_id: selectedPeriodId,
-          file_type: fileType as never,
-          original_name: file.name,
-        },
-      });
-
-      const { error: uploadError } = await supabase.storage
-        .from("imports")
-        .uploadToSignedUrl(path, token, file);
-      if (uploadError) throw new Error(uploadError.message);
-
-      const { file_id } = await registerFile({
-        data: {
-          period_id: selectedPeriodId,
-          file_type: fileType as never,
-          original_name: file.name,
-          storage_path: path,
-          mime_type: file.type || "application/octet-stream",
-        },
-      });
-
+      const file_id = await enviarArquivo(file, selectedPeriodId);
       const uploaded = file;
-      setFile(null);
-      if (inputRef.current) inputRef.current.value = "";
+      limparSelecao();
       invalidate();
 
       if (fileType === "razao") {
@@ -346,6 +383,28 @@ function ImportarPage() {
       setUploading(false);
     }
   }
+
+  async function confirmarMapeamento() {
+    if (!selectedPeriodId || !sheetFile || !buildResult) return;
+    setUploading(true);
+    try {
+      saveMapping(mapping);
+      setProgress({ label: "Enviando a planilha...", pct: 5 });
+      const file_id = await enviarArquivo(sheetFile, selectedPeriodId);
+      invalidate();
+      await enviarPernas(file_id, selectedPeriodId, buildResult.legs, 10);
+      setSheet(null);
+      setSheetFile(null);
+      limparSelecao();
+      invalidate();
+    } catch (error) {
+      setProgress(null);
+      toast.error(error instanceof Error ? error.message : "Falha ao importar a planilha.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
 
   async function handleDownload(fileId: string) {
     try {
