@@ -329,6 +329,92 @@ function RazaoPage() {
     );
   }, [accounts.data, search]);
 
+  const accountName = useMemo(
+    () => (accounts.data ?? []).find((a) => a.reduced_code === selectedAccount)?.name ?? "",
+    [accounts.data, selectedAccount],
+  );
+
+  function extratoTable(): ExportTable | null {
+    const data = statement.data;
+    if (!data || !selectedAccount) return null;
+    const saldoFinal =
+      Number(data.opening_balance) + Number(data.total_debit) - Number(data.total_credit);
+    return {
+      title: `Extrato do razão — ${accountName || selectedAccount}`,
+      subtitle: `Período ${selectedPeriod?.label ?? ""} · conta ${selectedAccount}${
+        data.account?.hierarchical_code ? ` · ${data.account.hierarchical_code}` : ""
+      }`,
+      info: [
+        { label: "Saldo anterior", value: formatCurrency(data.opening_balance) },
+        { label: "Débitos", value: formatCurrency(data.total_debit) },
+        { label: "Créditos", value: formatCurrency(data.total_credit) },
+        { label: "Saldo final", value: formatCurrency(saldoFinal) },
+      ],
+      headers: ["Data", "Lçto", "Contrapartida", "Histórico", "Débito", "Crédito", "Saldo"],
+      numeric: [4, 5, 6],
+      rows: (data.legs ?? []).map((leg) => [
+        fmtDate(leg.entry_date),
+        leg.doc_number ?? "",
+        leg.counterpart_name ?? leg.counterpart_reduced_code ?? "",
+        leg.historico ?? "",
+        leg.debit ? formatCurrency(leg.debit) : "",
+        leg.credit ? formatCurrency(leg.credit) : "",
+        leg.running_balance != null ? formatCurrency(leg.running_balance) : "",
+      ]),
+    };
+  }
+
+  function lancamentoTable(): ExportTable | null {
+    const data = documentQuery.data;
+    if (!data) return null;
+    return {
+      title: `Lançamento ${data.doc_number}`,
+      subtitle: `Período ${selectedPeriod?.label ?? ""}`,
+      info: [
+        { label: "Total débito", value: formatCurrency(data.total_debit) },
+        { label: "Total crédito", value: formatCurrency(data.total_credit) },
+      ],
+      headers: ["Data", "Conta", "Contrapartida", "Histórico", "Débito", "Crédito"],
+      numeric: [4, 5],
+      rows: data.legs.map((leg) => [
+        fmtDate(leg.entry_date),
+        `${leg.account_reduced_code} ${leg.account_name ?? ""}`.trim(),
+        leg.counterpart_name ?? leg.counterpart_reduced_code ?? "",
+        leg.historico ?? "",
+        leg.debit ? formatCurrency(leg.debit) : "",
+        leg.credit ? formatCurrency(leg.credit) : "",
+      ]),
+    };
+  }
+
+  async function exportar(table: ExportTable | null, filename: string, kind: "csv" | "pdf") {
+    if (!table || table.rows.length === 0) {
+      toast.error("Nada para exportar.");
+      return;
+    }
+    try {
+      if (kind === "csv") exportCsv(table, filename);
+      else await exportPdf(table, filename);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao gerar o arquivo.");
+    }
+  }
+
+  function ExportButtons({ table, filename }: { table: ExportTable | null; filename: string }) {
+    return (
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" onClick={() => void exportar(table, filename, "csv")}>
+          <FileDown className="mr-2 size-4" />
+          CSV
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => void exportar(table, filename, "pdf")}>
+          <FileText className="mr-2 size-4" />
+          PDF
+        </Button>
+      </div>
+    );
+  }
+
   const pending = useMemo(
     () => (accounts.data ?? []).filter((a) => !a.hierarchical_code || !a.nature),
     [accounts.data],
