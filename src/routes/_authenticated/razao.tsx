@@ -114,6 +114,30 @@ type ReconRow = {
   balancete_credito: number | null;
   status: string;
 };
+type PendingRow = {
+  reduced_code: string | null;
+  name: string | null;
+  code: string | null;
+  causa: string;
+  detalhe: string;
+  acao: string;
+  delta: number;
+};
+
+type AuditRow = {
+  id: string;
+  entity_type: string;
+  account_key: string;
+  account_name: string | null;
+  field_changed: string;
+  old_value: string | null;
+  new_value: string | null;
+  source: string | null;
+  actor_id: string | null;
+  created_at: string;
+  actor_name: string;
+};
+
 
 function fmtDate(iso: string | null) {
   if (!iso) return "—";
