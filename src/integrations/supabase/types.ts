@@ -562,6 +562,63 @@ export type Database = {
           },
         ]
       }
+      ledger_account_audit: {
+        Row: {
+          account_key: string
+          account_name: string | null
+          actor_id: string | null
+          created_at: string
+          entity_type: string
+          field_changed: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+          period_id: string | null
+          source: string
+        }
+        Insert: {
+          account_key: string
+          account_name?: string | null
+          actor_id?: string | null
+          created_at?: string
+          entity_type?: string
+          field_changed: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          period_id?: string | null
+          source?: string
+        }
+        Update: {
+          account_key?: string
+          account_name?: string | null
+          actor_id?: string | null
+          created_at?: string
+          entity_type?: string
+          field_changed?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          period_id?: string | null
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ledger_account_audit_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_account_audit_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ledger_accounts: {
         Row: {
           confidence: number | null
@@ -956,6 +1013,11 @@ export type Database = {
         Args: { _doc_number: string; _period_id: string }
         Returns: Json
       }
+      journal_pending_report: { Args: { _period_id: string }; Returns: Json }
+      journal_top_counterparts: {
+        Args: { _limit?: number; _period_id: string; _reduced_code: string }
+        Returns: Json
+      }
       link_reduced_accounts: { Args: { _period_id: string }; Returns: Json }
       log_activity: {
         Args: {
@@ -972,6 +1034,7 @@ export type Database = {
       }
       nature_from_code: { Args: { _code: string }; Returns: string }
       nightly_refresh_periods: { Args: never; Returns: Json }
+      norm_account_base: { Args: { _name: string }; Returns: string }
       norm_account_name: { Args: { _name: string }; Returns: string }
       recalculate_period_indicators: {
         Args: { _period_id: string }
