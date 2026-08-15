@@ -136,6 +136,16 @@ function ImportarPage() {
   const [uploading, setUploading] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<ImportedFile | null>(null);
   const [progress, setProgress] = useState<{ label: string; pct: number } | null>(null);
+  const [sheet, setSheet] = useState<SheetData | null>(null);
+  const [sheetFile, setSheetFile] = useState<File | null>(null);
+  const [mapping, setMapping] = useState<Mapping>({});
+
+  const buildResult = useMemo(
+    () => (sheet ? buildLegs(sheet.rows, mapping) : null),
+    [sheet, mapping],
+  );
+
+
 
   const isAdmin = profile?.role === "admin";
   const isClosed = selectedPeriod?.status === "fechado";
