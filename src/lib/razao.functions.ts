@@ -134,6 +134,34 @@ export const reconcileJournal = createServerFn({ method: "POST" })
     }),
   );
 
+export const pendingReport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ period_id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) =>
+    callRpc<JsonObject>(context.supabase, "journal_pending_report", {
+      _period_id: data.period_id,
+    }),
+  );
+
+export const topCounterparts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        period_id: z.string().uuid(),
+        reduced_code: z.string().min(1),
+        limit: z.number().int().min(1).max(50).default(10),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) =>
+    callRpc<JsonObject>(context.supabase, "journal_top_counterparts", {
+      _period_id: data.period_id,
+      _reduced_code: data.reduced_code,
+      _limit: data.limit,
+    }),
+  );
+
 export const getAccountStatement = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
