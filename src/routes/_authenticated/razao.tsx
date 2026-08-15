@@ -979,6 +979,222 @@ function RazaoPage() {
               </Card>
             )}
           </TabsContent>
+          {/* ------------------------- PENDÊNCIAS ------------------------- */}
+          <TabsContent value="pendencias">
+            <Card className="mb-4">
+              <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
+                <p className="text-sm text-muted-foreground">
+                  Relatório de pendências do casamento razão × balancete, com a causa provável de
+                  cada uma.
+                </p>
+                <div className="flex gap-2">
+                  {isAdmin ? (
+                    <Button
+                      variant="outline"
+                      onClick={() => linkMutation.mutate()}
+                      disabled={linkMutation.isPending}
+                    >
+                      {linkMutation.isPending ? (
+                        <Loader2 className="mr-2 size-4 animate-spin" />
+                      ) : null}
+                      Casar automaticamente
+                    </Button>
+                  ) : null}
+                  <ExportButtons
+                    table={
+                      pendingQuery.data
+                        ? {
+                            title: "Pendências do razão",
+                            subtitle: `Período ${selectedPeriod?.label ?? ""}`,
+                            headers: [
+                              "Conta reduzida",
+                              "Nome",
+                              "Código balancete",
+                              "Causa",
+                              "Detalhe",
+                              "Ação sugerida",
+                            ],
+                            rows: pendingQuery.data.linhas.map((row) => [
+                              row.reduced_code ?? "",
+                              row.name ?? "",
+                              row.code ?? "",
+                              PENDING_CAUSE[row.causa] ?? row.causa,
+                              row.detalhe,
+                              row.acao,
+                            ]),
+                          }
+                        : null
+                    }
+                    filename="pendencias-razao"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {pendingQuery.isLoading ? (
+              <LoadingRows />
+            ) : pendingQuery.error ? (
+              <ErrorState
+                message={(pendingQuery.error as Error).message}
+                onRetry={() => void pendingQuery.refetch()}
+              />
+            ) : pendingQuery.data && pendingQuery.data.linhas.length > 0 ? (
+              <>
+                <div className="mb-4 flex flex-wrap gap-2">
+                  {Object.entries(pendingQuery.data.por_causa).map(([causa, count]) => (
+                    <Badge key={causa} variant="secondary">
+                      {(PENDING_CAUSE[causa] ?? causa) + `: ${count}`}
+                    </Badge>
+                  ))}
+                </div>
+                <Card>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Conta</TableHead>
+                          <TableHead>Causa provável</TableHead>
+                          <TableHead>Detalhe</TableHead>
+                          <TableHead>Ação sugerida</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {pendingQuery.data.linhas.map((row, index) => (
+                          <TableRow key={`${row.reduced_code ?? row.code}-${index}`}>
+                            <TableCell className="max-w-[240px]">
+                              <span className="block truncate font-medium">{row.name ?? "—"}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {row.reduced_code ?? "sem código reduzido"}
+                                {row.code ? ` · ${row.code}` : ""}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  row.causa === "diferenca_valor" ? "destructive" : "secondary"
+                                }
+                              >
+                                {PENDING_CAUSE[row.causa] ?? row.causa}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="max-w-[380px]">
+                              <span className="block truncate" title={row.detalhe}>
+                                {row.detalhe}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {row.acao}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </>
+            ) : (
+              <EmptyState
+                title="Nenhuma pendência"
+                description="Razão e balancete estão casados e todas as contas têm natureza."
+              />
+            )}
+          </TabsContent>
+
+          {/* -------------------------- HISTÓRICO -------------------------- */}
+          <TabsContent value="historico">
+            <Card className="mb-4">
+              <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
+                <p className="text-sm text-muted-foreground">
+                  Trilha de auditoria de vínculos e classificações: quem alterou, quando e qual era
+                  o valor anterior.
+                </p>
+                <ExportButtons
+                  table={
+                    auditQuery.data
+                      ? {
+                          title: "Trilha de auditoria — vínculos e classificações",
+                          headers: [
+                            "Data",
+                            "Usuário",
+                            "Conta",
+                            "Campo",
+                            "Valor anterior",
+                            "Valor novo",
+                            "Origem",
+                          ],
+                          rows: auditQuery.data.map((row) => [
+                            formatDateTime(row.created_at),
+                            row.actor_name,
+                            `${row.account_key} ${row.account_name ?? ""}`.trim(),
+                            row.field_changed,
+                            row.old_value ?? "",
+                            row.new_value ?? "",
+                            row.source ?? "",
+                          ]),
+                        }
+                      : null
+                  }
+                  filename="auditoria-razao"
+                />
+              </CardContent>
+            </Card>
+
+            {auditQuery.isLoading ? (
+              <LoadingRows />
+            ) : auditQuery.error ? (
+              <ErrorState
+                message={(auditQuery.error as Error).message}
+                onRetry={() => void auditQuery.refetch()}
+              />
+            ) : (auditQuery.data ?? []).length === 0 ? (
+              <EmptyState
+                title="Nenhuma alteração registrada"
+                description="Vínculos e classificações aplicados passam a aparecer aqui."
+              />
+            ) : (
+              <Card>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Quando</TableHead>
+                        <TableHead>Usuário</TableHead>
+                        <TableHead>Conta</TableHead>
+                        <TableHead>Campo</TableHead>
+                        <TableHead>De</TableHead>
+                        <TableHead>Para</TableHead>
+                        <TableHead>Origem</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(auditQuery.data ?? []).map((row) => (
+                        <TableRow key={row.id}>
+                          <TableCell className="whitespace-nowrap">
+                            {formatDateTime(row.created_at)}
+                          </TableCell>
+                          <TableCell>{row.actor_name}</TableCell>
+                          <TableCell className="max-w-[220px]">
+                            <span className="block truncate font-medium">
+                              {row.account_name ?? row.account_key}
+                            </span>
+                            <span className="text-xs text-muted-foreground">{row.account_key}</span>
+                          </TableCell>
+                          <TableCell>{row.field_changed}</TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {row.old_value ?? "—"}
+                          </TableCell>
+                          <TableCell className="font-medium">{row.new_value ?? "—"}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {row.source ?? "—"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
         </Tabs>
       )}
     </>
