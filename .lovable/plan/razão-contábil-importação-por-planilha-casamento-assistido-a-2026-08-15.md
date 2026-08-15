@@ -8,7 +8,7 @@ Em `/importar`, ao escolher "Razão contábil", passa a aceitar também `.csv`, 
 
 - O arquivo é lido no navegador e a primeira linha vira a lista de colunas disponíveis.
 - Uma tela de mapeamento aparece antes de gravar: para cada campo do razão (conta reduzida, nome da conta, saldo anterior, data, número do lançamento, contrapartida, histórico, débito, crédito, saldo acumulado) o usuário escolhe a coluna correspondente. O sistema pré-seleciona por semelhança de nome; conta reduzida, débito e crédito são obrigatórios.
-- Pré-visualização das 20 primeiras linhas já convertidas, com valores em Real e datas normalizadas.
+- Pré-visualização com paginaçao de todos os lancamentos linhas já convertidas, com valores em Real e datas normalizadas, partida e contrapartida
 - Validação antes de salvar: conta reduzida vazia, valor não numérico, data inválida, linha com débito e crédito ao mesmo tempo ou ambos zerados, contrapartida inexistente. O resultado é um resumo "X linhas válidas, Y com problema", com a lista dos problemas e a linha original. Nada é gravado enquanto houver erro bloqueante; avisos podem ser aceitos e as linhas correspondentes são ignoradas.
 - Confirmado o mapeamento, o envio usa o mesmo caminho em blocos e a mesma finalização já usados pelo PDF (nenhuma regra de gravação muda).
 - O mapeamento fica lembrado por tipo de arquivo para as próximas importações.
