@@ -100,6 +100,16 @@ export function AgentProposalCard({ threadId, periodId, payload, isAdmin }: Prop
             ))}
           </ul>
           {payload["justificativa"] ? <p>{String(payload["justificativa"])}</p> : null}
+          {Array.isArray(payload["evidencias"]) && payload["evidencias"].length > 0 ? (
+            <div className="rounded-md bg-muted/50 p-2">
+              <p className="mb-1 font-medium text-foreground">Contrapartidas que sustentam</p>
+              <ul className="list-disc space-y-0.5 pl-4">
+                {(payload["evidencias"] as unknown[]).slice(0, 10).map((item, index) => (
+                  <li key={index}>{String(item)}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </div>
       ) : (
         <div className="mt-2 space-y-1 text-xs text-muted-foreground">
