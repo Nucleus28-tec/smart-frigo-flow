@@ -114,6 +114,16 @@ type ReconRow = {
   balancete_credito: number | null;
   status: string;
 };
+
+const PENDING_CAUSE: Record<string, string> = {
+  sem_candidato: "Conta nova no razão",
+  varios_candidatos: "Vários candidatos",
+  candidato_ambiguo: "Candidato ambíguo",
+  sem_natureza: "Sem natureza",
+  diferenca_valor: "Diferença de valor",
+  so_balancete: "Só no balancete",
+};
+
 type PendingRow = {
   reduced_code: string | null;
   name: string | null;
