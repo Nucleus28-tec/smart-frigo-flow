@@ -22,6 +22,7 @@ import { Route as AuthenticatedDemonstrativosRouteImport } from './routes/_authe
 import { Route as AuthenticatedImportarRouteImport } from './routes/_authenticated/importar'
 import { Route as AuthenticatedPeriodosRouteImport } from './routes/_authenticated/periodos'
 import { Route as AuthenticatedPlanoDeContasRouteImport } from './routes/_authenticated/plano-de-contas'
+import { Route as AuthenticatedRazaoRouteImport } from './routes/_authenticated/razao'
 import { Route as AuthenticatedReclassificacoesRouteImport } from './routes/_authenticated/reclassificacoes'
 import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated/_admin/usuarios'
 import { Route as AuthenticatedAgentesIndexRouteImport } from './routes/_authenticated/agentes/index'
@@ -96,6 +97,11 @@ const AuthenticatedPlanoDeContasRoute =
     path: '/plano-de-contas',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedRazaoRoute = AuthenticatedRazaoRouteImport.update({
+  id: '/razao',
+  path: '/razao',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedReclassificacoesRoute =
   AuthenticatedReclassificacoesRouteImport.update({
     id: '/reclassificacoes',
@@ -144,6 +150,7 @@ export interface FileRoutesByFullPath {
   '/importar': typeof AuthenticatedImportarRoute
   '/periodos': typeof AuthenticatedPeriodosRoute
   '/plano-de-contas': typeof AuthenticatedPlanoDeContasRoute
+  '/razao': typeof AuthenticatedRazaoRoute
   '/reclassificacoes': typeof AuthenticatedReclassificacoesRoute
   '/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/agentes/$threadId': typeof AuthenticatedAgentesThreadIdRoute
@@ -163,6 +170,7 @@ export interface FileRoutesByTo {
   '/importar': typeof AuthenticatedImportarRoute
   '/periodos': typeof AuthenticatedPeriodosRoute
   '/plano-de-contas': typeof AuthenticatedPlanoDeContasRoute
+  '/razao': typeof AuthenticatedRazaoRoute
   '/reclassificacoes': typeof AuthenticatedReclassificacoesRoute
   '/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/agentes/$threadId': typeof AuthenticatedAgentesThreadIdRoute
@@ -185,6 +193,7 @@ export interface FileRoutesById {
   '/_authenticated/importar': typeof AuthenticatedImportarRoute
   '/_authenticated/periodos': typeof AuthenticatedPeriodosRoute
   '/_authenticated/plano-de-contas': typeof AuthenticatedPlanoDeContasRoute
+  '/_authenticated/razao': typeof AuthenticatedRazaoRoute
   '/_authenticated/reclassificacoes': typeof AuthenticatedReclassificacoesRoute
   '/_authenticated/_admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/_authenticated/agentes/$threadId': typeof AuthenticatedAgentesThreadIdRoute
@@ -206,6 +215,7 @@ export interface FileRouteTypes {
     | '/importar'
     | '/periodos'
     | '/plano-de-contas'
+    | '/razao'
     | '/reclassificacoes'
     | '/usuarios'
     | '/agentes/$threadId'
@@ -225,6 +235,7 @@ export interface FileRouteTypes {
     | '/importar'
     | '/periodos'
     | '/plano-de-contas'
+    | '/razao'
     | '/reclassificacoes'
     | '/usuarios'
     | '/agentes/$threadId'
@@ -246,6 +257,7 @@ export interface FileRouteTypes {
     | '/_authenticated/importar'
     | '/_authenticated/periodos'
     | '/_authenticated/plano-de-contas'
+    | '/_authenticated/razao'
     | '/_authenticated/reclassificacoes'
     | '/_authenticated/_admin/usuarios'
     | '/_authenticated/agentes/$threadId'
@@ -356,6 +368,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPlanoDeContasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/razao': {
+      id: '/_authenticated/razao'
+      path: '/razao'
+      fullPath: '/razao'
+      preLoaderRoute: typeof AuthenticatedRazaoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/reclassificacoes': {
       id: '/_authenticated/reclassificacoes'
       path: '/reclassificacoes'
@@ -425,6 +444,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedImportarRoute: typeof AuthenticatedImportarRoute
   AuthenticatedPeriodosRoute: typeof AuthenticatedPeriodosRoute
   AuthenticatedPlanoDeContasRoute: typeof AuthenticatedPlanoDeContasRoute
+  AuthenticatedRazaoRoute: typeof AuthenticatedRazaoRoute
   AuthenticatedReclassificacoesRoute: typeof AuthenticatedReclassificacoesRoute
   AuthenticatedAgentesThreadIdRoute: typeof AuthenticatedAgentesThreadIdRoute
   AuthenticatedAgentesIndexRoute: typeof AuthenticatedAgentesIndexRoute
@@ -440,6 +460,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedImportarRoute: AuthenticatedImportarRoute,
   AuthenticatedPeriodosRoute: AuthenticatedPeriodosRoute,
   AuthenticatedPlanoDeContasRoute: AuthenticatedPlanoDeContasRoute,
+  AuthenticatedRazaoRoute: AuthenticatedRazaoRoute,
   AuthenticatedReclassificacoesRoute: AuthenticatedReclassificacoesRoute,
   AuthenticatedAgentesThreadIdRoute: AuthenticatedAgentesThreadIdRoute,
   AuthenticatedAgentesIndexRoute: AuthenticatedAgentesIndexRoute,

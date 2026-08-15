@@ -454,6 +454,170 @@ export type Database = {
           },
         ]
       }
+      journal_account_openings: {
+        Row: {
+          account_name: string
+          account_reduced_code: string
+          created_at: string
+          id: string
+          opening_balance: number
+          period_id: string
+        }
+        Insert: {
+          account_name: string
+          account_reduced_code: string
+          created_at?: string
+          id?: string
+          opening_balance?: number
+          period_id: string
+        }
+        Update: {
+          account_name?: string
+          account_reduced_code?: string
+          created_at?: string
+          id?: string
+          opening_balance?: number
+          period_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_account_openings_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      journal_legs: {
+        Row: {
+          account_id: string | null
+          account_reduced_code: string
+          counterpart_reduced_code: string | null
+          created_at: string
+          credit: number
+          debit: number
+          doc_number: string | null
+          entry_date: string | null
+          file_id: string | null
+          historico: string | null
+          id: string
+          line_no: number | null
+          period_id: string
+          running_balance: number | null
+        }
+        Insert: {
+          account_id?: string | null
+          account_reduced_code: string
+          counterpart_reduced_code?: string | null
+          created_at?: string
+          credit?: number
+          debit?: number
+          doc_number?: string | null
+          entry_date?: string | null
+          file_id?: string | null
+          historico?: string | null
+          id?: string
+          line_no?: number | null
+          period_id: string
+          running_balance?: number | null
+        }
+        Update: {
+          account_id?: string | null
+          account_reduced_code?: string
+          counterpart_reduced_code?: string | null
+          created_at?: string
+          credit?: number
+          debit?: number
+          doc_number?: string | null
+          entry_date?: string | null
+          file_id?: string | null
+          historico?: string | null
+          id?: string
+          line_no?: number | null
+          period_id?: string
+          running_balance?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_legs_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_legs_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "imported_files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_legs_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ledger_accounts: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          hierarchical_code: string | null
+          id: string
+          is_analytic: boolean
+          level: number | null
+          link_status: string
+          name: string
+          nature: string | null
+          parent_code: string | null
+          reduced_code: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          hierarchical_code?: string | null
+          id?: string
+          is_analytic?: boolean
+          level?: number | null
+          link_status?: string
+          name: string
+          nature?: string | null
+          parent_code?: string | null
+          reduced_code: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          hierarchical_code?: string | null
+          id?: string
+          is_analytic?: boolean
+          level?: number | null
+          link_status?: string
+          name?: string
+          nature?: string | null
+          parent_code?: string | null
+          reduced_code?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ledger_accounts_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ledger_entries: {
         Row: {
           account_id: string | null
@@ -693,6 +857,69 @@ export type Database = {
           },
         ]
       }
+      trial_balance_lines: {
+        Row: {
+          code: string
+          created_at: string
+          credito: number
+          debito: number
+          file_id: string | null
+          id: string
+          is_analytic: boolean
+          level: number
+          name: string
+          period_id: string
+          saldo_anterior: number
+          saldo_atual: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          credito?: number
+          debito?: number
+          file_id?: string | null
+          id?: string
+          is_analytic?: boolean
+          level?: number
+          name: string
+          period_id: string
+          saldo_anterior?: number
+          saldo_atual?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          credito?: number
+          debito?: number
+          file_id?: string | null
+          id?: string
+          is_analytic?: boolean
+          level?: number
+          name?: string
+          period_id?: string
+          saldo_anterior?: number
+          saldo_atual?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trial_balance_lines_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "imported_files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trial_balance_lines_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -707,7 +934,29 @@ export type Database = {
         Returns: Json
       }
       get_period_summary: { Args: { _period_id: string }; Returns: Json }
+      import_journal_legs: {
+        Args: { _file_id: string; _legs: Json; _reset?: boolean }
+        Returns: Json
+      }
+      import_trial_balance_lines: {
+        Args: { _file_id: string; _lines: Json }
+        Returns: Json
+      }
       is_admin: { Args: never; Returns: boolean }
+      journal_account_statement: {
+        Args: {
+          _limit?: number
+          _offset?: number
+          _period_id: string
+          _reduced_code: string
+        }
+        Returns: Json
+      }
+      journal_document: {
+        Args: { _doc_number: string; _period_id: string }
+        Returns: Json
+      }
+      link_reduced_accounts: { Args: { _period_id: string }; Returns: Json }
       log_activity: {
         Args: {
           _action: string
@@ -721,13 +970,27 @@ export type Database = {
         Args: { _entries: Json; _file_id: string }
         Returns: Json
       }
+      nature_from_code: { Args: { _code: string }; Returns: string }
       nightly_refresh_periods: { Args: never; Returns: Json }
+      norm_account_name: { Args: { _name: string }; Returns: string }
       recalculate_period_indicators: {
         Args: { _period_id: string }
         Returns: Json
       }
       recalculate_period_indicators_internal: {
         Args: { _period_id: string }
+        Returns: Json
+      }
+      reconcile_journal_vs_trial_balance: {
+        Args: { _period_id: string }
+        Returns: Json
+      }
+      set_account_link: {
+        Args: {
+          _hierarchical_code: string
+          _nature: string
+          _reduced_code: string
+        }
         Returns: Json
       }
       sync_accounts_for_period: { Args: { _period_id: string }; Returns: Json }

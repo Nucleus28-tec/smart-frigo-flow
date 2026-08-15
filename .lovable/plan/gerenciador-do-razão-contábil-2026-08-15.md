@@ -26,6 +26,7 @@ Cada linha vira uma "perna" de lançamento: número do lançamento, data, conta,
 O balancete importado passa a gravar também a árvore oficial (código, descrição, nível, saldo anterior, débito, crédito, saldo atual). A tela `/balancete` continua editável como hoje.
 
 **4. Tela `/razao` — o gerenciador**
+
 - Coluna esquerda: árvore de contas do período com filtro por código, nome e natureza, e busca.
 - Ao abrir uma conta: saldo anterior, movimento do mês e saldo final, com a lista de lançamentos.
 - Cada linha mostra data, número do lançamento, histórico, débito/crédito e **a contrapartida com nome**, clicável para pular para a outra conta.
@@ -53,4 +54,5 @@ Novas ferramentas de leitura para o Contador e o CFO: extrato de uma conta, lan�
 3. Tela `/razao` com extrato, contrapartida, visão por lançamento e conferência.
 4. Fila de vínculos pendentes e confirmação por Admin.
 5. Cálculo de indicadores e demonstrativos pelo razão.
-6. Ferramentas dos agentes.
+6. Ferramentas dos agentes.  
+teste o fluxo, valide todas as estapas 

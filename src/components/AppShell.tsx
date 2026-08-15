@@ -16,6 +16,7 @@ import {
   Menu,
   X,
   Bot,
+  BookOpen,
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -42,6 +43,7 @@ const NAV = [
   { to: "/agentes", label: "IA Agentes", icon: Bot, adminOnly: false },
   { to: "/periodos", label: "Períodos", icon: CalendarRange, adminOnly: false },
   { to: "/importar", label: "Importar", icon: Upload, adminOnly: false },
+  { to: "/razao", label: "Razão Contábil", icon: BookOpen, adminOnly: false },
   { to: "/balancete", label: "Balancete", icon: Table2, adminOnly: false },
   { to: "/reclassificacoes", label: "Reclassificações", icon: Wand2, adminOnly: false },
   { to: "/plano-de-contas", label: "Plano de Contas", icon: ListTree, adminOnly: false },
