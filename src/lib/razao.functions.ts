@@ -126,7 +126,7 @@ export const reconcileJournal = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ period_id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) =>
-    callRpc<unknown>(context.supabase, "reconcile_journal_vs_trial_balance", {
+    callRpc<Record<string, unknown>>(context.supabase, "reconcile_journal_vs_trial_balance", {
       _period_id: data.period_id,
     }),
   );
@@ -144,7 +144,7 @@ export const getAccountStatement = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) =>
-    callRpc<unknown>(context.supabase, "journal_account_statement", {
+    callRpc<Record<string, unknown>>(context.supabase, "journal_account_statement", {
       _period_id: data.period_id,
       _reduced_code: data.reduced_code,
       _limit: data.limit,
@@ -158,7 +158,7 @@ export const getJournalDocument = createServerFn({ method: "POST" })
     z.object({ period_id: z.string().uuid(), doc_number: z.string().min(1) }).parse(input),
   )
   .handler(async ({ data, context }) =>
-    callRpc<unknown>(context.supabase, "journal_document", {
+    callRpc<Record<string, unknown>>(context.supabase, "journal_document", {
       _period_id: data.period_id,
       _doc_number: data.doc_number,
     }),
