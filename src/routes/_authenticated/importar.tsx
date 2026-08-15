@@ -247,11 +247,6 @@ function ImportarPage() {
   async function enviarPernas(
     fileId: string,
     periodId: string,
-    legs: Parameters<typeof sendJournalChunk>[0] extends never ? never[] : Array<never>,
-  ): Promise<void>;
-  async function enviarPernas(
-    fileId: string,
-    periodId: string,
     legs: unknown[],
     base = 45,
   ): Promise<void> {
