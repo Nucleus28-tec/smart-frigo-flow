@@ -131,13 +131,14 @@ export function parseDateISO(value: unknown): string | null | undefined {
   }
   const text = String(value).trim();
   if (!text) return null;
-  let match = /^(\d{2})[/\-.](\d{2})[/\-.](\d{2,4})$/.exec(text);
-  if (match) {
-    const year = match[3].length === 2 ? `20${match[3]}` : match[3];
-    return `${year}-${match[2]}-${match[1]}`;
+  const br = /^(\d{2})[/\-.](\d{2})[/\-.](\d{2,4})$/.exec(text);
+  if (br) {
+    const raw = br[3] ?? "";
+    const year = raw.length === 2 ? `20${raw}` : raw;
+    return `${year}-${br[2]}-${br[1]}`;
   }
-  match = /^(\d{4})-(\d{2})-(\d{2})/.exec(text);
-  if (match) return `${match[1]}-${match[2]}-${match[3]}`;
+  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(text);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
   return undefined; // formato inválido
 }
 
