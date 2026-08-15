@@ -47,6 +47,12 @@ import {
   parseImportedFile,
   registerImportedFile,
 } from "@/lib/imports.functions";
+import {
+  finalizeJournalImport,
+  importJournalChunk,
+  importTrialBalanceMirror,
+} from "@/lib/razao.functions";
+import { extractPdfPages, parseBalancete, parseRazao } from "@/lib/razao-parser";
 
 export const Route = createFileRoute("/_authenticated/importar")({
   component: ImportarPage,
@@ -70,6 +76,7 @@ export const Route = createFileRoute("/_authenticated/importar")({
 
 const FILE_TYPE_LABEL: Record<string, string> = {
   balancete: "Balancete (G2)",
+  razao: "Razão contábil (G2)",
   pedido_compra: "Pedido de compra",
   nota_fiscal: "Nota fiscal",
   romaneio_abate: "Romaneio de abate",
@@ -119,6 +126,7 @@ function ImportarPage() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<ImportedFile | null>(null);
+  const [progress, setProgress] = useState<{ label: string; pct: number } | null>(null);
 
   const isAdmin = profile?.role === "admin";
   const isClosed = selectedPeriod?.status === "fechado";
@@ -128,6 +136,9 @@ function ImportarPage() {
   const removeFile = useServerFn(deleteImportedFile);
   const downloadUrl = useServerFn(getFileDownloadUrl);
   const registerFile = useServerFn(registerImportedFile);
+  const sendJournalChunk = useServerFn(importJournalChunk);
+  const sendMirror = useServerFn(importTrialBalanceMirror);
+  const finalizeJournal = useServerFn(finalizeJournalImport);
 
   const filesQuery = useQuery({
     queryKey: ["imported_files", selectedPeriodId],
@@ -213,6 +224,58 @@ function ImportarPage() {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  /** Lê o razão no navegador e envia as pernas em blocos. */
+  async function importRazaoNoNavegador(fileId: string, periodId: string, source: File) {
+    setProgress({ label: "Lendo o PDF do razão...", pct: 2 });
+    const pages = await extractPdfPages(source, (page, total) =>
+      setProgress({ label: `Lendo página ${page} de ${total}...`, pct: (page / total) * 45 }),
+    );
+    const { legs } = parseRazao(pages);
+    if (legs.length === 0) throw new Error("Nenhum lançamento reconhecido neste arquivo.");
+
+    const CHUNK = 1500;
+    let inserted = 0;
+    for (let i = 0; i < legs.length; i += CHUNK) {
+      const chunk = legs.slice(i, i + CHUNK);
+      const result = await sendJournalChunk({
+        data: { file_id: fileId, legs: chunk, reset: i === 0 },
+      });
+      inserted += result.inserted ?? 0;
+      setProgress({
+        label: `Gravando lançamentos (${Math.min(i + CHUNK, legs.length)} de ${legs.length})...`,
+        pct: 45 + (Math.min(i + CHUNK, legs.length) / legs.length) * 45,
+      });
+    }
+
+    setProgress({ label: "Casando contas e recalculando o período...", pct: 95 });
+    const done = await finalizeJournal({ data: { period_id: periodId, file_id: fileId } });
+    setProgress(null);
+    toast.success(
+      `Razão importado: ${inserted} lançamentos, ${done.by_name + done.by_value} contas vinculadas.`,
+      {
+        description:
+          done.pending > 0
+            ? `${done.pending} conta(s) aguardam confirmação em Razão › Vínculos.`
+            : "Todas as contas foram vinculadas.",
+      },
+    );
+  }
+
+  /** Grava o espelho oficial do balancete (árvore de contas do G2). */
+  async function importarEspelhoBalancete(fileId: string, source: File) {
+    try {
+      const pages = await extractPdfPages(source);
+      const lines = parseBalancete(pages);
+      if (!lines.length) return;
+      for (let i = 0; i < lines.length; i += 1000) {
+        await sendMirror({ data: { file_id: fileId, lines: lines.slice(i, i + 1000) } });
+      }
+      toast.success(`Espelho do balancete gravado: ${lines.length} contas.`);
+    } catch {
+      // espelho é complementar: falha aqui não impede a leitura principal
+    }
+  }
+
   async function handleUpload() {
     if (!selectedPeriodId || !file) return;
     setUploading(true);
@@ -240,12 +303,25 @@ function ImportarPage() {
         },
       });
 
+      const uploaded = file;
       setFile(null);
       if (inputRef.current) inputRef.current.value = "";
       invalidate();
+
+      if (fileType === "razao") {
+        toast.success("Arquivo enviado. Lendo o razão no navegador...");
+        await importRazaoNoNavegador(file_id, selectedPeriodId, uploaded);
+        invalidate();
+        return;
+      }
+
       toast.success("Arquivo enviado. Iniciando leitura...");
       processMutation.mutate(file_id);
+      if (fileType === "balancete" && uploaded.name.toLowerCase().endsWith(".pdf")) {
+        void importarEspelhoBalancete(file_id, uploaded);
+      }
     } catch (error) {
+      setProgress(null);
       toast.error(error instanceof Error ? error.message : "Falha no envio do arquivo.");
     } finally {
       setUploading(false);
@@ -319,6 +395,20 @@ function ImportarPage() {
             )}
             Enviar
           </Button>
+          {progress ? (
+            <div className="md:col-span-3">
+              <div className="mb-1 flex justify-between text-sm text-muted-foreground">
+                <span>{progress.label}</span>
+                <span className="tabular-nums">{Math.round(progress.pct)}%</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full bg-primary transition-all"
+                  style={{ width: `${progress.pct}%` }}
+                />
+              </div>
+            </div>
+          ) : null}
           {isClosed ? (
             <p className="text-sm text-muted-foreground md:col-span-3">
               Este período está fechado. Reabra-o em Períodos para importar novos arquivos.
@@ -379,7 +469,12 @@ function ImportarPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          disabled={processMutation.isPending || isClosed}
+                          disabled={processMutation.isPending || isClosed || row.file_type === "razao"}
+                          title={
+                            row.file_type === "razao"
+                              ? "O razão é lido no navegador: reenvie o arquivo para reprocessar."
+                              : undefined
+                          }
                           onClick={() => processMutation.mutate(row.id)}
                         >
                           {processMutation.isPending && processMutation.variables === row.id ? (
