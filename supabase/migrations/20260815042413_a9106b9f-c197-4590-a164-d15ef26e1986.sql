@@ -1,0 +1,14 @@
+REVOKE EXECUTE ON FUNCTION public.import_trial_balance_lines(uuid, jsonb) FROM anon, public;
+REVOKE EXECUTE ON FUNCTION public.import_journal_legs(uuid, jsonb, boolean) FROM anon, public;
+REVOKE EXECUTE ON FUNCTION public.link_reduced_accounts(uuid) FROM anon, public;
+REVOKE EXECUTE ON FUNCTION public.reconcile_journal_vs_trial_balance(uuid) FROM anon, public;
+REVOKE EXECUTE ON FUNCTION public.journal_account_statement(uuid, text, int, int) FROM anon, public;
+REVOKE EXECUTE ON FUNCTION public.journal_document(uuid, text) FROM anon, public;
+REVOKE EXECUTE ON FUNCTION public.set_account_link(text, text, text) FROM anon, public;
+GRANT EXECUTE ON FUNCTION public.import_trial_balance_lines(uuid, jsonb) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.import_journal_legs(uuid, jsonb, boolean) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.link_reduced_accounts(uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.reconcile_journal_vs_trial_balance(uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.journal_account_statement(uuid, text, int, int) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.journal_document(uuid, text) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.set_account_link(text, text, text) TO authenticated, service_role;
