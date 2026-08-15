@@ -235,24 +235,109 @@ export function buildAgentTools(options: {
         return { periodos: data ?? [] };
       },
     }),
+    razao_extrato_conta: tool({
+      description:
+        "Extrato do razão de uma conta no período: saldo anterior, débitos, créditos e os lançamentos com contrapartida. Use o código reduzido da conta.",
+      inputSchema: z.object({
+        codigo_reduzido: z.string().describe("Código reduzido da conta no razão"),
+        limite: z.number().describe("Quantos lançamentos retornar (até 200)"),
+      }),
+      execute: async ({ codigo_reduzido, limite }) => {
+        const id = requirePeriod();
+        const { data, error } = await supabase.rpc("journal_account_statement", {
+          _period_id: id,
+          _reduced_code: codigo_reduzido,
+          _limit: Math.min(Math.max(1, Math.round(limite || 50)), 200),
+          _offset: 0,
+        });
+        if (error) throw new Error(error.message);
+        return data;
+      },
+    }),
+
+    razao_lancamento: tool({
+      description:
+        "Abre um lançamento completo do razão pelo número do documento, com todas as pernas (partida e contrapartida) e a conferência débito × crédito.",
+      inputSchema: z.object({ numero: z.string().describe("Número do lançamento") }),
+      execute: async ({ numero }) => {
+        const id = requirePeriod();
+        const { data, error } = await supabase.rpc("journal_document", {
+          _period_id: id,
+          _doc_number: numero,
+        });
+        if (error) throw new Error(error.message);
+        return data;
+      },
+    }),
+
+    razao_contrapartidas: tool({
+      description:
+        "Contrapartidas mais frequentes de uma conta no razão, com percentual. Use para justificar a natureza proposta de uma conta.",
+      inputSchema: z.object({
+        codigo_reduzido: z.string(),
+        limite: z.number().describe("Quantas contrapartidas (até 20)"),
+      }),
+      execute: async ({ codigo_reduzido, limite }) => {
+        const id = requirePeriod();
+        const { data, error } = await supabase.rpc("journal_top_counterparts", {
+          _period_id: id,
+          _reduced_code: codigo_reduzido,
+          _limit: Math.min(Math.max(1, Math.round(limite || 10)), 20),
+        });
+        if (error) throw new Error(error.message);
+        return data;
+      },
+    }),
+
+    razao_conferencia: tool({
+      description: "Conferência razão × balancete do período, conta a conta, com as divergências.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        const id = requirePeriod();
+        const { data, error } = await supabase.rpc("reconcile_journal_vs_trial_balance", {
+          _period_id: id,
+        });
+        if (error) throw new Error(error.message);
+        return data;
+      },
+    }),
+
+    razao_pendencias: tool({
+      description:
+        "Relatório de pendências do razão: contas sem vínculo com o balancete, sem natureza ou com diferença de valor, com a causa provável de cada uma.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        const id = requirePeriod();
+        const { data, error } = await supabase.rpc("journal_pending_report", { _period_id: id });
+        if (error) throw new Error(error.message);
+        return data;
+      },
+    }),
   };
 
   if (agent === "contador") {
     tools["propor_classificacao"] = tool({
       description:
-        "Cria uma PROPOSTA de classificação de contas (não grava). Um administrador precisa clicar em Aplicar.",
+        "Cria uma PROPOSTA de classificação de contas (não grava). Um administrador precisa clicar em Aplicar. " +
+        "Sempre consulte antes 'razao_contrapartidas' e cite as contrapartidas que sustentam a natureza proposta.",
       inputSchema: z.object({
         natureza: z.enum(RECLASS_NATURES),
         contas: z
           .array(z.object({ id: z.string().describe("id da conta no plano de contas"), nome: z.string() }))
           .describe("Contas que receberão a natureza"),
         justificativa: z.string(),
+        evidencias: z
+          .array(z.string())
+          .describe(
+            'Contrapartidas que justificam a proposta, ex: "94% dos créditos têm contrapartida em Fornecedores"',
+          ),
       }),
-      execute: async ({ natureza, contas, justificativa }) => ({
+      execute: async ({ natureza, contas, justificativa, evidencias }) => ({
         proposta: "classificacao",
         natureza,
         contas: contas.slice(0, 50),
         justificativa,
+        evidencias: (evidencias ?? []).slice(0, 10),
         status: "aguardando aprovação do administrador",
       }),
     });

@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ArrowRight, Loader2, Search } from "lucide-react";
+import { ArrowRight, FileDown, FileText, Loader2, Search } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { usePeriod } from "@/hooks/usePeriod";
@@ -29,14 +29,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EmptyState, ErrorState, LoadingRows, PageHeader } from "@/components/PageState";
-import { NATURE_LABEL, NATURE_OPTIONS, formatCurrency } from "@/lib/rotta";
+import { NATURE_LABEL, NATURE_OPTIONS, formatCurrency, formatDateTime } from "@/lib/rotta";
 import {
   getAccountStatement,
   getJournalDocument,
   linkReducedAccounts,
+  pendingReport,
   reconcileJournal,
   setAccountLink,
 } from "@/lib/razao.functions";
+import { exportCsv, exportPdf, type ExportTable } from "@/lib/razao-export";
 
 export const Route = createFileRoute("/_authenticated/razao")({
   component: RazaoPage,
@@ -113,6 +115,40 @@ type ReconRow = {
   status: string;
 };
 
+const PENDING_CAUSE: Record<string, string> = {
+  sem_candidato: "Conta nova no razão",
+  varios_candidatos: "Vários candidatos",
+  candidato_ambiguo: "Candidato ambíguo",
+  sem_natureza: "Sem natureza",
+  diferenca_valor: "Diferença de valor",
+  so_balancete: "Só no balancete",
+};
+
+type PendingRow = {
+  reduced_code: string | null;
+  name: string | null;
+  code: string | null;
+  causa: string;
+  detalhe: string;
+  acao: string;
+  delta: number;
+};
+
+type AuditRow = {
+  id: string;
+  entity_type: string;
+  account_key: string;
+  account_name: string | null;
+  field_changed: string;
+  old_value: string | null;
+  new_value: string | null;
+  source: string | null;
+  actor_id: string | null;
+  created_at: string;
+  actor_name: string;
+};
+
+
 function fmtDate(iso: string | null) {
   if (!iso) return "—";
   const [y, m, d] = iso.split("-");
@@ -136,6 +172,7 @@ function RazaoPage() {
   const runLink = useServerFn(linkReducedAccounts);
   const runReconcile = useServerFn(reconcileJournal);
   const saveLink = useServerFn(setAccountLink);
+  const fetchPending = useServerFn(pendingReport);
 
   const accounts = useQuery({
     queryKey: ["journal_accounts", selectedPeriodId],
@@ -220,6 +257,48 @@ function RazaoPage() {
       },
   });
 
+  const pendingQuery = useQuery({
+    queryKey: ["journal_pending", selectedPeriodId],
+    enabled: Boolean(selectedPeriodId) && tab === "pendencias",
+    queryFn: async () =>
+      (await fetchPending({ data: { period_id: selectedPeriodId! } })) as unknown as {
+        total: number;
+        por_causa: Record<string, number>;
+        linhas: PendingRow[];
+      },
+  });
+
+  const auditQuery = useQuery({
+    queryKey: ["ledger_audit", selectedPeriodId],
+    enabled: tab === "historico",
+    queryFn: async (): Promise<AuditRow[]> => {
+      const { data, error } = await supabase
+        .from("ledger_account_audit")
+        .select(
+          "id, entity_type, account_key, account_name, field_changed, old_value, new_value, source, actor_id, created_at",
+        )
+        .order("created_at", { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      const rows = (data ?? []) as Omit<AuditRow, "actor_name">[];
+      const ids = [...new Set(rows.map((r) => r.actor_id).filter(Boolean))] as string[];
+      const names = new Map<string, string>();
+      if (ids.length > 0) {
+        const { data: people } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .in("id", ids);
+        for (const person of people ?? []) names.set(person.id, person.full_name);
+      }
+      return rows.map((row) => ({
+        ...row,
+        actor_name: row.actor_id ? (names.get(row.actor_id) ?? "—") : "Sistema",
+      }));
+    },
+  });
+
+
+
   const linkMutation = useMutation({
     mutationFn: () => runLink({ data: { period_id: selectedPeriodId! } }),
     onSuccess: (result) => {
@@ -259,6 +338,92 @@ function RazaoPage() {
         (a.hierarchical_code ?? "").includes(term),
     );
   }, [accounts.data, search]);
+
+  const accountName = useMemo(
+    () => (accounts.data ?? []).find((a) => a.reduced_code === selectedAccount)?.name ?? "",
+    [accounts.data, selectedAccount],
+  );
+
+  function extratoTable(): ExportTable | null {
+    const data = statement.data;
+    if (!data || !selectedAccount) return null;
+    const saldoFinal =
+      Number(data.opening_balance) + Number(data.total_debit) - Number(data.total_credit);
+    return {
+      title: `Extrato do razão — ${accountName || selectedAccount}`,
+      subtitle: `Período ${selectedPeriod?.label ?? ""} · conta ${selectedAccount}${
+        data.account?.hierarchical_code ? ` · ${data.account.hierarchical_code}` : ""
+      }`,
+      info: [
+        { label: "Saldo anterior", value: formatCurrency(data.opening_balance) },
+        { label: "Débitos", value: formatCurrency(data.total_debit) },
+        { label: "Créditos", value: formatCurrency(data.total_credit) },
+        { label: "Saldo final", value: formatCurrency(saldoFinal) },
+      ],
+      headers: ["Data", "Lçto", "Contrapartida", "Histórico", "Débito", "Crédito", "Saldo"],
+      numeric: [4, 5, 6],
+      rows: (data.legs ?? []).map((leg) => [
+        fmtDate(leg.entry_date),
+        leg.doc_number ?? "",
+        leg.counterpart_name ?? leg.counterpart_reduced_code ?? "",
+        leg.historico ?? "",
+        leg.debit ? formatCurrency(leg.debit) : "",
+        leg.credit ? formatCurrency(leg.credit) : "",
+        leg.running_balance != null ? formatCurrency(leg.running_balance) : "",
+      ]),
+    };
+  }
+
+  function lancamentoTable(): ExportTable | null {
+    const data = documentQuery.data;
+    if (!data) return null;
+    return {
+      title: `Lançamento ${data.doc_number}`,
+      subtitle: `Período ${selectedPeriod?.label ?? ""}`,
+      info: [
+        { label: "Total débito", value: formatCurrency(data.total_debit) },
+        { label: "Total crédito", value: formatCurrency(data.total_credit) },
+      ],
+      headers: ["Data", "Conta", "Contrapartida", "Histórico", "Débito", "Crédito"],
+      numeric: [4, 5],
+      rows: data.legs.map((leg) => [
+        fmtDate(leg.entry_date),
+        `${leg.account_reduced_code} ${leg.account_name ?? ""}`.trim(),
+        leg.counterpart_name ?? leg.counterpart_reduced_code ?? "",
+        leg.historico ?? "",
+        leg.debit ? formatCurrency(leg.debit) : "",
+        leg.credit ? formatCurrency(leg.credit) : "",
+      ]),
+    };
+  }
+
+  async function exportar(table: ExportTable | null, filename: string, kind: "csv" | "pdf") {
+    if (!table || table.rows.length === 0) {
+      toast.error("Nada para exportar.");
+      return;
+    }
+    try {
+      if (kind === "csv") exportCsv(table, filename);
+      else await exportPdf(table, filename);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao gerar o arquivo.");
+    }
+  }
+
+  function ExportButtons({ table, filename }: { table: ExportTable | null; filename: string }) {
+    return (
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" onClick={() => void exportar(table, filename, "csv")}>
+          <FileDown className="mr-2 size-4" />
+          CSV
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => void exportar(table, filename, "pdf")}>
+          <FileText className="mr-2 size-4" />
+          PDF
+        </Button>
+      </div>
+    );
+  }
 
   const pending = useMemo(
     () => (accounts.data ?? []).filter((a) => !a.hierarchical_code || !a.nature),
@@ -305,6 +470,8 @@ function RazaoPage() {
             <TabsTrigger value="extrato">Contas e extrato</TabsTrigger>
             <TabsTrigger value="lancamento">Lançamento</TabsTrigger>
             <TabsTrigger value="conferencia">Conferência</TabsTrigger>
+            <TabsTrigger value="pendencias">Pendências</TabsTrigger>
+            <TabsTrigger value="historico">Histórico</TabsTrigger>
             <TabsTrigger value="vinculos">
               Vínculos
               {pending.length > 0 ? (
@@ -377,6 +544,15 @@ function RazaoPage() {
                     </div>
                   ) : statement.data ? (
                     <>
+                      <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
+                        <p className="truncate text-sm font-medium">
+                          {accountName || selectedAccount}
+                        </p>
+                        <ExportButtons
+                          table={extratoTable()}
+                          filename={`extrato-${selectedAccount}`}
+                        />
+                      </div>
                       <div className="grid gap-3 border-b p-4 sm:grid-cols-4">
                         <div>
                           <p className="text-xs text-muted-foreground">Saldo anterior</p>
@@ -521,6 +697,12 @@ function RazaoPage() {
             ) : documentQuery.data && documentQuery.data.legs.length > 0 ? (
               <Card>
                 <CardContent className="p-0">
+                  <div className="flex flex-wrap items-center justify-end border-b px-4 pt-3">
+                    <ExportButtons
+                      table={lancamentoTable()}
+                      filename={`lancamento-${documentQuery.data.doc_number}`}
+                    />
+                  </div>
                   <div className="flex flex-wrap gap-6 border-b p-4">
                     <div>
                       <p className="text-xs text-muted-foreground">Lançamento</p>
@@ -798,6 +980,222 @@ function RazaoPage() {
                                 ))}
                               </SelectContent>
                             </Select>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+          {/* ------------------------- PENDÊNCIAS ------------------------- */}
+          <TabsContent value="pendencias">
+            <Card className="mb-4">
+              <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
+                <p className="text-sm text-muted-foreground">
+                  Relatório de pendências do casamento razão × balancete, com a causa provável de
+                  cada uma.
+                </p>
+                <div className="flex gap-2">
+                  {isAdmin ? (
+                    <Button
+                      variant="outline"
+                      onClick={() => linkMutation.mutate()}
+                      disabled={linkMutation.isPending}
+                    >
+                      {linkMutation.isPending ? (
+                        <Loader2 className="mr-2 size-4 animate-spin" />
+                      ) : null}
+                      Casar automaticamente
+                    </Button>
+                  ) : null}
+                  <ExportButtons
+                    table={
+                      pendingQuery.data
+                        ? {
+                            title: "Pendências do razão",
+                            subtitle: `Período ${selectedPeriod?.label ?? ""}`,
+                            headers: [
+                              "Conta reduzida",
+                              "Nome",
+                              "Código balancete",
+                              "Causa",
+                              "Detalhe",
+                              "Ação sugerida",
+                            ],
+                            rows: pendingQuery.data.linhas.map((row) => [
+                              row.reduced_code ?? "",
+                              row.name ?? "",
+                              row.code ?? "",
+                              PENDING_CAUSE[row.causa] ?? row.causa,
+                              row.detalhe,
+                              row.acao,
+                            ]),
+                          }
+                        : null
+                    }
+                    filename="pendencias-razao"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {pendingQuery.isLoading ? (
+              <LoadingRows />
+            ) : pendingQuery.error ? (
+              <ErrorState
+                message={(pendingQuery.error as Error).message}
+                onRetry={() => void pendingQuery.refetch()}
+              />
+            ) : pendingQuery.data && pendingQuery.data.linhas.length > 0 ? (
+              <>
+                <div className="mb-4 flex flex-wrap gap-2">
+                  {Object.entries(pendingQuery.data.por_causa).map(([causa, count]) => (
+                    <Badge key={causa} variant="secondary">
+                      {(PENDING_CAUSE[causa] ?? causa) + `: ${count}`}
+                    </Badge>
+                  ))}
+                </div>
+                <Card>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Conta</TableHead>
+                          <TableHead>Causa provável</TableHead>
+                          <TableHead>Detalhe</TableHead>
+                          <TableHead>Ação sugerida</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {pendingQuery.data.linhas.map((row, index) => (
+                          <TableRow key={`${row.reduced_code ?? row.code}-${index}`}>
+                            <TableCell className="max-w-[240px]">
+                              <span className="block truncate font-medium">{row.name ?? "—"}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {row.reduced_code ?? "sem código reduzido"}
+                                {row.code ? ` · ${row.code}` : ""}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  row.causa === "diferenca_valor" ? "destructive" : "secondary"
+                                }
+                              >
+                                {PENDING_CAUSE[row.causa] ?? row.causa}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="max-w-[380px]">
+                              <span className="block truncate" title={row.detalhe}>
+                                {row.detalhe}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {row.acao}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </>
+            ) : (
+              <EmptyState
+                title="Nenhuma pendência"
+                description="Razão e balancete estão casados e todas as contas têm natureza."
+              />
+            )}
+          </TabsContent>
+
+          {/* -------------------------- HISTÓRICO -------------------------- */}
+          <TabsContent value="historico">
+            <Card className="mb-4">
+              <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
+                <p className="text-sm text-muted-foreground">
+                  Trilha de auditoria de vínculos e classificações: quem alterou, quando e qual era
+                  o valor anterior.
+                </p>
+                <ExportButtons
+                  table={
+                    auditQuery.data
+                      ? {
+                          title: "Trilha de auditoria — vínculos e classificações",
+                          headers: [
+                            "Data",
+                            "Usuário",
+                            "Conta",
+                            "Campo",
+                            "Valor anterior",
+                            "Valor novo",
+                            "Origem",
+                          ],
+                          rows: auditQuery.data.map((row) => [
+                            formatDateTime(row.created_at),
+                            row.actor_name,
+                            `${row.account_key} ${row.account_name ?? ""}`.trim(),
+                            row.field_changed,
+                            row.old_value ?? "",
+                            row.new_value ?? "",
+                            row.source ?? "",
+                          ]),
+                        }
+                      : null
+                  }
+                  filename="auditoria-razao"
+                />
+              </CardContent>
+            </Card>
+
+            {auditQuery.isLoading ? (
+              <LoadingRows />
+            ) : auditQuery.error ? (
+              <ErrorState
+                message={(auditQuery.error as Error).message}
+                onRetry={() => void auditQuery.refetch()}
+              />
+            ) : (auditQuery.data ?? []).length === 0 ? (
+              <EmptyState
+                title="Nenhuma alteração registrada"
+                description="Vínculos e classificações aplicados passam a aparecer aqui."
+              />
+            ) : (
+              <Card>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Quando</TableHead>
+                        <TableHead>Usuário</TableHead>
+                        <TableHead>Conta</TableHead>
+                        <TableHead>Campo</TableHead>
+                        <TableHead>De</TableHead>
+                        <TableHead>Para</TableHead>
+                        <TableHead>Origem</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(auditQuery.data ?? []).map((row) => (
+                        <TableRow key={row.id}>
+                          <TableCell className="whitespace-nowrap">
+                            {formatDateTime(row.created_at)}
+                          </TableCell>
+                          <TableCell>{row.actor_name}</TableCell>
+                          <TableCell className="max-w-[220px]">
+                            <span className="block truncate font-medium">
+                              {row.account_name ?? row.account_key}
+                            </span>
+                            <span className="text-xs text-muted-foreground">{row.account_key}</span>
+                          </TableCell>
+                          <TableCell>{row.field_changed}</TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {row.old_value ?? "—"}
+                          </TableCell>
+                          <TableCell className="font-medium">{row.new_value ?? "—"}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {row.source ?? "—"}
                           </TableCell>
                         </TableRow>
                       ))}
