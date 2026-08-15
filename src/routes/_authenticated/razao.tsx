@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ArrowRight, Loader2, Search } from "lucide-react";
+import { ArrowRight, FileDown, FileText, Loader2, Search } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { usePeriod } from "@/hooks/usePeriod";
@@ -29,14 +29,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EmptyState, ErrorState, LoadingRows, PageHeader } from "@/components/PageState";
-import { NATURE_LABEL, NATURE_OPTIONS, formatCurrency } from "@/lib/rotta";
+import { NATURE_LABEL, NATURE_OPTIONS, formatCurrency, formatDateTime } from "@/lib/rotta";
 import {
   getAccountStatement,
   getJournalDocument,
   linkReducedAccounts,
+  pendingReport,
   reconcileJournal,
   setAccountLink,
 } from "@/lib/razao.functions";
+import { exportCsv, exportPdf, type ExportTable } from "@/lib/razao-export";
 
 export const Route = createFileRoute("/_authenticated/razao")({
   component: RazaoPage,
@@ -136,6 +138,7 @@ function RazaoPage() {
   const runLink = useServerFn(linkReducedAccounts);
   const runReconcile = useServerFn(reconcileJournal);
   const saveLink = useServerFn(setAccountLink);
+  const fetchPending = useServerFn(pendingReport);
 
   const accounts = useQuery({
     queryKey: ["journal_accounts", selectedPeriodId],
@@ -219,6 +222,48 @@ function RazaoPage() {
         linhas: ReconRow[];
       },
   });
+
+  const pendingQuery = useQuery({
+    queryKey: ["journal_pending", selectedPeriodId],
+    enabled: Boolean(selectedPeriodId) && tab === "pendencias",
+    queryFn: async () =>
+      (await fetchPending({ data: { period_id: selectedPeriodId! } })) as unknown as {
+        total: number;
+        por_causa: Record<string, number>;
+        linhas: PendingRow[];
+      },
+  });
+
+  const auditQuery = useQuery({
+    queryKey: ["ledger_audit", selectedPeriodId],
+    enabled: tab === "historico",
+    queryFn: async (): Promise<AuditRow[]> => {
+      const { data, error } = await supabase
+        .from("ledger_account_audit")
+        .select(
+          "id, entity_type, account_key, account_name, field_changed, old_value, new_value, source, actor_id, created_at",
+        )
+        .order("created_at", { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      const rows = (data ?? []) as Omit<AuditRow, "actor_name">[];
+      const ids = [...new Set(rows.map((r) => r.actor_id).filter(Boolean))] as string[];
+      const names = new Map<string, string>();
+      if (ids.length > 0) {
+        const { data: people } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .in("id", ids);
+        for (const person of people ?? []) names.set(person.id, person.full_name);
+      }
+      return rows.map((row) => ({
+        ...row,
+        actor_name: row.actor_id ? (names.get(row.actor_id) ?? "—") : "Sistema",
+      }));
+    },
+  });
+
+
 
   const linkMutation = useMutation({
     mutationFn: () => runLink({ data: { period_id: selectedPeriodId! } }),
