@@ -582,6 +582,26 @@ function ImportarPage() {
         />
       )}
 
+      {sheet && sheetFile && buildResult ? (
+        <MapeamentoColunas
+          open
+          onOpenChange={(open) => {
+            if (!open && !uploading) {
+              setSheet(null);
+              setSheetFile(null);
+            }
+          }}
+          fileName={sheetFile.name}
+          sheet={sheet}
+          mapping={mapping}
+          onMappingChange={setMapping}
+          result={buildResult}
+          busy={uploading}
+          onConfirm={() => void confirmarMapeamento()}
+        />
+      ) : null}
+
+
       <AlertDialog
         open={pendingDelete !== null}
         onOpenChange={(open: boolean) => {
