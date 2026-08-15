@@ -88,7 +88,7 @@ export async function extractPdfPages(
     page.cleanup();
     onProgress?.(p, doc.numPages);
   }
-  await doc.destroy();
+  await doc.cleanup();
   return pages;
 }
 
@@ -110,7 +110,7 @@ function groupLines(items: Item[]): Line[] {
   });
 }
 
-type Columns = { debito: number; credito: number; saldo: number; anterior?: number };
+type Columns = { debito: number; credito: number; saldo: number; anterior?: number | undefined };
 
 function headerColumns(page: PdfPage, withAnterior: boolean): Columns | null {
   const right = (needle: string) => {
