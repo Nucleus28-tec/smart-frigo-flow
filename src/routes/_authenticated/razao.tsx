@@ -460,6 +460,8 @@ function RazaoPage() {
             <TabsTrigger value="extrato">Contas e extrato</TabsTrigger>
             <TabsTrigger value="lancamento">Lançamento</TabsTrigger>
             <TabsTrigger value="conferencia">Conferência</TabsTrigger>
+            <TabsTrigger value="pendencias">Pendências</TabsTrigger>
+            <TabsTrigger value="historico">Histórico</TabsTrigger>
             <TabsTrigger value="vinculos">
               Vínculos
               {pending.length > 0 ? (
@@ -532,6 +534,15 @@ function RazaoPage() {
                     </div>
                   ) : statement.data ? (
                     <>
+                      <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
+                        <p className="truncate text-sm font-medium">
+                          {accountName || selectedAccount}
+                        </p>
+                        <ExportButtons
+                          table={extratoTable()}
+                          filename={`extrato-${selectedAccount}`}
+                        />
+                      </div>
                       <div className="grid gap-3 border-b p-4 sm:grid-cols-4">
                         <div>
                           <p className="text-xs text-muted-foreground">Saldo anterior</p>
@@ -676,6 +687,12 @@ function RazaoPage() {
             ) : documentQuery.data && documentQuery.data.legs.length > 0 ? (
               <Card>
                 <CardContent className="p-0">
+                  <div className="flex flex-wrap items-center justify-end border-b px-4 pt-3">
+                    <ExportButtons
+                      table={lancamentoTable()}
+                      filename={`lancamento-${documentQuery.data.doc_number}`}
+                    />
+                  </div>
                   <div className="flex flex-wrap gap-6 border-b p-4">
                     <div>
                       <p className="text-xs text-muted-foreground">Lançamento</p>
