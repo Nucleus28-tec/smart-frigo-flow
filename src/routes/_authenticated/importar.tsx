@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -53,6 +53,15 @@ import {
   importTrialBalanceMirror,
 } from "@/lib/razao.functions";
 import { extractPdfPages, parseBalancete, parseRazao } from "@/lib/razao-parser";
+import { isSpreadsheet, readSheet, type SheetData } from "@/lib/planilha";
+import {
+  autoMap,
+  buildLegs,
+  loadSavedMapping,
+  saveMapping,
+  type Mapping,
+} from "@/lib/razao-mapeamento";
+import { MapeamentoColunas } from "@/components/razao/MapeamentoColunas";
 
 export const Route = createFileRoute("/_authenticated/importar")({
   component: ImportarPage,
