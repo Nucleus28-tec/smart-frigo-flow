@@ -54,3 +54,18 @@
 - [ ] Estados de vazio/carregando/erro e responsividade em todas as páginas
 - [ ] Cron `nightly-daily-refresh` + notificação Resend de "recálculo concluído"
 - [ ] Testar o fluxo completo (importar → reclassificar → editar → gerar relatórios) e publicar o app
+
+---
+
+## Fase 6 — Razão contábil, auditoria e agentes (concluída)
+
+**Entregáveis**
+1. Plano de contas unificado (de-para reduzido → hierárquico → natureza) e espelho oficial do balancete.
+2. Importação do razão por PDF (parser determinístico com PDF.js) e por CSV/Excel com mapeamento de colunas, validação e pré-visualização.
+3. Casamento automático razão × balancete em rodadas, com relatório de pendências e causa provável.
+4. Tela `/razao` com Extrato, Lançamento, Conferência, Pendências, Vínculos e Histórico, e exportação CSV/PDF.
+5. Trilha de auditoria imutável de vínculos e classificações.
+6. Cálculo de indicadores e demonstrativos preferindo o razão, com indicação da fonte.
+7. Agentes Contador e CFO com ferramentas de leitura do razão e propostas com evidência de contrapartida.
+
+**Tabelas envolvidas:** `ledger_accounts`, `journal_legs`, `journal_account_openings`, `trial_balance_lines`, `ledger_account_audit`, `agent_threads`, `agent_messages`, `dashboard_indicators`, `financial_statements`.

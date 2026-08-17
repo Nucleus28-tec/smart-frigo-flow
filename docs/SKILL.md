@@ -67,3 +67,15 @@ Antes de considerar qualquer etapa "pronta", verifique:
 - **Não usar N8N nem Zapier** para automação. Se precisar de automação: Make (no-code) ou Edge Functions + Cron (pg_cron).
 - **Não colocar parsing de PDF/Excel nem chamadas de IA no frontend** — isso vive em Edge Functions.
 - **Não usar linguagem genérica** ("o sistema", "a plataforma") nos artefatos entregáveis quando o nome real é **Rotta Financeiro**.
+---
+
+## Atualização — o razão contábil entra no fluxo
+
+A ordem de construção e de operação passa a ser: **balancete (estrutura) → razão (movimento) → casamento → vínculos/pendências → cálculo → demonstrativos**.
+
+- O **razão** é a fonte do movimento; o **balancete** é a árvore de contas e o espelho de conferência.
+- Sempre que o período tiver pernas em `journal_legs`, indicadores e demonstrativos são calculados pelo razão; sem razão, pelo balancete.
+- O **código reduzido** é a chave da conta. O de-para reduzido → hierárquico → natureza vive em `ledger_accounts` e é reaproveitado entre períodos.
+- O parsing do razão é **determinístico** (PDF.js por posição de coluna, ou planilha com mapeamento de colunas) — não use IA nessa etapa; o formato é fixo.
+- Nada é aplicado silenciosamente: vínculos, naturezas e classificações passam por confirmação do Admin e ficam registrados em `ledger_account_audit`.
+- A lógica server-side deste projeto são **server functions do TanStack Start** (`createServerFn`), não Edge Functions Deno.

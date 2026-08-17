@@ -202,3 +202,34 @@ Convenções de estados usadas em todas as páginas:
   - **Carregando:** skeleton da tabela.
   - **Erro:** banner ao falhar a criação/edição (ex.: email já existente) com mensagem clara e retry.
 - **Permissões:** **Somente Admin** acessa esta página. O Usuário que tentar acessar recebe aviso de acesso negado e é redirecionado ao `/dashboard`. Todas as operações de gestão de contas são exclusivas do Admin (RLS + Edge Function `manage-user` com service role).
+
+---
+
+### /razao
+
+- **Rota:** `/razao`
+- **Propósito:** Gerenciar o razão contábil do período — a fonte do movimento — e conferi-lo contra o balancete.
+- **Seções da tela:**
+  - **Extrato:** árvore/busca de contas do período (filtro por código, nome e natureza); ao abrir a conta, saldo anterior, movimento e saldo final, com as pernas listadas (data, documento, histórico, débito/crédito e **contrapartida com nome**, clicável para pular para a outra conta). Exporta CSV e PDF.
+  - **Lançamento:** abre o documento inteiro pelo número, com todas as pernas e a conferência débito = crédito.
+  - **Conferência:** razão × balancete conta a conta (débito, crédito e saldo), destacando divergências e contas presentes em apenas um lado.
+  - **Pendências:** uma causa provável por linha (conta nova no razão, só no balancete, vários candidatos, diferença de valor com delta, natureza indefinida), ação sugerida e botão de vincular (Admin). Exportável.
+  - **Vínculos:** fila de contas do razão sem código hierárquico ou sem natureza, com sugestão e confirmação do Admin.
+  - **Histórico:** trilha de auditoria (`ledger_account_audit`) com filtro por conta, usuário e período, mostrando antes → depois e a origem da mudança.
+- **Estados:** vazio ("Nenhum razão importado para este período" com atalho para `/importar`), skeleton no carregamento e banner de erro com retry.
+- **Permissões:** todos os autenticados visualizam e exportam; apenas Admin vincula, confirma natureza e aplica propostas.
+
+---
+
+### /importar — passo de mapeamento de colunas (razão em planilha)
+
+Ao escolher o tipo "Razão contábil" e enviar `.csv`, `.xlsx` ou `.xls`, aparece a tela de **mapeamento**: cada campo do razão (conta reduzida, nome, saldo anterior, data, número do lançamento, contrapartida, histórico, débito, crédito, saldo acumulado) é associado a uma coluna do arquivo, com pré-seleção por semelhança de nome. Conta reduzida, débito e crédito são obrigatórios. Segue a pré-visualização paginada com valores em Real e datas normalizadas, e o resumo de validação "X linhas válidas / Y com problema" com a lista dos erros e a linha original. O mapeamento fica lembrado para as próximas importações.
+
+---
+
+### /agentes
+
+- **Rota:** `/agentes` e `/agentes/{threadId}`
+- **Propósito:** Conversar com o **Agente Contador** (operacional, classificação e conferência) e o **Agente CFO** (leitura executiva, somente leitura).
+- **Seções:** lista de conversas na lateral, chat com streaming e markdown, blocos indicando qual ferramenta foi consultada, atalhos rápidos e cartões de proposta com evidência de contrapartida e botão "Aplicar" visível apenas para Admin.
+- **Permissões:** todos conversam; apenas Admin aplica propostas, e toda aplicação é registrada em `activity_log` e na trilha de auditoria.

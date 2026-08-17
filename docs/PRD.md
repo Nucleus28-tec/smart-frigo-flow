@@ -75,3 +75,16 @@ O balancete gerado pelo G2 sai "desestruturado, com contas mal classificadas, la
 - **Integração com outros sistemas** de gestão além do fluxo de importação manual.
 - **Correção automática na origem (G2):** o Painel de Apontamentos apenas orienta o ajuste no G2, não altera o sistema de origem.
 - **Usuários externos** (contador/auditor externo com acesso à plataforma): no MVP o acesso é exclusivamente da equipe interna com papéis Admin e Usuário.
+
+---
+
+## Extensão do escopo — Razão contábil
+
+- **RF-R1:** importar o razão contábil do período por PDF, CSV, XLSX ou XLS, com mapeamento de colunas, validação e pré-visualização antes de gravar.
+- **RF-R2:** manter um plano unificado de-para (código reduzido → código hierárquico → natureza), reaproveitado entre períodos.
+- **RF-R3:** casar automaticamente razão × balancete e apresentar as pendências com causa provável e ação sugerida.
+- **RF-R4:** visualizar o extrato da conta com contrapartida nomeada e o lançamento completo com conferência débito = crédito.
+- **RF-R5:** calcular indicadores e demonstrativos a partir do razão quando houver razão importado, indicando a fonte.
+- **RF-R6:** registrar em trilha imutável toda alteração de vínculo, natureza e classificação aplicada.
+- **RF-R7:** exportar extrato, lançamento e pendências em CSV e PDF, respeitando filtros e permissões.
+- **RF-R8:** disponibilizar os Agentes Contador e CFO com ferramentas de leitura do razão; o Contador propõe e apenas o Admin aplica.

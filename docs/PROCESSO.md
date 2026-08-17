@@ -56,3 +56,33 @@ O **Rotta Financeiro** é um ERP financeiro (MVP) feito sob medida para o **Frig
 - SUPOSIÇÃO: o mapeamento do plano de contas do Rotta para o padrão contábil é definido/validado pelo Admin uma vez e reaproveitado nos períodos seguintes, ajustando-se conforme as aprovações — a resposta confirmou a necessidade de mapear, mas não quem faz nem com que frequência.
 - SUPOSIÇÃO: o BI "bem estruturado com indicadores e gráficos" reutiliza os mesmos indicadores do dashboard de resultado (margem bruta, EBITDA, resultado líquido, posição de caixa), já que a resposta pediu o BI mas não especificou quais métricas adicionais.
 - SUPOSIÇÃO: quando o recálculo automático altera valores após uma nova importação, as edições manuais previamente feitas pelo usuário são preservadas e destacadas na lista de valores atualizados — a resposta confirmou o recálculo e a listagem, mas não o tratamento de edições manuais anteriores.
+
+---
+
+## 6. Razão contábil — a nova fonte do movimento
+
+A partir da inclusão do **Gerenciador do Razão**, o fluxo de apuração muda de fonte:
+
+- **Razão contábil** = fonte do movimento. Cada linha é uma "perna" de lançamento (data, número do documento, conta reduzida, contrapartida, histórico, débito, crédito, saldo acumulado). É de onde os indicadores e os demonstrativos são calculados.
+- **Balancete do G2** = fonte da estrutura (árvore hierárquica de contas) e espelho oficial para conferência. Não alimenta o cálculo quando há razão importado.
+
+### Fluxo revisado
+
+1. Selecionar o período em `/periodos`.
+2. Importar o **balancete** em `/importar` — grava a árvore oficial (código hierárquico, descrição, nível, saldo anterior, débito, crédito, saldo atual).
+3. Importar o **razão** em `/importar` (PDF, CSV, XLSX ou XLS). Em planilha, o sistema abre o **mapeamento de colunas**, pré-seleciona por semelhança de nome, converte valores em Real e datas, e mostra a pré-visualização com o resumo "X linhas válidas / Y com problema" antes de gravar.
+4. **Casamento automático** razão × balancete: nome normalizado, nome sem sufixo de filial, confronto de débito/crédito, saldo final coincidente e natureza derivada do código hierárquico. Só casa quando o par é único dos dois lados.
+5. Revisar em `/razao` as abas **Conferência** (razão × balancete conta a conta) e **Pendências** (causa provável por linha: conta nova no razão, conta só no balancete, vários candidatos, diferença de valor, natureza indefinida).
+6. Confirmar os **Vínculos** pendentes (somente Admin) — reduzido → hierárquico → natureza.
+7. Reclassificações sugeridas pela IA seguem a mesma regra de aprovação; o Agente Contador cita as contrapartidas que justificam a proposta.
+8. Recalcular indicadores e gerar DRE, Balanço e Fluxo de Caixa — a tela indica a fonte usada (`razao` ou `balancete`).
+9. Exportar extrato, lançamento e pendências em CSV/PDF; demonstrativos em PDF/Excel.
+
+### Regras de negócio adicionais
+
+- Regra: quando o período tem razão importado, indicadores e demonstrativos são calculados pelo razão; sem razão, pelo balancete.
+- Regra: o **código reduzido** é o identificador estável da conta; o prefixo do reduzido não permite derivar o grupo (há contas reparentadas), por isso o de-para reduzido → hierárquico é obrigatório.
+- Regra: nenhuma linha de planilha é gravada enquanto houver erro bloqueante; avisos podem ser aceitos e as linhas correspondentes são ignoradas.
+- Regra: reimportar o razão do mesmo arquivo substitui o movimento daquele arquivo e registra o diff, no mesmo padrão da reimportação de balancete.
+- Regra: toda alteração de vínculo, natureza ou classificação aplicada é registrada em trilha de auditoria com usuário, data/hora, valor anterior, valor novo e origem (casamento automático, confirmação manual, proposta do agente aprovada). O histórico não pode ser editado nem excluído.
+- Regra: o agente nunca grava — propõe, e só o botão "Aplicar" do Admin efetiva.

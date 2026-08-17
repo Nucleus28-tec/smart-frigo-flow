@@ -222,3 +222,39 @@ Todas via **Supabase Edge Functions** (chaves nunca expostas no frontend Lovable
 - **Nenhuma integração com G2 ou Sicoob:** confirmado no processo — não há API; toda entrada é por importação manual de arquivos. Portanto não há conector automático desses sistemas.
 
 **Observação de custo:** para o volume de uma equipe interna do Rotta com fechamento mensal + eventuais atualizações diárias, o **Supabase Pro (R$125/mês)** é recomendado pelo Storage e volume de Edge invocations do parsing; **Lovable Pro (R$95/mês)** para o app publicado. IA fica em pague-por-uso (Sonnet 4.6/Haiku 4.5) — baixo, dado o volume documental mensal. Resend no Free tier.
+
+---
+
+## 6. Razão contábil, auditoria e agentes (extensão)
+
+### Tabelas
+
+#### `ledger_accounts` — plano unificado (de-para)
+`id` uuid PK · `reduced_code` text NOT NULL UNIQUE (chave estável do razão) · `hierarchical_code` text (código do balancete) · `name` text NOT NULL · `level` int · `parent_code` text · `is_analytic` bool · `nature` text (8 naturezas) · `link_status` text (`pendente`, `sugerido`, `confirmado`, `confirmado_manual`) · `confidence` numeric · `updated_by` uuid FK → `profiles.id` · `created_at`/`updated_at`.
+
+#### `journal_legs` — pernas do razão
+`id` uuid PK · `period_id` FK → `accounting_periods.id` · `file_id` FK → `imported_files.id` · `account_reduced_code` text NOT NULL · `account_id` FK → `ledger_accounts.id` · `counterpart_reduced_code` text · `doc_number` text · `entry_date` date · `historico` text · `debit` numeric NOT NULL default 0 · `credit` numeric NOT NULL default 0 · `running_balance` numeric · `line_no` int · `created_at`. Índices por período+conta e por período+documento.
+
+#### `journal_account_openings` — saldo anterior por conta/período
+`id` uuid PK · `period_id` FK · `account_reduced_code` text · `account_name` text · `opening_balance` numeric · UNIQUE (`period_id`, `account_reduced_code`).
+
+#### `trial_balance_lines` — espelho oficial do balancete
+`id` uuid PK · `period_id` FK · `file_id` FK · `code` text (hierárquico) · `name` text · `level` int · `is_analytic` bool · `saldo_anterior`/`debito`/`credito`/`saldo_atual` numeric · UNIQUE (`period_id`, `code`).
+
+#### `ledger_account_audit` — trilha de auditoria (imutável)
+`id` uuid PK · `period_id` FK · `entity_type` text · `account_key` text · `account_name` text · `field_changed` text · `old_value` text · `new_value` text · `source` text (`casamento_nome`, `casamento_valor`, `casamento_saldo`, `natureza_por_codigo`, `confirmacao_manual`, `reclassificacao_aprovada`) · `actor_id` FK → `profiles.id` · `created_at`. Sem UPDATE e sem DELETE.
+
+#### `agent_threads` / `agent_messages` — conversas dos agentes
+`agent_threads`: `id` · `user_id` FK → `profiles.id` · `agent` (`contador`/`cfo`) · `period_id` FK · `title` · timestamps.
+`agent_messages`: `id` · `thread_id` FK · `user_id` FK · `role` · `parts` jsonb · `client_message_id` · `created_at` (sem UPDATE).
+
+RLS no padrão do projeto: leitura para autenticados, escrita via `is_admin()`; threads/mensagens escopadas por `auth.uid()`. GRANTs para `authenticated` e `service_role`.
+
+### Camada server-side
+
+Este projeto roda em **TanStack Start**: a lógica server-side vive em **server functions** (`createServerFn`) e server routes, e não em Edge Functions Deno. Onde a documentação antiga cita uma Edge Function, leia o equivalente em `src/lib/*.functions.ts`.
+
+### Páginas novas
+
+- **`/razao`** — Gerenciador do Razão: abas Extrato, Lançamento, Conferência, Pendências, Vínculos e Histórico.
+- **`/agentes`** e **`/agentes/{id}`** — chat com o Agente Contador e o Agente CFO, com cartões de proposta aprovados pelo Admin.

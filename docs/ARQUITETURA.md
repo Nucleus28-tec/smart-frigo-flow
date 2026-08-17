@@ -195,3 +195,37 @@ Admin e a rastreabilidade completa de cada alteração.
 | `/atualizacoes` | Diffs de reimportação | Todos |
 | `/agentes` | Conversas com Contador e CFO | Todos · Aplicar: Admin |
 | `/usuarios` | Gestão de usuários internos | Admin |
+
+---
+
+## Atualização — o razão contábil como fonte do movimento
+
+### Duas fontes, papéis distintos
+
+| | Razão contábil | Balancete do G2 |
+|---|---|---|
+| Papel | Fonte do movimento: pernas de lançamento com partida e contrapartida | Fonte da estrutura (árvore hierárquica) e espelho oficial de conferência |
+| Alimenta cálculo | Sim, quando o período tem razão importado | Só quando não há razão |
+| Tabelas | `journal_legs`, `journal_account_openings` | `trial_balance_lines`, `ledger_entries` |
+| Chave da conta | `reduced_code` (6 dígitos, estável) | `code` hierárquico (`1.01.01.002.00006`) |
+
+O prefixo do código reduzido não permite derivar o grupo contábil (há contas reparentadas), por isso o de-para vive em `ledger_accounts` e é reaproveitado entre períodos.
+
+### Lógica de cálculo
+
+`recalculate_period_indicators_internal` e `generate_period_statements` verificam se existem pernas em `journal_legs` para o período:
+
+- **Com razão:** saldo por conta = saldo anterior + débitos − créditos, agregado pela natureza de `ledger_accounts`. Receita = crédito − débito; custo e despesa = débito − crédito; passivo e PL invertem o sinal do saldo. A posição de caixa soma as contas de ativo circulante cujo nome indica caixa, banco ou aplicação.
+- **Sem razão:** o cálculo cai para `ledger_entries` (balancete revisado), como antes.
+
+O JSON dos demonstrativos carrega `fonte` (`razao` ou `balancete`) e a tela exibe essa origem.
+
+### Casamento e auditoria
+
+`link_reduced_accounts` roda em cinco rodadas — nome normalizado, nome sem sufixo de filial, confronto de débito/crédito, saldo final coincidente e natureza pelo código — e só vincula pares únicos dos dois lados. Cada vínculo, cada confirmação manual (`set_account_link`) e cada reclassificação aprovada gravam uma linha em `ledger_account_audit` com usuário, data, antes → depois e origem. A tabela não aceita UPDATE nem DELETE.
+
+O que não casa vai para `journal_pending_report`, que devolve uma causa provável por linha (conta nova no razão, conta só no balancete, vários candidatos, diferença de valor com delta, natureza indefinida), o detalhe e a ação sugerida.
+
+### Agentes sobre o razão
+
+O Agente Contador ganhou ferramentas somente-leitura sobre o razão: extrato da conta (`journal_account_statement`), lançamento completo por número (`journal_document`), contrapartidas mais frequentes (`journal_top_counterparts`), conferência (`reconcile_journal_vs_trial_balance`) e pendências (`journal_pending_report`). Com elas, a proposta de classificação passa a citar a evidência ("94% dos créditos desta conta têm contrapartida em Fornecedores"), exibida no cartão junto do botão "Aplicar" do Admin. O Agente CFO continua sem nenhuma ferramenta de escrita.

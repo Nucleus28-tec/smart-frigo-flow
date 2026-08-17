@@ -476,3 +476,156 @@ create policy "activity_insert" on public.activity_log
   with check (actor_id = auth.uid() or public.is_admin());
 
 -- Sem policies de UPDATE/DELETE: trilha imutável.
+
+-- =====================================================================
+-- Extensão: razão contábil, espelho do balancete, auditoria e agentes
+-- =====================================================================
+
+create table public.ledger_accounts (
+  id uuid primary key default gen_random_uuid(),
+  reduced_code text not null unique,
+  hierarchical_code text,
+  name text not null,
+  level int,
+  parent_code text,
+  is_analytic boolean not null default true,
+  nature text,
+  link_status text not null default 'pendente',
+  confidence numeric,
+  updated_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index idx_ledger_accounts_hier on public.ledger_accounts (hierarchical_code);
+create index idx_ledger_accounts_nature on public.ledger_accounts (nature);
+
+grant select, insert, update, delete on public.ledger_accounts to authenticated;
+grant all on public.ledger_accounts to service_role;
+alter table public.ledger_accounts enable row level security;
+create policy "ledger_accounts_select" on public.ledger_accounts for select to authenticated using (true);
+create policy "ledger_accounts_write" on public.ledger_accounts for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
+create table public.journal_legs (
+  id uuid primary key default gen_random_uuid(),
+  period_id uuid not null references public.accounting_periods(id) on delete cascade,
+  file_id uuid references public.imported_files(id) on delete set null,
+  account_reduced_code text not null,
+  account_id uuid references public.ledger_accounts(id) on delete set null,
+  counterpart_reduced_code text,
+  doc_number text,
+  entry_date date,
+  historico text,
+  debit numeric not null default 0,
+  credit numeric not null default 0,
+  running_balance numeric,
+  line_no int,
+  created_at timestamptz not null default now()
+);
+create index idx_legs_period_account on public.journal_legs (period_id, account_reduced_code);
+create index idx_legs_period_doc on public.journal_legs (period_id, doc_number);
+create index idx_legs_file on public.journal_legs (file_id);
+
+grant select, insert, update, delete on public.journal_legs to authenticated;
+grant all on public.journal_legs to service_role;
+alter table public.journal_legs enable row level security;
+create policy "journal_legs_select" on public.journal_legs for select to authenticated using (true);
+create policy "journal_legs_write" on public.journal_legs for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
+create table public.journal_account_openings (
+  id uuid primary key default gen_random_uuid(),
+  period_id uuid not null references public.accounting_periods(id) on delete cascade,
+  account_reduced_code text not null,
+  account_name text not null,
+  opening_balance numeric not null default 0,
+  created_at timestamptz not null default now(),
+  unique (period_id, account_reduced_code)
+);
+
+grant select, insert, update, delete on public.journal_account_openings to authenticated;
+grant all on public.journal_account_openings to service_role;
+alter table public.journal_account_openings enable row level security;
+create policy "openings_select" on public.journal_account_openings for select to authenticated using (true);
+create policy "openings_write" on public.journal_account_openings for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
+create table public.trial_balance_lines (
+  id uuid primary key default gen_random_uuid(),
+  period_id uuid not null references public.accounting_periods(id) on delete cascade,
+  file_id uuid references public.imported_files(id) on delete set null,
+  code text not null,
+  name text not null,
+  level int not null default 1,
+  is_analytic boolean not null default false,
+  saldo_anterior numeric not null default 0,
+  debito numeric not null default 0,
+  credito numeric not null default 0,
+  saldo_atual numeric not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (period_id, code)
+);
+
+grant select, insert, update, delete on public.trial_balance_lines to authenticated;
+grant all on public.trial_balance_lines to service_role;
+alter table public.trial_balance_lines enable row level security;
+create policy "tbl_select" on public.trial_balance_lines for select to authenticated using (true);
+create policy "tbl_write" on public.trial_balance_lines for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
+-- Trilha imutável de vínculos e classificações
+create table public.ledger_account_audit (
+  id uuid primary key default gen_random_uuid(),
+  period_id uuid references public.accounting_periods(id) on delete set null,
+  entity_type text not null default 'ledger_accounts',
+  account_key text not null,
+  account_name text,
+  field_changed text not null,
+  old_value text,
+  new_value text,
+  source text not null,
+  actor_id uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+create index idx_audit_account on public.ledger_account_audit (account_key);
+create index idx_audit_period on public.ledger_account_audit (period_id, created_at);
+
+grant select on public.ledger_account_audit to authenticated;
+grant all on public.ledger_account_audit to service_role;
+alter table public.ledger_account_audit enable row level security;
+create policy "ledger_audit_select" on public.ledger_account_audit for select to authenticated using (true);
+-- Sem policies de INSERT/UPDATE/DELETE: gravado apenas pelas funções security definer.
+
+-- Agentes de IA
+create table public.agent_threads (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  agent text not null,
+  period_id uuid references public.accounting_periods(id) on delete set null,
+  title text not null default 'Nova conversa',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+grant select, insert, update, delete on public.agent_threads to authenticated;
+grant all on public.agent_threads to service_role;
+alter table public.agent_threads enable row level security;
+create policy "threads_select" on public.agent_threads for select to authenticated using (user_id = auth.uid() or public.is_admin());
+create policy "threads_insert" on public.agent_threads for insert to authenticated with check (user_id = auth.uid());
+create policy "threads_update" on public.agent_threads for update to authenticated using (user_id = auth.uid());
+create policy "threads_delete" on public.agent_threads for delete to authenticated using (user_id = auth.uid() or public.is_admin());
+
+create table public.agent_messages (
+  id uuid primary key default gen_random_uuid(),
+  thread_id uuid not null references public.agent_threads(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  role text not null,
+  parts jsonb not null default '[]'::jsonb,
+  client_message_id text,
+  created_at timestamptz not null default now()
+);
+create index idx_agent_messages_thread on public.agent_messages (thread_id, created_at);
+
+grant select, insert, delete on public.agent_messages to authenticated;
+grant all on public.agent_messages to service_role;
+alter table public.agent_messages enable row level security;
+create policy "messages_select" on public.agent_messages for select to authenticated using (user_id = auth.uid() or public.is_admin());
+create policy "messages_insert" on public.agent_messages for insert to authenticated with check (user_id = auth.uid());
+create policy "messages_delete" on public.agent_messages for delete to authenticated using (user_id = auth.uid() or public.is_admin());
