@@ -2,7 +2,10 @@
 
 ## Sobre o projeto
 
-O **Rotta Financeiro** é um ERP financeiro em versão MVP construído sob medida para o **Frigorífico Rotta das Carnes (Rota Alimentos)**. Ele resolve um problema concreto do dia a dia: o balancete exportado do sistema G2 chega desestruturado — com contas mal classificadas, lançamentos incorretos e sem estrutura para análise — e não há integração via API com o G2. O **Rotta Financeiro** recebe por importação manual os arquivos PDF e Excel (balancete, notas fiscais, romaneio de abate, pedidos de compra, contas a pagar/receber, relatório de vendas e extrato bancário Sicoob), usa IA para ler os arquivos, reclassificar contas contra o padrão contábil, apontar inconsistências para correção no G2, e gera de forma estruturada a **DRE**, o **Balanço Patrimonial** e o **Fluxo de Caixa**, além de um **dashboard de indicadores** (margem bruta, EBITDA, resultado líquido e posição de caixa). O objetivo do MVP é permitir que o gestor importe um balancete do G2, visualize, reclassifique, edite valores manualmente e gere os três demonstrativos estruturados em uma única sessão de uso.
+O **Rotta Financeiro** é um ERP financeiro em versão MVP construído sob medida para o **Frigorífico Rotta das Carnes (Rota Alimentos)**. Ele resolve um problema concreto do dia a dia: o balancete exportado do sistema G2 chega desestruturado — com contas mal classificadas, lançamentos incorretos e sem estrutura para análise — e não há integração via API com o G2. O **Rotta Financeiro** recebe por importação manual os arquivos PDF e Excel (balancete, razão contábil, notas fiscais, romaneio de abate, pedidos de compra, contas a pagar/receber, relatório de vendas e extrato bancário Sicoob), usa IA para ler os arquivos, reclassificar contas contra o padrão contábil, apontar inconsistências para correção no G2, e gera de forma estruturada a **DRE**, o **Balanço Patrimonial** e o **Fluxo de Caixa**, além de um **dashboard de indicadores** (margem bruta, EBITDA, resultado líquido e posição de caixa).
+
+Desde a inclusão do **Gerenciador do Razão**, a apuração tem duas fontes bem definidas: o **razão contábil é a fonte do movimento** (partida e contrapartida de cada lançamento, de onde tudo é calculado) e o **balancete é a fonte da estrutura** (árvore hierárquica de contas) e o espelho oficial do G2 para conferência. O elo entre os dois é o de-para do código reduzido para o código hierárquico e a natureza contábil, casado automaticamente e confirmado pelo Admin, com trilha de auditoria de cada alteração.
+
 
 ## Antes de tudo
 
@@ -24,6 +27,10 @@ O **Rotta Financeiro** é um ERP financeiro em versão MVP construído sob medid
 | **docs/FUNCTIONS.md** | Documentação das Edge Functions (Deno), Postgres Functions (RPC/triggers) e Cron Jobs (pg_cron), com autenticação. | Ao construir a lógica server-side (parsing, reclassificação, geração de relatórios). |
 | **docs/PAGINAS.md** | Especificação de cada página do frontend Lovable (React + Tailwind + shadcn/ui), estados e comportamentos. | Ao montar a interface e os fluxos de tela. |
 | **docs/DEPARA.md** | Matriz de rastreabilidade: Tabela → Functions/Endpoints → Páginas. | Como checklist final para garantir que nada ficou órfão. |
+| **docs/ARQUITETURA.md** | Visão consolidada do sistema em operação: modelo de dados completo, lógica de cálculo (razão preferido, balancete como espelho) e como os Agentes Contador e CFO operam. | Para entender o sistema já construído antes de evoluí-lo. |
+
+> **Nota de atualização:** a lógica server-side deste projeto roda em **server functions do TanStack Start** (`src/lib/*.functions.ts`) e em **Postgres Functions**, não em Edge Functions Deno. Onde os documentos citam uma Edge Function, leia o equivalente em server function. As telas `/razao` (Gerenciador do Razão) e `/agentes` (Contador e CFO) fazem parte do escopo atual.
+
 
 ## Primeiros passos no Lovable
 

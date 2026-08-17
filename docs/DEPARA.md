@@ -47,3 +47,15 @@
 - **Nenhuma página órfã:** `/login` (auth Supabase), `/dashboard`, `/periodos`, `/importar`, `/balancete`, `/reclassificacoes`, `/plano-de-contas`, `/apontamentos`, `/demonstrativos`, `/atualizacoes` e `/usuarios` estão todas cobertas.
 - **Nenhuma function órfã:** as 8 Edge Functions, as 3 RPCs e o 1 Cron Job aparecem na Tabela 2.
 - **Fluxo crítico do MVP:** `/importar` → `parse-imported-file` → `suggest-reclassification` + `detect-inconsistencies` → `/reclassificacoes`/`/apontamentos` → `generate-statements` → `/demonstrativos` + `/dashboard`, com `recalculate-period` → `/atualizacoes` no ciclo de reimportação.
+---
+
+## Extensão — Razão contábil, auditoria e agentes
+
+| Tabela | Functions/Endpoints que a tocam | Páginas que a usam |
+|---|---|---|
+| `ledger_accounts` | `import_journal_legs`, `link_reduced_accounts`, `set_account_link`, `journal_*`, `reconcile_journal_vs_trial_balance` | `/razao` (Extrato, Vínculos, Pendências), `/agentes` |
+| `journal_legs` | `import_journal_legs`, `journal_account_statement`, `journal_document`, `journal_top_counterparts`, `reconcile_journal_vs_trial_balance`, `recalculate_period_indicators_internal`, `generate_period_statements` | `/razao`, `/dashboard`, `/demonstrativos`, `/agentes` |
+| `journal_account_openings` | `import_journal_legs`, `journal_account_statement`, `link_reduced_accounts` | `/razao` (Extrato) |
+| `trial_balance_lines` | `import_trial_balance_lines`, `link_reduced_accounts`, `reconcile_journal_vs_trial_balance`, `journal_pending_report` | `/razao` (Conferência, Pendências), `/balancete` |
+| `ledger_account_audit` | `link_reduced_accounts`, `set_account_link`, `apply_reclassification_decision` | `/razao` (Histórico) |
+| `agent_threads` / `agent_messages` | rota de streaming `api/agents/chat`, `agents.functions.ts` | `/agentes`, `/agentes/{id}` |

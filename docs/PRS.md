@@ -204,3 +204,16 @@ O helper `is_admin()` (Postgres `SECURITY DEFINER`) é a base das policies que r
 - **Recálculo em reimportações:** `recalculate-period` faz merge incremental preservando edições manuais e registra apenas os diffs em `recalculation_logs`, evitando reprocessar tudo do zero quando desnecessário; o `nightly-daily-refresh` distribui a carga de consolidação diária no horário noturno.
 - **Dashboard/BI:** os indicadores são **pré-calculados e persistidos** em `dashboard_indicators` por período (não recalculados a cada abertura de tela), garantindo carregamento rápido dos gráficos mesmo com histórico de vários meses; a atualização chega via Realtime quando um recálculo persiste novos valores.
 - **Custo de IA sob controle:** uso preferencial de **Claude Haiku 4.5** para linhas simples/alto volume e **Sonnet 4.6** apenas para interpretação que exige precisão, mantendo o custo por uso baixo para o volume mensal do Rotta.
+
+---
+
+## Requisitos de sistema — Razão contábil
+
+- **RS-R1 (RF-R1):** a importação de planilha exige mapeamento de conta reduzida, débito e crédito; o sistema bloqueia a gravação enquanto houver erro bloqueante e exibe "X linhas válidas / Y com problema" com a linha original de cada erro.
+- **RS-R2 (RF-R1):** o envio ocorre em blocos de até 4.000 pernas por chamada, com barra de progresso; reimportar o mesmo arquivo com `reset` substitui o movimento daquele arquivo.
+- **RS-R3 (RF-R2):** `ledger_accounts.reduced_code` é único e serve de chave estável; `link_status` distingue `pendente`, `sugerido`, `confirmado` e `confirmado_manual`.
+- **RS-R4 (RF-R3):** `link_reduced_accounts` só vincula quando o par é único dos dois lados, em rodadas de nome, nome-base, movimento, saldo e natureza por código, e retorna o total pendente.
+- **RS-R5 (RF-R4):** o extrato é sempre paginado por conta (nunca o mês inteiro de uma vez) e o lançamento exibe a soma de débitos e créditos para conferência.
+- **RS-R6 (RF-R5):** `generate_period_statements` e `recalculate_period_indicators_internal` retornam `fonte`/`source` igual a `razao` quando existirem pernas no período, senão `balancete`.
+- **RS-R7 (RF-R6):** `ledger_account_audit` não tem policies de UPDATE/DELETE; a gravação ocorre apenas dentro de funções `security definer`.
+- **RS-R8 (RF-R8):** as ferramentas do agente são somente leitura; qualquer gravação passa por server function com `requireSupabaseAuth` e verificação de Admin, disparada pelo botão "Aplicar".

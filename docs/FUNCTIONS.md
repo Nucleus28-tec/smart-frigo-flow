@@ -333,3 +333,33 @@
 ---
 
 > **Cobertura:** todas as Edge Functions da ESTRUTURA (`parse-imported-file`, `suggest-reclassification`, `apply-reclassification-decision`, `detect-inconsistencies`, `generate-statements`, `recalculate-period`, `export-report`, `manage-user`), todas as RPCs (`is_admin`, `get_period_summary`, `log_activity`) e o Cron `nightly-daily-refresh` estão documentadas. Triggers marcados **[EXTENSÃO]** (`handle_new_user`, `set_updated_at`, `mark_entry_manually_edited`) foram adicionados para sustentar regras de negócio do PROCESSO (criação de perfil, rastreabilidade de edições e preservação de ajustes manuais no recálculo).
+
+---
+
+## Extensão — Razão contábil, auditoria e agentes
+
+> Nesta fase o backend deixou de usar Edge Functions Deno: a lógica roda em **server functions** do TanStack Start (`src/lib/*.functions.ts`), com autenticação por `requireSupabaseAuth`, e em **Postgres Functions** `security definer` protegidas por `is_admin()`.
+
+### Postgres Functions (RPC)
+
+| Função | Auth | Propósito |
+|---|---|---|
+| `import_journal_legs(_file_id, _legs, _reset)` | admin | Grava um bloco de pernas do razão, cria contas novas em `ledger_accounts` e registra saldos anteriores. `_reset` limpa o movimento do arquivo antes da carga. |
+| `import_trial_balance_lines(_file_id, _lines)` | admin | Grava/atualiza o espelho oficial do balancete (upsert por `period_id` + `code`). |
+| `link_reduced_accounts(_period_id)` | admin | Casamento razão × balancete em 5 rodadas: nome normalizado, nome sem sufixo de filial, confronto débito/crédito, saldo final e natureza pelo código. Cada vínculo gera registro em `ledger_account_audit`. Retorna contagens e `pending`. |
+| `reconcile_journal_vs_trial_balance(_period_id)` | usuário logado | Conferência conta a conta: `ok`, `divergente`, `so_razao`, `so_balancete`. |
+| `journal_pending_report(_period_id)` | usuário logado | Relatório de pendências com causa provável, detalhe, ação sugerida e delta. |
+| `journal_account_statement(_period_id, _reduced_code, _limit, _offset)` | usuário logado | Extrato paginado da conta: saldo anterior, totais e pernas com contrapartida nomeada. |
+| `journal_document(_period_id, _doc_number)` | usuário logado | Lançamento completo com todas as pernas e conferência débito = crédito. |
+| `journal_top_counterparts(_period_id, _reduced_code, _limit)` | usuário logado | Contrapartidas mais frequentes da conta, com percentual — evidência das propostas do agente. |
+| `set_account_link(_reduced_code, _hierarchical_code, _nature)` | admin | Confirma manualmente o vínculo e a natureza; grava auditoria. |
+| `recalculate_period_indicators_internal(_period_id)` | interna | Recalcula indicadores; usa o razão quando há pernas no período, senão o balancete. |
+| `generate_period_statements(_period_id)` | interna/admin | Gera DRE, Balanço e Fluxo de Caixa; o JSON traz `fonte` = `razao` ou `balancete`. |
+
+### Server functions (`src/lib/razao.functions.ts`)
+
+`importJournalChunk`, `importTrialBalanceMirror`, `finalizeJournalImport` (casa contas + recalcula + gera demonstrativos + marca o arquivo como processado + registra atividade), `linkReducedAccounts`, `reconcileJournal`, `pendingReport`, `topCounterparts`, `getAccountStatement`, `getJournalDocument`, `setAccountLink`.
+
+### Ferramentas dos agentes (somente leitura)
+
+`razao_extrato_conta`, `razao_lancamento`, `razao_contrapartidas`, `razao_conferencia`, `razao_pendencias`, além das ferramentas de balancete, plano de contas, indicadores e demonstrativos. O Agente CFO não recebe ferramentas de escrita; o Agente Contador propõe e só o Admin aplica.
