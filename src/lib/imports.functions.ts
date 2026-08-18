@@ -175,7 +175,8 @@ export const parseImportedFile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => fileIdSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = await tryAdmin();
+    const supabaseAdmin = (admin ?? context.supabase) as typeof context.supabase;
     const { parseSpreadsheet, parsePdfWithAi } = await import("@/lib/imports.server");
 
     const { data: file, error } = await supabaseAdmin
@@ -183,7 +184,7 @@ export const parseImportedFile = createServerFn({ method: "POST" })
       .select("id, period_id, file_type, original_name, storage_path, mime_type")
       .eq("id", data.file_id)
       .single();
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(friendly(error.message));
 
     await supabaseAdmin
       .from("imported_files")
@@ -282,7 +283,9 @@ export const parseImportedFile = createServerFn({ method: "POST" })
         firstImport: merge.first_import ?? true,
       };
     } catch (e) {
-      const message = e instanceof Error ? e.message : "Erro desconhecido ao processar o arquivo.";
+      const message = friendly(
+        e instanceof Error ? e.message : "Erro desconhecido ao processar o arquivo.",
+      );
       await supabaseAdmin
         .from("imported_files")
         .update({ processing_status: "erro", processing_error: message.slice(0, 500) })
