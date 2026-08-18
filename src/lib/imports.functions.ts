@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export const FILE_TYPES = [
   "balancete",
+  "razao",
   "pedido_compra",
   "nota_fiscal",
   "romaneio_abate",
