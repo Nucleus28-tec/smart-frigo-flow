@@ -1,0 +1,2 @@
+ALTER TABLE public.imported_files DROP CONSTRAINT imported_files_file_type_check;
+ALTER TABLE public.imported_files ADD CONSTRAINT imported_files_file_type_check CHECK (file_type = ANY (ARRAY['balancete','razao','pedido_compra','nota_fiscal','romaneio_abate','contas_pagar','contas_receber','relatorio_vendas','extrato_sicoob']));
