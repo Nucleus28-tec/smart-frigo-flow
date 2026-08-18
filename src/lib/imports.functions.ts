@@ -79,6 +79,31 @@ export const registerImportedFile = createServerFn({ method: "POST" })
     return { file_id: row.id };
   });
 
+/** Cliente de serviço quando disponível; caso contrário, null (usamos a sessão do usuário). */
+async function tryAdmin(): Promise<null | Record<string, never>> {
+  try {
+    const mod = await import("@/integrations/supabase/client.server");
+    // Toca o proxy para forçar a validação das variáveis de ambiente.
+    void mod.supabaseAdmin.storage;
+    return mod.supabaseAdmin as unknown as Record<string, never>;
+  } catch {
+    return null;
+  }
+}
+
+function friendly(message: string) {
+  if (/SUPABASE_SERVICE_ROLE_KEY|Missing Supabase environment/i.test(message)) {
+    return "A credencial de serviço do Supabase não está configurada neste ambiente. A ação foi executada com a sua sessão quando possível.";
+  }
+  if (/not found|does not exist|Object not found/i.test(message)) {
+    return "Arquivo não encontrado no armazenamento.";
+  }
+  if (/permission|denied|row-level security|violates/i.test(message)) {
+    return "Você não tem permissão para esta ação.";
+  }
+  return message;
+}
+
 export const getFileDownloadUrl = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => fileIdSchema.parse(input))
@@ -88,11 +113,13 @@ export const getFileDownloadUrl = createServerFn({ method: "POST" })
       .select("storage_path")
       .eq("id", data.file_id)
       .single();
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(friendly(error.message));
     const { data: signed, error: signError } = await context.supabase.storage
       .from("imports")
       .createSignedUrl(file.storage_path, 60 * 10);
-    if (signError) throw new Error(signError.message);
+    if (signError || !signed?.signedUrl) {
+      throw new Error(friendly(signError?.message ?? "Não foi possível gerar o link do arquivo."));
+    }
     return { url: signed.signedUrl };
   });
 
@@ -103,37 +130,53 @@ export const deleteImportedFile = createServerFn({ method: "POST" })
     const { data: isAdmin } = await context.supabase.rpc("is_admin");
     if (isAdmin !== true) throw new Error("Apenas administradores podem excluir arquivos.");
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: file, error } = await supabaseAdmin
+    const { data: file, error } = await context.supabase
       .from("imported_files")
       .select("storage_path, original_name")
       .eq("id", data.file_id)
       .single();
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(friendly(error.message));
 
-    await supabaseAdmin.from("ledger_entries").delete().eq("file_id", data.file_id);
-    await supabaseAdmin.storage.from("imports").remove([file.storage_path]);
-    const { error: deleteError } = await supabaseAdmin
+    // Limpa dependências do arquivo antes de remover o registro.
+    await context.supabase.from("ledger_entries").delete().eq("file_id", data.file_id);
+    await context.supabase.from("journal_legs").delete().eq("file_id", data.file_id);
+    await context.supabase.from("trial_balance_lines").delete().eq("file_id", data.file_id);
+
+    let storageRemoved = true;
+    try {
+      const admin = await tryAdmin();
+      const client = (admin ?? context.supabase) as typeof context.supabase;
+      const { error: storageError } = await client.storage
+        .from("imports")
+        .remove([file.storage_path]);
+      if (storageError) storageRemoved = false;
+    } catch {
+      storageRemoved = false;
+    }
+
+    const { error: deleteError } = await context.supabase
       .from("imported_files")
       .delete()
       .eq("id", data.file_id);
-    if (deleteError) throw new Error(deleteError.message);
+    if (deleteError) throw new Error(friendly(deleteError.message));
 
     await context.supabase.rpc("log_activity", {
       _action: "excluiu arquivo importado",
       _entity_type: "imported_files",
       _entity_id: data.file_id,
-      _metadata: { original_name: file.original_name },
+      _metadata: { original_name: file.original_name, storage_removed: storageRemoved },
     });
-    return { ok: true };
+    return { ok: true, storageRemoved };
   });
+
 
 /** Equivalente à Edge Function "parse-imported-file": baixa, interpreta e grava os lançamentos. */
 export const parseImportedFile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => fileIdSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = await tryAdmin();
+    const supabaseAdmin = (admin ?? context.supabase) as typeof context.supabase;
     const { parseSpreadsheet, parsePdfWithAi } = await import("@/lib/imports.server");
 
     const { data: file, error } = await supabaseAdmin
@@ -141,7 +184,7 @@ export const parseImportedFile = createServerFn({ method: "POST" })
       .select("id, period_id, file_type, original_name, storage_path, mime_type")
       .eq("id", data.file_id)
       .single();
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(friendly(error.message));
 
     await supabaseAdmin
       .from("imported_files")
@@ -240,7 +283,9 @@ export const parseImportedFile = createServerFn({ method: "POST" })
         firstImport: merge.first_import ?? true,
       };
     } catch (e) {
-      const message = e instanceof Error ? e.message : "Erro desconhecido ao processar o arquivo.";
+      const message = friendly(
+        e instanceof Error ? e.message : "Erro desconhecido ao processar o arquivo.",
+      );
       await supabaseAdmin
         .from("imported_files")
         .update({ processing_status: "erro", processing_error: message.slice(0, 500) })
