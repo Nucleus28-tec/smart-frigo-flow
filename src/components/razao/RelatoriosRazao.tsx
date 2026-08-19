@@ -173,13 +173,28 @@ export function RelatoriosRazao({ periodId, periodLabel, referenceMonth }: Props
           multi_page: kind === "razao" && multiPage,
         },
       });
-      const link = document.createElement("a");
-      link.href = result.url;
-      link.download = result.file_name;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      toast.success(`Download iniciado: ${result.file_name}`);
+      // A URL assinada é de outro domínio (Supabase Storage), então o atributo
+      // download é ignorado e, dentro do preview em iframe, o clique não abre nada.
+      // Abrimos em uma nova aba e deixamos um link de reserva no toast.
+      const opened = window.open(result.url, "_blank", "noopener,noreferrer");
+      if (!opened) {
+        toast.error("O navegador bloqueou a janela do download.", {
+          duration: 15000,
+          action: {
+            label: "Abrir arquivo",
+            onClick: () => window.open(result.url, "_blank", "noopener,noreferrer"),
+          },
+        });
+        return;
+      }
+      toast.success(`Download iniciado: ${result.file_name}`, {
+        duration: 10000,
+        action: {
+          label: "Abrir novamente",
+          onClick: () => window.open(result.url, "_blank", "noopener,noreferrer"),
+        },
+      });
+
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Falha ao exportar.");
     } finally {
