@@ -1034,6 +1034,7 @@ export type Database = {
         Args: { _decision: string; _suggestion_id: string }
         Returns: Json
       }
+      bulk_upsert_ledger_accounts: { Args: { _rows: Json }; Returns: Json }
       cancel_journal_entry: {
         Args: { _leg_id: string; _motivo?: string }
         Returns: Json
