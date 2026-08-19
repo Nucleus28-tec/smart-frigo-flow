@@ -1014,6 +1014,15 @@ export type Database = {
         Returns: Json
       }
       journal_pending_report: { Args: { _period_id: string }; Returns: Json }
+      journal_search: {
+        Args: {
+          _limit?: number
+          _offset?: number
+          _period_id: string
+          _query: string
+        }
+        Returns: Json
+      }
       journal_top_counterparts: {
         Args: { _limit?: number; _period_id: string; _reduced_code: string }
         Returns: Json
@@ -1057,6 +1066,7 @@ export type Database = {
         Returns: Json
       }
       sync_accounts_for_period: { Args: { _period_id: string }; Returns: Json }
+      txt_norm: { Args: { _t: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never
