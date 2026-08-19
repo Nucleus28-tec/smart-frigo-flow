@@ -421,6 +421,27 @@ function RazaoPage() {
     };
   }
 
+  function buscaTable(): ExportTable | null {
+    const rows = searchQuery.data?.rows ?? [];
+    if (rows.length === 0) return null;
+    return {
+      title: `Busca "${freeTerm}"`,
+      subtitle: `Período ${selectedPeriod?.label ?? ""}`,
+      info: [{ label: "Resultados", value: String(searchQuery.data?.total ?? rows.length) }],
+      headers: ["Data", "Núm. doc.", "Conta débito", "Conta crédito", "Valor", "Histórico"],
+      numeric: [4],
+      rows: rows.map((row) => [
+        fmtDate(row.entry_date),
+        row.doc_number ?? "",
+        row.debit_name ?? row.debit_code ?? "",
+        row.credit_name ?? row.credit_code ?? "",
+        formatCurrency(row.valor),
+        row.historico ?? "",
+      ]),
+    };
+  }
+
+
   function lancamentoTable(): ExportTable | null {
     const data = documentQuery.data;
     if (!data) return null;
