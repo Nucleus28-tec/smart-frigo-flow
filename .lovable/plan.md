@@ -7,9 +7,10 @@ Tudo acontece na tela `/razao` (aba única de Lançamentos). Nenhuma regra cont�
 Clicar no título da coluna ordena a grade; clicar de novo inverte; uma seta indica a direção.
 Colunas ordenáveis: Doc, Conta débito, Conta crédito, Data, Valor e Histórico.
 
-A ordenação é feita no banco (não só na página visível), para que ordenar com 4.835
-lançamentos e paginação de 50 traga de fato o maior/menor de todo o período.
-Padrão inicial continua: data mais recente e documento decrescente.
+A ordenação acontece na própria tela, sobre as linhas já carregadas — sem nova consulta ao
+banco. Para manter a tela leve, a grade abre filtrada pelo **último dia com lançamento** do
+período (data inicial = data final = esse dia), ordenada por data decrescente. O usuário
+amplia ou reduz o volume de dados apenas mudando as datas nos filtros.
 
 ## 2. Largura das colunas ajustável
 
