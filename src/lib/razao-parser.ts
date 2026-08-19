@@ -105,7 +105,11 @@ function groupLines(items: Item[]): Line[] {
     return {
       y: line[0]?.y ?? 0,
       items: line,
-      text: line.map((i) => i.s).join(" ").replace(/\s+/g, " ").trim(),
+      text: line
+        .map((i) => i.s)
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim(),
     };
   });
 }
@@ -168,7 +172,7 @@ export function parseRazao(pages: PdfPage[]): { legs: RazaoLeg[]; accounts: numb
   const legs: RazaoLeg[] = [];
   let cols: Columns | null = null;
   let account: { code: string; name: string } | null = null;
-  let openingEmitted = new Set<string>();
+  const openingEmitted = new Set<string>();
   let lineNo = 0;
 
   for (const page of pages) {
@@ -234,7 +238,9 @@ export function parseRazao(pages: PdfPage[]): { legs: RazaoLeg[]; accounts: numb
 
       const counterpartItem = tokens[2];
       const counterpart =
-        counterpartItem && /^\d{3,10}$/.test(counterpartItem.s) && counterpartItem.x < cols.debito - 100
+        counterpartItem &&
+        /^\d{3,10}$/.test(counterpartItem.s) &&
+        counterpartItem.x < cols.debito - 100
           ? counterpartItem.s
           : null;
 
@@ -259,6 +265,188 @@ export function parseRazao(pages: PdfPage[]): { legs: RazaoLeg[]; accounts: numb
         line_no: lineNo,
       });
     }
+  }
+
+  return { legs, accounts: openingEmitted.size };
+}
+
+// ================== RAZÃO EM PLANILHA (relatório G2) ==================
+//
+// O G2 exporta o "Razão Contábil Analítico" em XLS como um relatório
+// paginado convertido em grade — não uma tabela plana. Cada conta aparece em
+// um bloco: uma linha "CONTA: <código> - <nome>" com "SALDO ANTERIOR:" ao
+// lado, seguida das linhas de lançamento, e cabeçalhos de coluna/página se
+// repetem a cada página impressa. O código da conta reduzida NÃO aparece por
+// linha de lançamento — só uma vez por bloco — por isso a planilha genérica
+// de mapeamento de colunas (razao-mapeamento.ts) não resolve esse layout: é
+// preciso reconhecer a estrutura de blocos, igual ao parser de PDF acima.
+//
+// Reconciliado contra o "Total de Itens" do rodapé do relatório G2 (débito e
+// crédito) com margem de poucos centavos em milhares de lançamentos.
+
+const RAZAO_CONTA_RE = /^CONTA:$/i;
+const RAZAO_ACCOUNT_RE = /^(\d{3,10})\s*-\s*(.+)$/;
+const RAZAO_SALDO_LABEL_RE = /^SALDO ANTERIOR:$/i;
+const RAZAO_PLAIN_NUM_RE = /^-?\d+(\.\d+)?$/;
+const RAZAO_INT_RE = /^\d{3,10}$/;
+const RAZAO_TIMESTAMP_RE = /^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2}$/;
+
+function razaoCellStr(v: unknown): string {
+  if (v == null) return "";
+  if (v instanceof Date) return v.toISOString();
+  return String(v).trim();
+}
+
+function razaoSignedMoney(raw: string): number {
+  const clean = raw.trim();
+  const isCredit = /C\s*$/i.test(clean);
+  const numPart = clean.replace(/[DC]\s*$/i, "").trim();
+  const n = Number(numPart.replace(/\./g, "").replace(",", "."));
+  if (!Number.isFinite(n)) return 0;
+  return isCredit ? -n : n;
+}
+
+function razaoDateFromCell(v: unknown): string | null {
+  if (v instanceof Date && !Number.isNaN(v.getTime())) return v.toISOString().slice(0, 10);
+  const m = DATE.exec(razaoCellStr(v));
+  if (!m) return null;
+  return `${m[3]}-${m[2]}-${m[1]}`;
+}
+
+/**
+ * Lê a matriz bruta (linha x coluna) do relatório "Razão Contábil Analítico"
+ * do G2 exportado em XLS e devolve as pernas do razão, no mesmo formato de
+ * `parseRazao` (PDF). Use `looksLikeG2RazaoReport` (planilha.ts) para decidir
+ * quando chamar este parser em vez do mapeamento manual de colunas.
+ */
+export function parseRazaoSheetMatrix(matrix: unknown[][]): { legs: RazaoLeg[]; accounts: number } {
+  const legs: RazaoLeg[] = [];
+  let account: { code: string; name: string } | null = null;
+  const openingEmitted = new Set<string>();
+  let lineNo = 0;
+  // Posições de coluna aprendidas do cabeçalho da página (repetem por página).
+  let debCol: number | null = null;
+  let credCol: number | null = null;
+
+  for (const row of matrix) {
+    const cells = row.map(razaoCellStr);
+    if (cells.every((c) => c === "")) continue;
+    if (cells.some((c) => /^PAG\.:/i.test(c) || /^RELAT[ÓO]RIO/i.test(c) || /^DATA MOV\./i.test(c)))
+      continue;
+    if (cells.some((c) => RAZAO_TIMESTAMP_RE.test(c))) continue;
+
+    const debHeaderIdx = cells.findIndex((c) => /^D[ÉE]BITO$/i.test(c));
+    if (debHeaderIdx >= 0) {
+      // offset empírico: o valor da linha cai uma coluna à direita do rótulo do cabeçalho.
+      debCol = debHeaderIdx + 1;
+      const credHeaderIdx = cells.findIndex((c) => /^CR[ÉE]DITO$/i.test(c));
+      credCol = credHeaderIdx >= 0 ? credHeaderIdx : debCol + 1;
+      continue;
+    }
+
+    const contaIdx = cells.findIndex((c) => RAZAO_CONTA_RE.test(c));
+    if (contaIdx >= 0) {
+      const raw = cells.slice(contaIdx + 1).find((c) => c !== "") ?? "";
+      const m = RAZAO_ACCOUNT_RE.exec(raw);
+      if (m) {
+        account = { code: m[1]!, name: (m[2] ?? "").trim() };
+        const saldoIdx = cells.findIndex((c) => RAZAO_SALDO_LABEL_RE.test(c));
+        let opening = 0;
+        if (saldoIdx >= 0) {
+          const openingRaw = cells.slice(saldoIdx + 1).find((c) => c !== "") ?? "0";
+          opening = /,\d{2}\s*[DC]?$/i.test(openingRaw)
+            ? razaoSignedMoney(openingRaw)
+            : Number(openingRaw.replace(",", ".")) || 0;
+        }
+        if (!openingEmitted.has(account.code)) {
+          openingEmitted.add(account.code);
+          legs.push({
+            account_reduced_code: account.code,
+            account_name: account.name,
+            opening_balance: opening,
+            doc_number: null,
+            entry_date: null,
+            counterpart_reduced_code: null,
+            historico: null,
+            debit: 0,
+            credit: 0,
+            running_balance: opening,
+            line_no: 0,
+          });
+        }
+      }
+      continue;
+    }
+
+    if (!account || debCol == null) continue;
+
+    const docCandidateIdx = cells.findIndex((c) => RAZAO_INT_RE.test(c));
+    const dateIdx = row.findIndex((v) => razaoDateFromCell(v) != null);
+    if (docCandidateIdx < 0 || dateIdx < 0) {
+      // linha de continuação (complemento de histórico ou subtotal do bloco)
+      const prev = legs[legs.length - 1];
+      const text = cells
+        .filter(
+          (c) => c !== "" && !RAZAO_PLAIN_NUM_RE.test(c) && !NUM.test(c.replace(/\s*[DC]$/, "")),
+        )
+        .join(" ")
+        .trim();
+      if (prev && prev.doc_number && text) {
+        prev.historico = `${prev.historico ?? ""} ${text}`.trim().slice(0, 400);
+      }
+      continue;
+    }
+
+    const docNumber = cells[docCandidateIdx]!;
+    const entryDate = razaoDateFromCell(row[dateIdx]);
+    const counterpartIdx = cells.findIndex((c, i) => i > dateIdx && RAZAO_INT_RE.test(c));
+    const counterpart = counterpartIdx >= 0 ? cells[counterpartIdx]! : null;
+
+    let saldoAtualStr: string | null = null;
+    for (let i = cells.length - 1; i >= 0; i -= 1) {
+      if (NUM.test(cells[i]!.replace(/\s*[DC]$/, ""))) {
+        saldoAtualStr = cells[i]!;
+        break;
+      }
+    }
+    const saldoAtual = saldoAtualStr ? razaoSignedMoney(saldoAtualStr) : null;
+
+    // Leitura posicional: o valor "cru" (sem formatação BR) mais próximo da
+    // coluna de débito ou crédito aprendida no cabeçalho da página.
+    let debit = 0;
+    let credit = 0;
+    const start = Math.max(dateIdx, counterpartIdx) + 1;
+    for (let i = start; i < cells.length; i += 1) {
+      const c = cells[i]!;
+      if (!RAZAO_PLAIN_NUM_RE.test(c)) continue;
+      const distDeb = Math.abs(i - debCol);
+      const distCred = Math.abs(i - (credCol ?? debCol + 1));
+      if (distDeb <= distCred) debit += Number(c);
+      else credit += Number(c);
+    }
+
+    const historico = cells
+      .slice(start)
+      .filter(
+        (c) => c !== "" && !RAZAO_PLAIN_NUM_RE.test(c) && !NUM.test(c.replace(/\s*[DC]$/, "")),
+      )
+      .join(" ")
+      .trim()
+      .slice(0, 400);
+
+    lineNo += 1;
+    legs.push({
+      account_reduced_code: account.code,
+      account_name: account.name,
+      doc_number: docNumber,
+      entry_date: entryDate,
+      counterpart_reduced_code: counterpart,
+      historico: historico || null,
+      debit,
+      credit,
+      running_balance: saldoAtual,
+      line_no: lineNo,
+    });
   }
 
   return { legs, accounts: openingEmitted.size };

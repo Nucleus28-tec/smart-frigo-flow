@@ -52,8 +52,19 @@ import {
   importJournalChunk,
   importTrialBalanceMirror,
 } from "@/lib/razao.functions";
-import { extractPdfPages, parseBalancete, parseRazao } from "@/lib/razao-parser";
-import { isSpreadsheet, readSheet, type SheetData } from "@/lib/planilha";
+import {
+  extractPdfPages,
+  parseBalancete,
+  parseRazao,
+  parseRazaoSheetMatrix,
+} from "@/lib/razao-parser";
+import {
+  isSpreadsheet,
+  looksLikeG2RazaoReport,
+  readRawMatrix,
+  readSheet,
+  type SheetData,
+} from "@/lib/planilha";
 import {
   autoMap,
   buildLegs,
@@ -144,8 +155,6 @@ function ImportarPage() {
     () => (sheet ? buildLegs(sheet.rows, mapping) : null),
     [sheet, mapping],
   );
-
-
 
   const isAdmin = profile?.role === "admin";
   const isClosed = selectedPeriod?.status === "fechado";
@@ -290,6 +299,17 @@ function ImportarPage() {
     await enviarPernas(fileId, periodId, legs);
   }
 
+  /**
+   * Lê o razão em XLS/XLSX exportado do G2 (relatório paginado por conta) e
+   * envia as pernas em blocos, sem passar pelo mapeamento manual de colunas.
+   */
+  async function importRazaoPlanilhaG2(fileId: string, periodId: string, matrix: unknown[][]) {
+    setProgress({ label: "Lendo o razão (layout G2)...", pct: 5 });
+    const { legs } = parseRazaoSheetMatrix(matrix);
+    if (legs.length === 0) throw new Error("Nenhum lançamento reconhecido neste arquivo.");
+    await enviarPernas(fileId, periodId, legs);
+  }
+
   /** Grava o espelho oficial do balancete (árvore de contas do G2). */
   async function importarEspelhoBalancete(fileId: string, source: File) {
     try {
@@ -333,9 +353,31 @@ function ImportarPage() {
   async function handleUpload() {
     if (!selectedPeriodId || !file) return;
 
-    // Razão em planilha: mapeamento de colunas e validação antes de salvar.
+    // Razão em planilha: detecta o relatório paginado do G2 (por blocos de
+    // conta) e importa direto, sem mapeamento manual. Só cai no mapeamento de
+    // colunas genérico se a planilha não tiver essa estrutura reconhecível.
     if (fileType === "razao" && isSpreadsheet(file)) {
       try {
+        const { matrix } = await readRawMatrix(file);
+        if (looksLikeG2RazaoReport(matrix)) {
+          setUploading(true);
+          try {
+            const file_id = await enviarArquivo(file, selectedPeriodId);
+            limparSelecao();
+            invalidate();
+            toast.success("Arquivo enviado. Lendo o razão (layout G2)...");
+            await importRazaoPlanilhaG2(file_id, selectedPeriodId, matrix);
+            invalidate();
+          } catch (error) {
+            setProgress(null);
+            toast.error(error instanceof Error ? error.message : "Falha ao importar o razão.");
+          } finally {
+            setUploading(false);
+          }
+          return;
+        }
+
+        // Planilha genérica: mapeamento de colunas e validação antes de salvar.
         const data = await readSheet(file);
         const saved = loadSavedMapping();
         const auto = autoMap(data.columns);
@@ -399,7 +441,6 @@ function ImportarPage() {
       setUploading(false);
     }
   }
-
 
   async function handleDownload(fileId: string) {
     try {
@@ -542,7 +583,9 @@ function ImportarPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          disabled={processMutation.isPending || isClosed || row.file_type === "razao"}
+                          disabled={
+                            processMutation.isPending || isClosed || row.file_type === "razao"
+                          }
                           title={
                             row.file_type === "razao"
                               ? "O razão é lido no navegador: reenvie o arquivo para reprocessar."
@@ -600,7 +643,6 @@ function ImportarPage() {
           onConfirm={() => void confirmarMapeamento()}
         />
       ) : null}
-
 
       <AlertDialog
         open={pendingDelete !== null}
