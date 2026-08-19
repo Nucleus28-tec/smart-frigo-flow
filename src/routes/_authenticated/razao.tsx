@@ -43,6 +43,7 @@ function RazaoPage() {
   const { data: profile } = useProfile();
   const isAdmin = profile?.role === "admin";
   const [docNumber, setDocNumber] = useState<string | null>(null);
+  const [tab, setTab] = useState("lancamentos");
 
   const accounts = useQuery({
     queryKey: ["journal_accounts", selectedPeriodId],
@@ -91,7 +92,7 @@ function RazaoPage() {
         description={`Lançamentos e plano de contas do período ${selectedPeriod?.label ?? ""}. O razão é a fonte do cálculo contábil.`}
       />
 
-      <Tabs defaultValue="lancamentos" className="space-y-4">
+      <Tabs value={tab} onValueChange={setTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="lancamentos">Lançamentos</TabsTrigger>
           <TabsTrigger value="plano">Plano de contas</TabsTrigger>
@@ -121,6 +122,7 @@ function RazaoPage() {
               accounts={accounts.data ?? []}
               docNumber={docNumber}
               onDocNumberChange={setDocNumber}
+              onReportClick={() => setTab("relatorios")}
             />
           )}
         </TabsContent>
