@@ -149,7 +149,7 @@ export async function buildLedgerReportPdf(options: {
   const drawHeader = () => {
     LEDGER_COLS.forEach((col, index) => {
       drawRow(page, ctx, y, [
-        { text: col.label, x: colX(index), width: col.width, right: col.right, bold: true },
+        { text: col.label, x: colX(index), width: col.width, right: Boolean(col.right), bold: true },
       ]);
     });
     y -= 5;
@@ -325,7 +325,7 @@ export async function buildTrialBalanceReportPdf(options: {
   const drawHeader = () => {
     TB_COLS.forEach((col, index) => {
       drawRow(page, ctx, y, [
-        { text: col.label, x: tbColX(index), width: col.width, right: col.right, bold: true },
+        { text: col.label, x: tbColX(index), width: col.width, right: Boolean(col.right), bold: true },
       ]);
     });
     y -= 5;
