@@ -213,6 +213,7 @@ export function GerenciadorLancamentos({
   accounts,
   docNumber,
   onDocNumberChange,
+  onReportClick,
 }: Props) {
   const queryClient = useQueryClient();
   const monthStart = referenceMonth ? referenceMonth.slice(0, 8) + "01" : "";
