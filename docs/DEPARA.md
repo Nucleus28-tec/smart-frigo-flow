@@ -54,7 +54,7 @@
 | Tabela | Functions/Endpoints que a tocam | Páginas que a usam |
 |---|---|---|
 | `ledger_accounts` | `import_journal_legs`, `link_reduced_accounts`, `set_account_link`, `journal_*`, `reconcile_journal_vs_trial_balance` | `/razao` (Extrato, Vínculos, Pendências), `/agentes` |
-| `journal_legs` | `import_journal_legs`, `journal_account_statement`, `journal_document`, `journal_top_counterparts`, `reconcile_journal_vs_trial_balance`, `recalculate_period_indicators_internal`, `generate_period_statements` | `/razao`, `/dashboard`, `/demonstrativos`, `/agentes` |
+| `journal_legs` | `import_journal_legs`, `journal_account_statement`, `journal_document`, `journal_search` (via `searchJournalLegs`), `journal_top_counterparts`, `reconcile_journal_vs_trial_balance`, `recalculate_period_indicators_internal`, `generate_period_statements` | `/razao` (Extrato, Lançamento/Buscar), `/dashboard`, `/demonstrativos`, `/agentes` |
 | `journal_account_openings` | `import_journal_legs`, `journal_account_statement`, `link_reduced_accounts` | `/razao` (Extrato) |
 | `trial_balance_lines` | `import_trial_balance_lines`, `link_reduced_accounts`, `reconcile_journal_vs_trial_balance`, `journal_pending_report` | `/razao` (Conferência, Pendências), `/balancete` |
 | `ledger_account_audit` | `link_reduced_accounts`, `set_account_link`, `apply_reclassification_decision` | `/razao` (Histórico) |
