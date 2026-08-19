@@ -298,7 +298,16 @@ export function GerenciadorLancamentos({
       })) as unknown as DocResult,
   });
 
-  const rows = grid.data?.rows ?? [];
+  const rawRows = grid.data?.rows ?? [];
+  const rows = useMemo(() => {
+    const factor = dir === "asc" ? 1 : -1;
+    return [...rawRows].sort((a, b) => {
+      const va = sortValue(a, sort);
+      const vb = sortValue(b, sort);
+      if (typeof va === "number" && typeof vb === "number") return (va - vb) * factor;
+      return String(va).localeCompare(String(vb), "pt-BR", { numeric: true }) * factor;
+    });
+  }, [rawRows, sort, dir]);
   const selected = useMemo(
     () => rows.find((row) => row.id === selectedId) ?? null,
     [rows, selectedId],
