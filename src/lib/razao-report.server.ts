@@ -289,13 +289,13 @@ export async function buildLedgerReportPdf(options: {
 /* ------------------------------ Balancete analítico ------------------------------ */
 
 const TB_COLS = [
-  { key: "code", label: "CODIGO", width: 70 },
-  { key: "hier", label: "PLANO DE CONTAS", width: 140 },
-  { key: "name", label: "DESCRICAO", width: 250 },
-  { key: "ant", label: "SALDO ANTERIOR", width: 96, right: true },
-  { key: "deb", label: "DEBITO", width: 86, right: true },
-  { key: "cred", label: "CREDITO", width: 86, right: true },
-  { key: "atual", label: "SALDO ATUAL", width: 96, right: true },
+  { key: "code", label: "CODIGO", width: 60 },
+  { key: "hier", label: "PLANO DE CONTAS", width: 105 },
+  { key: "name", label: "DESCRICAO", width: 215 },
+  { key: "ant", label: "SALDO ANTERIOR", width: 92, right: true },
+  { key: "deb", label: "DEBITO", width: 82, right: true },
+  { key: "cred", label: "CREDITO", width: 82, right: true },
+  { key: "atual", label: "SALDO ATUAL", width: 94, right: true },
 ];
 
 function tbColX(index: number) {
