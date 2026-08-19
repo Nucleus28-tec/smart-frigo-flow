@@ -22,6 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EmptyState, ErrorState, LoadingRows } from "@/components/PageState";
+import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/rotta";
 import { exportCsv, exportPdf, type ExportTable } from "@/lib/razao-export";
 import {
@@ -272,6 +273,7 @@ export function GerenciadorLancamentos({
 
   const grid = useQuery({
     queryKey: ["journal_grid", periodId, term, from, to, includeCancelled, page],
+    enabled: dateReady,
     queryFn: async (): Promise<GridResult> =>
       (await runList({
         data: {
