@@ -285,7 +285,7 @@ export function GerenciadorLancamentos({
       subtitle: `Período ${periodLabel}`,
       info: [
         { label: "Lançamentos", value: String(grid.data?.total ?? rows.length) },
-        { label: "Soma da página", value: formatCurrency(grid.data?.soma ?? 0) },
+        { label: "Soma", value: formatCurrency(grid.data?.soma ?? 0) },
       ],
       headers: ["Data", "Núm. doc.", "Conta débito", "Conta crédito", "Valor", "Histórico"],
       numeric: [4],
@@ -678,8 +678,7 @@ export function GerenciadorLancamentos({
             <>
               <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
                 <p className="text-sm text-muted-foreground">
-                  {grid.data!.total} lançamento(s) · soma da página{" "}
-                  {formatCurrency(grid.data!.soma)}
+                  {grid.data!.total} lançamento(s) · soma {formatCurrency(grid.data!.soma)}
                 </p>
                 <ExportButtons table={gridTable()} filename={`lancamentos-${periodLabel}`} />
               </div>
