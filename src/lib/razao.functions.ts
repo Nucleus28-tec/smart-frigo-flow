@@ -242,3 +242,84 @@ export const setAccountLink = createServerFn({ method: "POST" })
     });
     return result;
   });
+
+/* ===================== Gerenciador de lançamentos ===================== */
+
+/** Grade de movimentos do período (1 linha = 1 lançamento débito × crédito). */
+export const listJournalEntries = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        period_id: z.string().uuid(),
+        query: z.string().max(120).default(""),
+        from: z.string().nullable().default(null),
+        to: z.string().nullable().default(null),
+        account: z.string().nullable().default(null),
+        include_cancelled: z.boolean().default(false),
+        limit: z.number().int().min(1).max(200).default(50),
+        offset: z.number().int().min(0).default(0),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) =>
+    callRpc<JsonObject>(context.supabase, "journal_entries_grid", {
+      _period_id: data.period_id,
+      _query: data.query,
+      _from: data.from,
+      _to: data.to,
+      _account: data.account,
+      _include_cancelled: data.include_cancelled,
+      _limit: data.limit,
+      _offset: data.offset,
+    }),
+  );
+
+/** Cria ou edita um lançamento manual (grava as duas pernas de uma vez). */
+export const saveManualJournalEntry = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        period_id: z.string().uuid(),
+        leg_id: z.string().uuid().nullable().default(null),
+        debit_code: z.string().min(1),
+        credit_code: z.string().min(1),
+        entry_date: z.string().min(8),
+        doc_number: z.string().default(""),
+        value: z.number().finite().positive(),
+        historico: z.string().min(1).max(400),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) =>
+    callRpc<{ id: string; entry_group: string }>(
+      context.supabase,
+      "upsert_manual_journal_entry",
+      {
+        _period_id: data.period_id,
+        _debit_code: data.debit_code,
+        _credit_code: data.credit_code,
+        _entry_date: data.entry_date,
+        _doc_number: data.doc_number,
+        _value: data.value,
+        _historico: data.historico,
+        _leg_id: data.leg_id,
+      },
+    ),
+  );
+
+/** Cancela um lançamento (as duas pernas) sem apagá-lo do histórico. */
+export const cancelJournalEntry = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({ leg_id: z.string().uuid(), motivo: z.string().max(200).default("") })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) =>
+    callRpc<{ cancelled: number }>(context.supabase, "cancel_journal_entry", {
+      _leg_id: data.leg_id,
+      _motivo: data.motivo,
+    }),
+  );
