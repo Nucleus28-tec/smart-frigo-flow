@@ -906,12 +906,16 @@ function RazaoPage() {
             ) : documentQuery.data && documentQuery.data.legs.length > 0 ? (
               <Card>
                 <CardContent className="p-0">
-                  <div className="flex flex-wrap items-center justify-end border-b px-4 pt-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
+                    <Button variant="ghost" size="sm" onClick={() => setDocNumber(null)}>
+                      Voltar à busca
+                    </Button>
                     <ExportButtons
                       table={lancamentoTable()}
                       filename={`lancamento-${documentQuery.data.doc_number}`}
                     />
                   </div>
+
                   <div className="flex flex-wrap gap-6 border-b p-4">
                     <div>
                       <p className="text-xs text-muted-foreground">Lançamento</p>
