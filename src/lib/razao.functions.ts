@@ -323,3 +323,94 @@ export const cancelJournalEntry = createServerFn({ method: "POST" })
       _motivo: data.motivo,
     }),
   );
+
+/* ------------------------- PLANO DE CONTAS (razão) ------------------------- */
+
+/** Grade paginada do plano de contas oficial, com contagem de lançamentos. */
+export const listChartAccounts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        period_id: z.string().uuid().nullable().default(null),
+        query: z.string().max(120).default(""),
+        nature: z.string().nullable().default(null),
+        type: z.enum(["analitica", "sintetica"]).nullable().default(null),
+        only_pending: z.boolean().default(false),
+        only_active: z.boolean().default(false),
+        limit: z.number().int().min(1).max(200).default(50),
+        offset: z.number().int().min(0).default(0),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) =>
+    callRpc<JsonObject>(context.supabase, "chart_accounts_grid", {
+      _period_id: data.period_id,
+      _query: data.query,
+      _nature: data.nature,
+      _type: data.type,
+      _only_pending: data.only_pending,
+      _only_active: data.only_active,
+      _limit: data.limit,
+      _offset: data.offset,
+    }),
+  );
+
+/** Cria ou edita uma conta do plano (Admin). */
+export const saveChartAccount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        id: z.string().uuid().nullable().default(null),
+        reduced_code: z.string().min(1).max(20),
+        hierarchical_code: z.string().max(40).nullable().default(null),
+        name: z.string().min(1).max(200),
+        is_analytic: z.boolean().default(true),
+        nature: z.string().nullable().default(null),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) =>
+    callRpc<{ id: string }>(context.supabase, "upsert_ledger_account", {
+      _id: data.id,
+      _reduced_code: data.reduced_code,
+      _hierarchical_code: data.hierarchical_code,
+      _name: data.name,
+      _is_analytic: data.is_analytic,
+      _nature: data.nature,
+    }),
+  );
+
+/** Reclassifica em lote a natureza e/ou a conta-pai das contas selecionadas (Admin). */
+export const reclassifyChartAccounts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        ids: z.array(z.string().uuid()).min(1).max(500),
+        nature: z.string().nullable().default(null),
+        parent_code: z.string().max(40).nullable().default(null),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) =>
+    callRpc<{ updated: number }>(context.supabase, "set_ledger_accounts_nature", {
+      _ids: data.ids,
+      _nature: data.nature,
+      _parent_code: data.parent_code,
+    }),
+  );
+
+/** Ativa ou desativa uma conta do plano (Admin). */
+export const setChartAccountActive = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ id: z.string().uuid(), active: z.boolean() }).parse(input),
+  )
+  .handler(async ({ data, context }) =>
+    callRpc<{ id: string; is_active: boolean }>(context.supabase, "set_ledger_account_active", {
+      _id: data.id,
+      _active: data.active,
+    }),
+  );
