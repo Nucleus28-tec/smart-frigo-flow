@@ -1138,6 +1138,7 @@ export type Database = {
       nightly_refresh_periods: { Args: never; Returns: Json }
       norm_account_base: { Args: { _name: string }; Returns: string }
       norm_account_name: { Args: { _name: string }; Returns: string }
+      norm_reduced_code: { Args: { _code: string }; Returns: string }
       recalculate_period_indicators: {
         Args: { _period_id: string }
         Returns: Json

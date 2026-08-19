@@ -547,6 +547,51 @@ alter table public.journal_account_openings enable row level security;
 create policy "openings_select" on public.journal_account_openings for select to authenticated using (true);
 create policy "openings_write" on public.journal_account_openings for all to authenticated using (public.is_admin()) with check (public.is_admin());
 
+-- Padronizacao dos codigos reduzidos (6 digitos) usados no razao.
+-- O G2 exporta a contrapartida sem zeros a esquerda (23511) enquanto o plano
+-- de contas usa 6 digitos (023511); sem isso o nome da conta de credito nao resolve.
+create or replace function public.norm_reduced_code(_code text)
+returns text
+language sql
+immutable
+set search_path = public
+as $$
+  select case
+    when _code is null then null
+    when btrim(_code) = '' then null
+    when btrim(_code) ~ '^[0-9]{1,6}$' then lpad(btrim(_code), 6, '0')
+    else btrim(_code)
+  end
+$$;
+
+grant execute on function public.norm_reduced_code(text) to authenticated, anon, service_role;
+
+create or replace function public.normalize_journal_codes()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  new.account_reduced_code := public.norm_reduced_code(new.account_reduced_code);
+  if to_jsonb(new) ? 'counterpart_reduced_code' then
+    new.counterpart_reduced_code := public.norm_reduced_code(new.counterpart_reduced_code);
+  end if;
+  return new;
+end
+$$;
+
+drop trigger if exists trg_normalize_journal_legs_codes on public.journal_legs;
+create trigger trg_normalize_journal_legs_codes
+before insert or update on public.journal_legs
+for each row execute function public.normalize_journal_codes();
+
+drop trigger if exists trg_normalize_openings_codes on public.journal_account_openings;
+create trigger trg_normalize_openings_codes
+before insert or update on public.journal_account_openings
+for each row execute function public.normalize_journal_codes();
+
+
+
 create table public.trial_balance_lines (
   id uuid primary key default gen_random_uuid(),
   period_id uuid not null references public.accounting_periods(id) on delete cascade,
