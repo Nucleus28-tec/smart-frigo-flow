@@ -7,7 +7,21 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Ban, FileDown, FileText, Loader2, Maximize2, Pencil, Plus, Search, X } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Ban,
+  FileDown,
+  FileText,
+  Loader2,
+  Maximize2,
+  Pencil,
+  Plus,
+  Rows3,
+  Search,
+  X,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -153,6 +167,33 @@ function parseValor(raw: string) {
   const normalized = text.includes(",") ? text.replace(/\./g, "").replace(",", ".") : text;
   const value = Number(normalized);
   return Number.isFinite(value) ? value : NaN;
+}
+
+function AccountChip({
+  tone,
+  code,
+  name,
+  faded,
+}: {
+  tone: "debito" | "credito";
+  code: string | null;
+  name: string | null;
+  faded?: boolean;
+}) {
+  const toneClass =
+    tone === "debito"
+      ? "bg-warning/15 text-warning-foreground ring-warning/30"
+      : "bg-brand-soft text-brand-soft-foreground ring-brand/30";
+  return (
+    <span className={`flex items-center gap-1.5 ${faded ? "opacity-60" : ""}`}>
+      <span
+        className={`shrink-0 rounded px-1.5 py-0.5 font-mono text-[11px] leading-none ring-1 ring-inset ${toneClass}`}
+      >
+        {code ?? "—"}
+      </span>
+      <span className="min-w-0 flex-1 truncate">{name ?? code ?? "—"}</span>
+    </span>
+  );
 }
 
 export function GerenciadorLancamentos({
@@ -312,6 +353,10 @@ export function GerenciadorLancamentos({
     () => rows.find((row) => row.id === selectedId) ?? null,
     [rows, selectedId],
   );
+
+  const totalWidth = COLUMNS.reduce((sum, col) => sum + (widths[col.key] ?? col.width), 0);
+  const cellPad = density === "compacto" ? "py-1 text-[13px]" : "py-3 text-sm";
+  const rowText = density === "compacto" ? "[&>td]:align-middle" : "";
 
   const accountName = (code: string | null) =>
     accounts.find((a) => a.reduced_code === code)?.name ?? "";
