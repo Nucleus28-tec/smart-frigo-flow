@@ -151,7 +151,24 @@ type AuditRow = {
 };
 
 
+const SEARCH_PAGE_SIZE = 50;
+
+type SearchRow = {
+  id: string;
+  entry_date: string | null;
+  doc_number: string | null;
+  valor: number;
+  historico: string | null;
+  debit_code: string | null;
+  debit_name: string | null;
+  credit_code: string | null;
+  credit_name: string | null;
+};
+
+type SearchResult = { total: number; rows: SearchRow[] };
+
 function fmtDate(iso: string | null) {
+
   if (!iso) return "—";
   const [y, m, d] = iso.split("-");
   return `${d}/${m}/${y}`;
