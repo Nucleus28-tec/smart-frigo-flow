@@ -41,6 +41,7 @@ import {
 } from "@/lib/razao.functions";
 
 import { exportCsv, exportPdf, type ExportTable } from "@/lib/razao-export";
+import { GerenciadorLancamentos } from "@/components/razao/GerenciadorLancamentos";
 
 export const Route = createFileRoute("/_authenticated/razao")({
   component: RazaoPage,
@@ -746,7 +747,7 @@ function RazaoPage() {
                 name: a.name,
               }))}
               docNumber={docNumber}
-              onDocNumberChange={(doc) => {
+              onDocNumberChange={(doc: string | null) => {
                 setDocNumber(doc);
                 setDocInput(doc ?? "");
               }}
