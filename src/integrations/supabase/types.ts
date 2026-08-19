@@ -493,50 +493,74 @@ export type Database = {
         Row: {
           account_id: string | null
           account_reduced_code: string
+          cancelled_at: string | null
+          cancelled_by: string | null
           counterpart_reduced_code: string | null
           created_at: string
+          created_by: string | null
           credit: number
           debit: number
           doc_number: string | null
           entry_date: string | null
+          entry_group: string | null
           file_id: string | null
           historico: string | null
           id: string
           line_no: number | null
+          origin: string
           period_id: string
           running_balance: number | null
+          status: string
+          updated_at: string
+          updated_by: string | null
         }
         Insert: {
           account_id?: string | null
           account_reduced_code: string
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           counterpart_reduced_code?: string | null
           created_at?: string
+          created_by?: string | null
           credit?: number
           debit?: number
           doc_number?: string | null
           entry_date?: string | null
+          entry_group?: string | null
           file_id?: string | null
           historico?: string | null
           id?: string
           line_no?: number | null
+          origin?: string
           period_id: string
           running_balance?: number | null
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
         }
         Update: {
           account_id?: string | null
           account_reduced_code?: string
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           counterpart_reduced_code?: string | null
           created_at?: string
+          created_by?: string | null
           credit?: number
           debit?: number
           doc_number?: string | null
           entry_date?: string | null
+          entry_group?: string | null
           file_id?: string | null
           historico?: string | null
           id?: string
           line_no?: number | null
+          origin?: string
           period_id?: string
           running_balance?: number | null
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
         }
         Relationships: [
           {
@@ -544,6 +568,20 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "ledger_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_legs_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_legs_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
@@ -558,6 +596,13 @@ export type Database = {
             columns: ["period_id"]
             isOneToOne: false
             referencedRelation: "accounting_periods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_legs_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
