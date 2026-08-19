@@ -184,14 +184,21 @@ function AccountChip({
     tone === "debito"
       ? "bg-warning/15 text-warning-foreground ring-warning/30"
       : "bg-brand-soft text-brand-soft-foreground ring-brand/30";
+  const displayName = name && name !== code ? name : null;
+  const title = [code, name].filter(Boolean).join(" — ");
   return (
-    <span className={`flex items-center gap-1.5 ${faded ? "opacity-60" : ""}`}>
+    <span
+      className={`flex items-center gap-1.5 ${faded ? "opacity-60" : ""}`}
+      title={title}
+    >
       <span
         className={`shrink-0 rounded px-1.5 py-0.5 font-mono text-[11px] leading-none ring-1 ring-inset ${toneClass}`}
       >
         {code ?? "—"}
       </span>
-      <span className="min-w-0 flex-1 truncate">{name ?? code ?? "—"}</span>
+      {displayName ? (
+        <span className="min-w-0 flex-1 truncate">{displayName}</span>
+      ) : null}
     </span>
   );
 }
