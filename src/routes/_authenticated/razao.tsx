@@ -5,8 +5,11 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { usePeriod } from "@/hooks/usePeriod";
 import { useProfile } from "@/hooks/useProfile";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState, ErrorState, LoadingRows, PageHeader } from "@/components/PageState";
 import { GerenciadorLancamentos } from "@/components/razao/GerenciadorLancamentos";
+import { PlanoDeContasRazao } from "@/components/razao/PlanoDeContasRazao";
+
 
 export const Route = createFileRoute("/_authenticated/razao")({
   component: RazaoPage,
