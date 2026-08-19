@@ -799,68 +799,132 @@ export function GerenciadorLancamentos({
             </div>
           ) : (
             <>
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2">
                 <p className="text-sm text-muted-foreground">
                   {grid.data!.total} lançamento(s) · soma {formatCurrency(grid.data!.soma)}
                 </p>
-                <ExportButtons table={gridTable()} filename={`lancamentos-${periodLabel}`} />
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setDensity((d) => (d === "compacto" ? "confortavel" : "compacto"))
+                    }
+                    title="Alterna a altura das linhas"
+                  >
+                    <Rows3 className="mr-2 size-4" />
+                    {density === "compacto" ? "Compacto" : "Confortável"}
+                  </Button>
+                  <ExportButtons table={gridTable()} filename={`lancamentos-${periodLabel}`} />
+                </div>
               </div>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Cód. mov.</TableHead>
-                    <TableHead>Doc</TableHead>
-                    <TableHead>Conta débito</TableHead>
-                    <TableHead>Conta crédito</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                    <TableHead>Histórico</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      onClick={() => setSelectedId(row.id)}
-                      onDoubleClick={() => abrirPrincipal(row)}
-                      className={`cursor-pointer ${selectedId === row.id ? "bg-accent" : ""} ${
-                        row.status === "cancelado" ? "text-muted-foreground line-through" : ""
-                      }`}
-                    >
-                      <TableCell className="whitespace-nowrap font-mono text-xs">
-                        {row.id.slice(0, 8)}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap font-medium">
-                        {row.doc_number ?? "—"}
-                        {row.origin === "manual" ? (
-                          <Badge variant="secondary" className="ml-2">
-                            manual
-                          </Badge>
-                        ) : null}
-                      </TableCell>
-                      <TableCell className="max-w-[220px]">
-                        <span className="block truncate">
-                          {row.debit_name ?? row.debit_code ?? "—"}
-                        </span>
-                        <span className="text-xs text-muted-foreground">{row.debit_code}</span>
-                      </TableCell>
-                      <TableCell className="max-w-[220px]">
-                        <span className="block truncate">
-                          {row.credit_name ?? row.credit_code ?? "—"}
-                        </span>
-                        <span className="text-xs text-muted-foreground">{row.credit_code}</span>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">{fmtDate(row.entry_date)}</TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {formatCurrency(row.valor)}
-                      </TableCell>
-                      <TableCell className="max-w-[280px]">
-                        <span className="block truncate">{row.historico ?? "—"}</span>
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table style={{ tableLayout: "fixed", width: totalWidth }}>
+                  <colgroup>
+                    {COLUMNS.map((col) => (
+                      <col key={col.key} style={{ width: widths[col.key] ?? col.width }} />
+                    ))}
+                  </colgroup>
+                  <TableHeader>
+                    <TableRow>
+                      {COLUMNS.map((col) => (
+                        <TableHead
+                          key={col.key}
+                          className={`relative select-none ${cellPad} ${
+                            col.right ? "text-right" : ""
+                          }`}
+                        >
+                          {col.sort ? (
+                            <button
+                              type="button"
+                              onClick={() => toggleSort(col.sort!)}
+                              className={`inline-flex items-center gap-1 hover:text-foreground ${
+                                col.right ? "flex-row-reverse" : ""
+                              }`}
+                            >
+                              {col.label}
+                              {sort === col.sort ? (
+                                dir === "asc" ? (
+                                  <ArrowUp className="size-3" />
+                                ) : (
+                                  <ArrowDown className="size-3" />
+                                )
+                              ) : (
+                                <ArrowUpDown className="size-3 opacity-40" />
+                              )}
+                            </button>
+                          ) : (
+                            col.label
+                          )}
+                          <span
+                            role="separator"
+                            aria-label={`Ajustar largura de ${col.label}`}
+                            onPointerDown={(e) => startResize(col.key, e)}
+                            onDoubleClick={() =>
+                              setWidths((prev) => ({ ...prev, [col.key]: col.width }))
+                            }
+                            className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-brand"
+                          />
+                        </TableHead>
+                      ))}
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map((row) => {
+                      const cancelado = row.status === "cancelado";
+                      return (
+                        <TableRow
+                          key={row.id}
+                          onClick={() => setSelectedId(row.id)}
+                          onDoubleClick={() => abrirPrincipal(row)}
+                          className={`cursor-pointer ${rowText} ${
+                            selectedId === row.id
+                              ? "bg-accent shadow-[inset_3px_0_0_0_var(--color-brand)]"
+                              : ""
+                          } ${cancelado ? "text-muted-foreground line-through opacity-70" : ""}`}
+                        >
+                          <TableCell className={`${cellPad} truncate font-mono text-xs`}>
+                            {row.id.slice(0, 8)}
+                          </TableCell>
+                          <TableCell className={`${cellPad} truncate font-medium`}>
+                            {row.doc_number ?? "—"}
+                            {row.origin === "manual" ? (
+                              <Badge variant="secondary" className="ml-2">
+                                manual
+                              </Badge>
+                            ) : null}
+                          </TableCell>
+                          <TableCell className={cellPad}>
+                            <AccountChip
+                              tone="debito"
+                              code={row.debit_code}
+                              name={row.debit_name}
+                              faded={cancelado}
+                            />
+                          </TableCell>
+                          <TableCell className={cellPad}>
+                            <AccountChip
+                              tone="credito"
+                              code={row.credit_code}
+                              name={row.credit_name}
+                              faded={cancelado}
+                            />
+                          </TableCell>
+                          <TableCell className={`${cellPad} truncate`}>
+                            {fmtDate(row.entry_date)}
+                          </TableCell>
+                          <TableCell className={`${cellPad} truncate text-right tabular-nums`}>
+                            {formatCurrency(row.valor)}
+                          </TableCell>
+                          <TableCell className={cellPad}>
+                            <span className="block truncate">{row.historico ?? "—"}</span>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
               <div className="flex items-center justify-between border-t p-3 text-sm text-muted-foreground">
                 <span>
                   {page * PAGE_SIZE + 1}–{page * PAGE_SIZE + rows.length} de {grid.data!.total}
