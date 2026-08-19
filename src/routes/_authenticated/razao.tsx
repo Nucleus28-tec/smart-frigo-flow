@@ -36,8 +36,10 @@ import {
   linkReducedAccounts,
   pendingReport,
   reconcileJournal,
+  searchJournalLegs,
   setAccountLink,
 } from "@/lib/razao.functions";
+
 import { exportCsv, exportPdf, type ExportTable } from "@/lib/razao-export";
 
 export const Route = createFileRoute("/_authenticated/razao")({
