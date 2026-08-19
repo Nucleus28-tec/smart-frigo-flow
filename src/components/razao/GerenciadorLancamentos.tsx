@@ -132,6 +132,7 @@ type Props = {
   accounts: AccountOption[];
   docNumber: string | null;
   onDocNumberChange: (doc: string | null) => void;
+  onReportClick?: () => void;
 };
 
 type Mode = "lista" | "detalhe" | "form";
@@ -1039,7 +1040,7 @@ export function GerenciadorLancamentos({
             <Maximize2 className="mr-2 size-4" />
             Principal
           </Button>
-          <Button size="sm" variant="outline" disabled title="Tela de relatórios em breve">
+          <Button size="sm" variant="outline" onClick={onReportClick}>
             <FileText className="mr-2 size-4" />
             Relatório
           </Button>
