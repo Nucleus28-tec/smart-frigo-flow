@@ -177,6 +177,81 @@ export function GerenciadorLancamentos({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(() => emptyForm(monthStart));
   const [confirmCancel, setConfirmCancel] = useState<GridRow | null>(null);
+  const [sort, setSort] = useState<SortKey>("data");
+  const [dir, setDir] = useState<SortDir>("desc");
+  const [density, setDensity] = useState<Density>("compacto");
+  const [widths, setWidths] = useState<Record<string, number>>(DEFAULT_WIDTHS);
+  const [dateReady, setDateReady] = useState(false);
+
+  // Preferências de densidade e largura das colunas (por navegador).
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as { density?: Density; widths?: Record<string, number> };
+      if (saved.density) setDensity(saved.density);
+      if (saved.widths) setWidths({ ...DEFAULT_WIDTHS, ...saved.widths });
+    } catch {
+      /* preferência inválida: mantém o padrão */
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ density, widths }));
+  }, [density, widths]);
+
+  // Abre a grade no último dia com lançamento (tela leve; o usuário amplia pelas datas).
+  const lastDay = useQuery({
+    queryKey: ["journal_last_day", periodId, includeCancelled],
+    queryFn: async (): Promise<string | null> => {
+      let q = supabase
+        .from("journal_legs")
+        .select("entry_date")
+        .eq("period_id", periodId)
+        .not("entry_date", "is", null)
+        .order("entry_date", { ascending: false })
+        .limit(1);
+      if (!includeCancelled) q = q.eq("status", "ativo");
+      const { data, error } = await q;
+      if (error) throw error;
+      return data?.[0]?.entry_date ?? null;
+    },
+  });
+
+  useEffect(() => {
+    if (dateReady || lastDay.isLoading) return;
+    const day = lastDay.data ?? null;
+    if (day) {
+      setFrom(day);
+      setTo(day);
+    }
+    setDateReady(true);
+  }, [dateReady, lastDay.isLoading, lastDay.data]);
+
+  function startResize(key: string, event: React.PointerEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    const startX = event.clientX;
+    const startWidth = widths[key] ?? DEFAULT_WIDTHS[key]!;
+    const move = (e: PointerEvent) => {
+      const next = Math.max(64, Math.round(startWidth + (e.clientX - startX)));
+      setWidths((prev) => ({ ...prev, [key]: next }));
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  }
+
+  function toggleSort(key: SortKey) {
+    if (sort === key) setDir((d) => (d === "asc" ? "desc" : "asc"));
+    else {
+      setSort(key);
+      setDir(key === "data" || key === "valor" ? "desc" : "asc");
+    }
+  }
 
   useEffect(() => {
     const id = setTimeout(() => {
