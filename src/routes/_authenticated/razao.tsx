@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState, ErrorState, LoadingRows, PageHeader } from "@/components/PageState";
 import { GerenciadorLancamentos } from "@/components/razao/GerenciadorLancamentos";
 import { PlanoDeContasRazao } from "@/components/razao/PlanoDeContasRazao";
+import { RelatoriosRazao } from "@/components/razao/RelatoriosRazao";
 
 
 export const Route = createFileRoute("/_authenticated/razao")({
@@ -94,6 +95,7 @@ function RazaoPage() {
         <TabsList>
           <TabsTrigger value="lancamentos">Lançamentos</TabsTrigger>
           <TabsTrigger value="plano">Plano de contas</TabsTrigger>
+          <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
         </TabsList>
 
         <TabsContent value="lancamentos" className="space-y-4">
@@ -125,6 +127,14 @@ function RazaoPage() {
 
         <TabsContent value="plano">
           <PlanoDeContasRazao periodId={selectedPeriodId} isAdmin={isAdmin} />
+        </TabsContent>
+
+        <TabsContent value="relatorios">
+          <RelatoriosRazao
+            periodId={selectedPeriodId}
+            periodLabel={selectedPeriod?.label ?? ""}
+            referenceMonth={selectedPeriod?.reference_month ?? null}
+          />
         </TabsContent>
       </Tabs>
     </>
