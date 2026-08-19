@@ -670,6 +670,7 @@ export type Database = {
           created_at: string
           hierarchical_code: string | null
           id: string
+          is_active: boolean
           is_analytic: boolean
           level: number | null
           link_status: string
@@ -685,6 +686,7 @@ export type Database = {
           created_at?: string
           hierarchical_code?: string | null
           id?: string
+          is_active?: boolean
           is_analytic?: boolean
           level?: number | null
           link_status?: string
@@ -700,6 +702,7 @@ export type Database = {
           created_at?: string
           hierarchical_code?: string | null
           id?: string
+          is_active?: boolean
           is_analytic?: boolean
           level?: number | null
           link_status?: string
@@ -1035,11 +1038,26 @@ export type Database = {
         Args: { _leg_id: string; _motivo?: string }
         Returns: Json
       }
+      chart_accounts_grid: {
+        Args: {
+          _limit?: number
+          _nature?: string
+          _offset?: number
+          _only_active?: boolean
+          _only_pending?: boolean
+          _period_id?: string
+          _query?: string
+          _type?: string
+        }
+        Returns: Json
+      }
       generate_period_statements: {
         Args: { _period_id: string }
         Returns: Json
       }
       get_period_summary: { Args: { _period_id: string }; Returns: Json }
+      hier_level: { Args: { _hier: string }; Returns: number }
+      hier_parent: { Args: { _hier: string }; Returns: string }
       import_journal_legs: {
         Args: { _file_id: string; _legs: Json; _reset?: boolean }
         Returns: Json
@@ -1104,6 +1122,7 @@ export type Database = {
         Returns: Json
       }
       nature_from_code: { Args: { _code: string }; Returns: string }
+      nature_from_hierarchical: { Args: { _hier: string }; Returns: string }
       nightly_refresh_periods: { Args: never; Returns: Json }
       norm_account_base: { Args: { _name: string }; Returns: string }
       norm_account_name: { Args: { _name: string }; Returns: string }
@@ -1127,8 +1146,27 @@ export type Database = {
         }
         Returns: Json
       }
+      set_ledger_account_active: {
+        Args: { _active: boolean; _id: string }
+        Returns: Json
+      }
+      set_ledger_accounts_nature: {
+        Args: { _ids: string[]; _nature?: string; _parent_code?: string }
+        Returns: Json
+      }
       sync_accounts_for_period: { Args: { _period_id: string }; Returns: Json }
       txt_norm: { Args: { _t: string }; Returns: string }
+      upsert_ledger_account: {
+        Args: {
+          _hierarchical_code: string
+          _id: string
+          _is_analytic: boolean
+          _name: string
+          _nature: string
+          _reduced_code: string
+        }
+        Returns: Json
+      }
       upsert_manual_journal_entry: {
         Args: {
           _credit_code: string
