@@ -7,7 +7,21 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Ban, FileDown, FileText, Loader2, Maximize2, Pencil, Plus, Search, X } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Ban,
+  FileDown,
+  FileText,
+  Loader2,
+  Maximize2,
+  Pencil,
+  Plus,
+  Rows3,
+  Search,
+  X,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,6 +36,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EmptyState, ErrorState, LoadingRows } from "@/components/PageState";
+import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/rotta";
 import { exportCsv, exportPdf, type ExportTable } from "@/lib/razao-export";
 import {
@@ -32,6 +47,43 @@ import {
 } from "@/lib/razao.functions";
 
 const PAGE_SIZE = 50;
+
+const STORAGE_KEY = "rotta-razao-grid";
+
+type SortKey = "doc" | "debito" | "credito" | "data" | "valor" | "historico";
+type SortDir = "asc" | "desc";
+type Density = "compacto" | "confortavel";
+
+const COLUMNS: { key: string; label: string; width: number; sort?: SortKey; right?: boolean }[] = [
+  { key: "cod", label: "Cód. mov.", width: 96 },
+  { key: "doc", label: "Doc", width: 130, sort: "doc" },
+  { key: "debito", label: "Conta débito", width: 250, sort: "debito" },
+  { key: "credito", label: "Conta crédito", width: 250, sort: "credito" },
+  { key: "data", label: "Data", width: 108, sort: "data" },
+  { key: "valor", label: "Valor", width: 140, sort: "valor", right: true },
+  { key: "historico", label: "Histórico", width: 320, sort: "historico" },
+];
+
+const DEFAULT_WIDTHS: Record<string, number> = Object.fromEntries(
+  COLUMNS.map((c) => [c.key, c.width]),
+);
+
+function sortValue(row: GridRow, key: SortKey): string | number {
+  switch (key) {
+    case "doc":
+      return row.doc_number ?? "";
+    case "debito":
+      return (row.debit_name ?? row.debit_code ?? "").toLowerCase();
+    case "credito":
+      return (row.credit_name ?? row.credit_code ?? "").toLowerCase();
+    case "data":
+      return row.entry_date ?? "";
+    case "valor":
+      return row.valor;
+    case "historico":
+      return (row.historico ?? "").toLowerCase();
+  }
+}
 
 export type GridRow = {
   id: string;
@@ -117,6 +169,33 @@ function parseValor(raw: string) {
   return Number.isFinite(value) ? value : NaN;
 }
 
+function AccountChip({
+  tone,
+  code,
+  name,
+  faded,
+}: {
+  tone: "debito" | "credito";
+  code: string | null;
+  name: string | null;
+  faded?: boolean;
+}) {
+  const toneClass =
+    tone === "debito"
+      ? "bg-warning/15 text-warning-foreground ring-warning/30"
+      : "bg-brand-soft text-brand-soft-foreground ring-brand/30";
+  return (
+    <span className={`flex items-center gap-1.5 ${faded ? "opacity-60" : ""}`}>
+      <span
+        className={`shrink-0 rounded px-1.5 py-0.5 font-mono text-[11px] leading-none ring-1 ring-inset ${toneClass}`}
+      >
+        {code ?? "—"}
+      </span>
+      <span className="min-w-0 flex-1 truncate">{name ?? code ?? "—"}</span>
+    </span>
+  );
+}
+
 export function GerenciadorLancamentos({
   periodId,
   periodLabel,
@@ -140,6 +219,81 @@ export function GerenciadorLancamentos({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(() => emptyForm(monthStart));
   const [confirmCancel, setConfirmCancel] = useState<GridRow | null>(null);
+  const [sort, setSort] = useState<SortKey>("data");
+  const [dir, setDir] = useState<SortDir>("desc");
+  const [density, setDensity] = useState<Density>("compacto");
+  const [widths, setWidths] = useState<Record<string, number>>(DEFAULT_WIDTHS);
+  const [dateReady, setDateReady] = useState(false);
+
+  // Preferências de densidade e largura das colunas (por navegador).
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as { density?: Density; widths?: Record<string, number> };
+      if (saved.density) setDensity(saved.density);
+      if (saved.widths) setWidths({ ...DEFAULT_WIDTHS, ...saved.widths });
+    } catch {
+      /* preferência inválida: mantém o padrão */
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ density, widths }));
+  }, [density, widths]);
+
+  // Abre a grade no último dia com lançamento (tela leve; o usuário amplia pelas datas).
+  const lastDay = useQuery({
+    queryKey: ["journal_last_day", periodId, includeCancelled],
+    queryFn: async (): Promise<string | null> => {
+      let q = supabase
+        .from("journal_legs")
+        .select("entry_date")
+        .eq("period_id", periodId)
+        .not("entry_date", "is", null)
+        .order("entry_date", { ascending: false })
+        .limit(1);
+      if (!includeCancelled) q = q.eq("status", "ativo");
+      const { data, error } = await q;
+      if (error) throw error;
+      return data?.[0]?.entry_date ?? null;
+    },
+  });
+
+  useEffect(() => {
+    if (dateReady || lastDay.isLoading) return;
+    const day = lastDay.data ?? null;
+    if (day) {
+      setFrom(day);
+      setTo(day);
+    }
+    setDateReady(true);
+  }, [dateReady, lastDay.isLoading, lastDay.data]);
+
+  function startResize(key: string, event: React.PointerEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    const startX = event.clientX;
+    const startWidth = widths[key] ?? DEFAULT_WIDTHS[key]!;
+    const move = (e: PointerEvent) => {
+      const next = Math.max(64, Math.round(startWidth + (e.clientX - startX)));
+      setWidths((prev) => ({ ...prev, [key]: next }));
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  }
+
+  function toggleSort(key: SortKey) {
+    if (sort === key) setDir((d) => (d === "asc" ? "desc" : "asc"));
+    else {
+      setSort(key);
+      setDir(key === "data" || key === "valor" ? "desc" : "asc");
+    }
+  }
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -160,6 +314,7 @@ export function GerenciadorLancamentos({
 
   const grid = useQuery({
     queryKey: ["journal_grid", periodId, term, from, to, includeCancelled, page],
+    enabled: dateReady,
     queryFn: async (): Promise<GridResult> =>
       (await runList({
         data: {
@@ -184,11 +339,24 @@ export function GerenciadorLancamentos({
       })) as unknown as DocResult,
   });
 
-  const rows = grid.data?.rows ?? [];
+  const rawRows = grid.data?.rows ?? [];
+  const rows = useMemo(() => {
+    const factor = dir === "asc" ? 1 : -1;
+    return [...rawRows].sort((a, b) => {
+      const va = sortValue(a, sort);
+      const vb = sortValue(b, sort);
+      if (typeof va === "number" && typeof vb === "number") return (va - vb) * factor;
+      return String(va).localeCompare(String(vb), "pt-BR", { numeric: true }) * factor;
+    });
+  }, [rawRows, sort, dir]);
   const selected = useMemo(
     () => rows.find((row) => row.id === selectedId) ?? null,
     [rows, selectedId],
   );
+
+  const totalWidth = COLUMNS.reduce((sum, col) => sum + (widths[col.key] ?? col.width), 0);
+  const cellPad = density === "compacto" ? "py-1 text-[13px]" : "py-3 text-sm";
+  const rowText = density === "compacto" ? "[&>td]:align-middle" : "";
 
   const accountName = (code: string | null) =>
     accounts.find((a) => a.reduced_code === code)?.name ?? "";
@@ -676,68 +844,132 @@ export function GerenciadorLancamentos({
             </div>
           ) : (
             <>
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2">
                 <p className="text-sm text-muted-foreground">
                   {grid.data!.total} lançamento(s) · soma {formatCurrency(grid.data!.soma)}
                 </p>
-                <ExportButtons table={gridTable()} filename={`lancamentos-${periodLabel}`} />
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setDensity((d) => (d === "compacto" ? "confortavel" : "compacto"))
+                    }
+                    title="Alterna a altura das linhas"
+                  >
+                    <Rows3 className="mr-2 size-4" />
+                    {density === "compacto" ? "Compacto" : "Confortável"}
+                  </Button>
+                  <ExportButtons table={gridTable()} filename={`lancamentos-${periodLabel}`} />
+                </div>
               </div>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Cód. mov.</TableHead>
-                    <TableHead>Doc</TableHead>
-                    <TableHead>Conta débito</TableHead>
-                    <TableHead>Conta crédito</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                    <TableHead>Histórico</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      onClick={() => setSelectedId(row.id)}
-                      onDoubleClick={() => abrirPrincipal(row)}
-                      className={`cursor-pointer ${selectedId === row.id ? "bg-accent" : ""} ${
-                        row.status === "cancelado" ? "text-muted-foreground line-through" : ""
-                      }`}
-                    >
-                      <TableCell className="whitespace-nowrap font-mono text-xs">
-                        {row.id.slice(0, 8)}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap font-medium">
-                        {row.doc_number ?? "—"}
-                        {row.origin === "manual" ? (
-                          <Badge variant="secondary" className="ml-2">
-                            manual
-                          </Badge>
-                        ) : null}
-                      </TableCell>
-                      <TableCell className="max-w-[220px]">
-                        <span className="block truncate">
-                          {row.debit_name ?? row.debit_code ?? "—"}
-                        </span>
-                        <span className="text-xs text-muted-foreground">{row.debit_code}</span>
-                      </TableCell>
-                      <TableCell className="max-w-[220px]">
-                        <span className="block truncate">
-                          {row.credit_name ?? row.credit_code ?? "—"}
-                        </span>
-                        <span className="text-xs text-muted-foreground">{row.credit_code}</span>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">{fmtDate(row.entry_date)}</TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {formatCurrency(row.valor)}
-                      </TableCell>
-                      <TableCell className="max-w-[280px]">
-                        <span className="block truncate">{row.historico ?? "—"}</span>
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table style={{ tableLayout: "fixed", width: totalWidth }}>
+                  <colgroup>
+                    {COLUMNS.map((col) => (
+                      <col key={col.key} style={{ width: widths[col.key] ?? col.width }} />
+                    ))}
+                  </colgroup>
+                  <TableHeader>
+                    <TableRow>
+                      {COLUMNS.map((col) => (
+                        <TableHead
+                          key={col.key}
+                          className={`relative select-none ${cellPad} ${
+                            col.right ? "text-right" : ""
+                          }`}
+                        >
+                          {col.sort ? (
+                            <button
+                              type="button"
+                              onClick={() => toggleSort(col.sort!)}
+                              className={`inline-flex items-center gap-1 hover:text-foreground ${
+                                col.right ? "flex-row-reverse" : ""
+                              }`}
+                            >
+                              {col.label}
+                              {sort === col.sort ? (
+                                dir === "asc" ? (
+                                  <ArrowUp className="size-3" />
+                                ) : (
+                                  <ArrowDown className="size-3" />
+                                )
+                              ) : (
+                                <ArrowUpDown className="size-3 opacity-40" />
+                              )}
+                            </button>
+                          ) : (
+                            col.label
+                          )}
+                          <span
+                            role="separator"
+                            aria-label={`Ajustar largura de ${col.label}`}
+                            onPointerDown={(e) => startResize(col.key, e)}
+                            onDoubleClick={() =>
+                              setWidths((prev) => ({ ...prev, [col.key]: col.width }))
+                            }
+                            className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-brand"
+                          />
+                        </TableHead>
+                      ))}
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map((row) => {
+                      const cancelado = row.status === "cancelado";
+                      return (
+                        <TableRow
+                          key={row.id}
+                          onClick={() => setSelectedId(row.id)}
+                          onDoubleClick={() => abrirPrincipal(row)}
+                          className={`cursor-pointer ${rowText} ${
+                            selectedId === row.id
+                              ? "bg-accent shadow-[inset_3px_0_0_0_var(--color-brand)]"
+                              : ""
+                          } ${cancelado ? "text-muted-foreground line-through opacity-70" : ""}`}
+                        >
+                          <TableCell className={`${cellPad} truncate font-mono text-xs`}>
+                            {row.id.slice(0, 8)}
+                          </TableCell>
+                          <TableCell className={`${cellPad} truncate font-medium`}>
+                            {row.doc_number ?? "—"}
+                            {row.origin === "manual" ? (
+                              <Badge variant="secondary" className="ml-2">
+                                manual
+                              </Badge>
+                            ) : null}
+                          </TableCell>
+                          <TableCell className={cellPad}>
+                            <AccountChip
+                              tone="debito"
+                              code={row.debit_code}
+                              name={row.debit_name}
+                              faded={cancelado}
+                            />
+                          </TableCell>
+                          <TableCell className={cellPad}>
+                            <AccountChip
+                              tone="credito"
+                              code={row.credit_code}
+                              name={row.credit_name}
+                              faded={cancelado}
+                            />
+                          </TableCell>
+                          <TableCell className={`${cellPad} truncate`}>
+                            {fmtDate(row.entry_date)}
+                          </TableCell>
+                          <TableCell className={`${cellPad} truncate text-right tabular-nums`}>
+                            {formatCurrency(row.valor)}
+                          </TableCell>
+                          <TableCell className={cellPad}>
+                            <span className="block truncate">{row.historico ?? "—"}</span>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
               <div className="flex items-center justify-between border-t p-3 text-sm text-muted-foreground">
                 <span>
                   {page * PAGE_SIZE + 1}–{page * PAGE_SIZE + rows.length} de {grid.data!.total}
