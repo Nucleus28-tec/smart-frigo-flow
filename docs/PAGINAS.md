@@ -208,16 +208,14 @@ Convenções de estados usadas em todas as páginas:
 ### /razao
 
 - **Rota:** `/razao`
-- **Propósito:** Gerenciar o razão contábil do período — a fonte do movimento — e conferi-lo contra o balancete.
+- **Propósito:** Gerenciar os lançamentos do razão contábil do período — a fonte do movimento. Desde 08/2026 a tela é **única** (sem abas): apenas o gerenciador de Lançamentos.
 - **Seções da tela:**
-  - **Extrato:** árvore/busca de contas do período (filtro por código, nome e natureza); ao abrir a conta, saldo anterior, movimento e saldo final, com as pernas listadas (data, documento, histórico, débito/crédito e **contrapartida com nome**, clicável para pular para a outra conta). Exporta CSV e PDF.
-  - **Lançamento:** abre o documento inteiro pelo número, com todas as pernas e a conferência débito = crédito.
-  - **Conferência:** razão × balancete conta a conta (débito, crédito e saldo), destacando divergências e contas presentes em apenas um lado.
-  - **Pendências:** uma causa provável por linha (conta nova no razão, só no balancete, vários candidatos, diferença de valor com delta, natureza indefinida), ação sugerida e botão de vincular (Admin). Exportável.
-  - **Vínculos:** fila de contas do razão sem código hierárquico ou sem natureza, com sugestão e confirmação do Admin.
-  - **Histórico:** trilha de auditoria (`ledger_account_audit`) com filtro por conta, usuário e período, mostrando antes → depois e a origem da mudança.
-- **Estados:** vazio ("Nenhum razão importado para este período" com atalho para `/importar`), skeleton no carregamento e banner de erro com retry.
-- **Permissões:** todos os autenticados visualizam e exportam; apenas Admin vincula, confirma natureza e aplica propostas.
+  - **Grade de lançamentos:** um movimento por linha (cód. mov., documento, conta débito, conta crédito, data, valor, histórico), com busca livre, filtros por data/conta, paginação e totais no rodapé. Exporta CSV e PDF.
+  - **Comandos:** Novo, Editar, Cancelar reg. (habilitados para Admin em período aberto) e Principal, que abre o documento inteiro com todas as pernas e a conferência débito = crédito.
+- **Desativado na interface:** as antigas abas Extrato, Conferência, Pendências, Vínculos e Histórico foram retiradas. As RPCs correspondentes (`journal_account_statement`, `reconcile_journal_vs_trial_balance`, `journal_pending_report`, `link_reduced_accounts`, `set_account_link`, `journal_top_counterparts`) permanecem no banco e nas server functions, usadas pela importação, pelo recálculo e pelos Agentes de IA.
+- **Estados:** vazio ("Nenhum razão importado neste período" com atalho para `/importar`), skeleton no carregamento e banner de erro com retry.
+- **Permissões:** todos os autenticados visualizam e exportam; apenas Admin cria, edita e cancela lançamentos.
+
 
 ---
 
