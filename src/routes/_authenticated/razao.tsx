@@ -86,34 +86,48 @@ function RazaoPage() {
   return (
     <>
       <PageHeader
-        title="Lançamentos"
-        description={`Movimentos do período ${selectedPeriod?.label ?? ""}. O razão é a fonte do cálculo contábil.`}
+        title="Razão contábil"
+        description={`Lançamentos e plano de contas do período ${selectedPeriod?.label ?? ""}. O razão é a fonte do cálculo contábil.`}
       />
 
-      {accounts.isLoading ? (
-        <LoadingRows />
-      ) : accounts.error ? (
-        <ErrorState
-          message={(accounts.error as Error).message}
-          onRetry={() => void accounts.refetch()}
-        />
-      ) : (accounts.data ?? []).length === 0 ? (
-        <EmptyState
-          title="Nenhum razão importado neste período"
-          description="Envie o razão contábil em Importar › Razão contábil (G2) para abrir o gerenciador."
-        />
-      ) : (
-        <GerenciadorLancamentos
-          periodId={selectedPeriodId}
-          periodLabel={selectedPeriod?.label ?? ""}
-          referenceMonth={selectedPeriod?.reference_month ?? null}
-          isAdmin={isAdmin}
-          canEdit={selectedPeriod?.status !== "fechado"}
-          accounts={accounts.data ?? []}
-          docNumber={docNumber}
-          onDocNumberChange={setDocNumber}
-        />
-      )}
+      <Tabs defaultValue="lancamentos" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="lancamentos">Lançamentos</TabsTrigger>
+          <TabsTrigger value="plano">Plano de contas</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="lancamentos" className="space-y-4">
+          {accounts.isLoading ? (
+            <LoadingRows />
+          ) : accounts.error ? (
+            <ErrorState
+              message={(accounts.error as Error).message}
+              onRetry={() => void accounts.refetch()}
+            />
+          ) : (accounts.data ?? []).length === 0 ? (
+            <EmptyState
+              title="Nenhum razão importado neste período"
+              description="Envie o razão contábil em Importar › Razão contábil (G2) para abrir o gerenciador."
+            />
+          ) : (
+            <GerenciadorLancamentos
+              periodId={selectedPeriodId}
+              periodLabel={selectedPeriod?.label ?? ""}
+              referenceMonth={selectedPeriod?.reference_month ?? null}
+              isAdmin={isAdmin}
+              canEdit={selectedPeriod?.status !== "fechado"}
+              accounts={accounts.data ?? []}
+              docNumber={docNumber}
+              onDocNumberChange={setDocNumber}
+            />
+          )}
+        </TabsContent>
+
+        <TabsContent value="plano">
+          <PlanoDeContasRazao periodId={selectedPeriodId} isAdmin={isAdmin} />
+        </TabsContent>
+      </Tabs>
     </>
   );
+
 }
