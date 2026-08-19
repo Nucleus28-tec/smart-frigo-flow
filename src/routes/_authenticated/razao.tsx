@@ -667,31 +667,172 @@ function RazaoPage() {
 
           {/* ------------------------ LANÇAMENTO ------------------------ */}
           <TabsContent value="lancamento">
-            <Card className="mb-4">
-              <CardContent className="flex flex-wrap items-end gap-3 pt-6">
-                <div className="grow space-y-2">
-                  <label className="text-sm font-medium" htmlFor="doc">
-                    Número do lançamento
-                  </label>
-                  <Input
-                    id="doc"
-                    value={docInput}
-                    onChange={(e) => setDocInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") setDocNumber(docInput.trim() || null);
-                    }}
-                    placeholder="Ex.: 100721"
-                  />
-                </div>
-                <Button onClick={() => setDocNumber(docInput.trim() || null)}>Abrir</Button>
-              </CardContent>
-            </Card>
-
             {!docNumber ? (
-              <EmptyState
-                title="Nenhum lançamento aberto"
-                description="Informe o número do lançamento ou clique em um número no extrato."
-              />
+              <>
+                <Card className="mb-4">
+                  <CardContent className="space-y-4 pt-6">
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant={lancMode === "buscar" ? "default" : "outline"}
+                        onClick={() => setLancMode("buscar")}
+                      >
+                        Buscar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={lancMode === "numero" ? "default" : "outline"}
+                        onClick={() => setLancMode("numero")}
+                      >
+                        Abrir por número
+                      </Button>
+                    </div>
+
+                    {lancMode === "buscar" ? (
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium" htmlFor="busca-livre">
+                          Pesquisar lançamentos
+                        </label>
+                        <div className="relative">
+                          <Search className="absolute left-2 top-2.5 size-4 text-muted-foreground" />
+                          <Input
+                            id="busca-livre"
+                            value={freeQuery}
+                            onChange={(e) => setFreeQuery(e.target.value)}
+                            placeholder="Núm. doc., conta, contrapartida, histórico ou valor"
+                            className="pl-8"
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Ignora acentos e maiúsculas. Digite ao menos 2 caracteres.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap items-end gap-3">
+                        <div className="grow space-y-2">
+                          <label className="text-sm font-medium" htmlFor="doc">
+                            Número do lançamento
+                          </label>
+                          <Input
+                            id="doc"
+                            value={docInput}
+                            onChange={(e) => setDocInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") setDocNumber(docInput.trim() || null);
+                            }}
+                            placeholder="Ex.: 100721"
+                          />
+                        </div>
+                        <Button onClick={() => setDocNumber(docInput.trim() || null)}>Abrir</Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {lancMode === "numero" ? (
+                  <EmptyState
+                    title="Nenhum lançamento aberto"
+                    description="Informe o número do lançamento ou clique em um número no extrato."
+                  />
+                ) : freeTerm.length < 2 ? (
+                  <EmptyState
+                    title="Busca livre de lançamentos"
+                    description="Procure por fornecedor, funcionário, conta, contrapartida, histórico, número do documento ou valor."
+                  />
+                ) : searchQuery.isLoading ? (
+                  <LoadingRows />
+                ) : searchQuery.error ? (
+                  <ErrorState
+                    message={(searchQuery.error as Error).message}
+                    onRetry={() => void searchQuery.refetch()}
+                  />
+                ) : (searchQuery.data?.rows.length ?? 0) === 0 ? (
+                  <EmptyState
+                    title="Nenhum lançamento encontrado"
+                    description={`Nada combina com “${freeTerm}” neste período.`}
+                  />
+                ) : (
+                  <Card>
+                    <CardContent className="p-0">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
+                        <p className="text-sm text-muted-foreground">
+                          {searchQuery.data!.total} lançamento(s) encontrado(s)
+                        </p>
+                        <ExportButtons table={buscaTable()} filename={`busca-${freeTerm}`} />
+                      </div>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Data</TableHead>
+                            <TableHead>Núm. doc.</TableHead>
+                            <TableHead>Conta débito</TableHead>
+                            <TableHead>Conta crédito</TableHead>
+                            <TableHead className="text-right">Valor</TableHead>
+                            <TableHead>Histórico</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {searchQuery.data!.rows.map((row) => (
+                            <TableRow
+                              key={row.id}
+                              className="cursor-pointer"
+                              onClick={() => {
+                                if (row.doc_number) {
+                                  setDocInput(row.doc_number);
+                                  setDocNumber(row.doc_number);
+                                }
+                              }}
+                            >
+                              <TableCell className="whitespace-nowrap">
+                                {fmtDate(row.entry_date)}
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap font-medium">
+                                {row.doc_number ?? "—"}
+                              </TableCell>
+                              <TableCell>{row.debit_name ?? row.debit_code ?? "—"}</TableCell>
+                              <TableCell>{row.credit_name ?? row.credit_code ?? "—"}</TableCell>
+                              <TableCell className="text-right tabular-nums">
+                                {formatCurrency(row.valor)}
+                              </TableCell>
+                              <TableCell className="max-w-[320px]">
+                                <span className="block truncate">{row.historico ?? "—"}</span>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                      <div className="flex items-center justify-between border-t p-3 text-sm text-muted-foreground">
+                        <span>
+                          {freePage * SEARCH_PAGE_SIZE + 1}–
+                          {freePage * SEARCH_PAGE_SIZE + searchQuery.data!.rows.length} de{" "}
+                          {searchQuery.data!.total}
+                        </span>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={freePage === 0}
+                            onClick={() => setFreePage((p) => Math.max(0, p - 1))}
+                          >
+                            Anterior
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={
+                              (freePage + 1) * SEARCH_PAGE_SIZE >= (searchQuery.data!.total ?? 0)
+                            }
+                            onClick={() => setFreePage((p) => p + 1)}
+                          >
+                            Próxima
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+
             ) : documentQuery.isLoading ? (
               <LoadingRows />
             ) : documentQuery.data && documentQuery.data.legs.length > 0 ? (
