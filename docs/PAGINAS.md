@@ -211,6 +211,11 @@ Convenções de estados usadas em todas as páginas:
 - **Propósito:** Gerenciar os lançamentos do razão contábil do período — a fonte do movimento. Desde 08/2026 a tela é **única** (sem abas): apenas o gerenciador de Lançamentos.
 - **Seções da tela:**
   - **Grade de lançamentos:** um movimento por linha (cód. mov., documento, conta débito, conta crédito, data, valor, histórico), com busca livre, filtros por data/conta, paginação e totais no rodapé. Exporta CSV e PDF.
+  - **Abertura leve:** a grade abre já filtrada pelo **último dia com lançamento** do período (data inicial = data final = esse dia). O usuário amplia ou reduz o volume apenas mudando as datas nos filtros.
+  - **Ordenação na tela:** clicar no cabeçalho (Doc, Conta débito, Conta crédito, Data, Valor, Histórico) reordena as linhas já carregadas, sem nova consulta ao banco; a seta indica o sentido.
+  - **Cabeçalho ajustável:** cada coluna pode ser redimensionada arrastando a borda direita (duplo clique volta ao padrão) e a preferência fica salva no navegador, junto com a densidade.
+  - **Densidade:** botão Compacto/Confortável altera a altura das linhas — o modo compacto exibe cerca de 40% mais lançamentos por tela.
+  - **Partida e contrapartida:** a conta de débito recebe chip âmbar e a de crédito chip verde, tornando imediata a leitura dos dois lados de cada lançamento.
   - **Comandos:** Novo, Editar, Cancelar reg. (habilitados para Admin em período aberto) e Principal, que abre o documento inteiro com todas as pernas e a conferência débito = crédito.
 - **Desativado na interface:** as antigas abas Extrato, Conferência, Pendências, Vínculos e Histórico foram retiradas. As RPCs correspondentes (`journal_account_statement`, `reconcile_journal_vs_trial_balance`, `journal_pending_report`, `link_reduced_accounts`, `set_account_link`, `journal_top_counterparts`) permanecem no banco e nas server functions, usadas pela importação, pelo recálculo e pelos Agentes de IA.
 - **Estados:** vazio ("Nenhum razão importado neste período" com atalho para `/importar`), skeleton no carregamento e banner de erro com retry.
