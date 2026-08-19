@@ -351,6 +351,8 @@
 | `journal_pending_report(_period_id)` | usuário logado | Relatório de pendências com causa provável, detalhe, ação sugerida e delta. |
 | `journal_account_statement(_period_id, _reduced_code, _limit, _offset)` | usuário logado | Extrato paginado da conta: saldo anterior, totais e pernas com contrapartida nomeada. |
 | `journal_document(_period_id, _doc_number)` | usuário logado | Lançamento completo com todas as pernas e conferência débito = crédito. |
+| `journal_search(_period_id, _query, _limit, _offset)` | usuário logado | Busca livre nos lançamentos do período (número do documento, código/nome da conta e da contrapartida, histórico e valor), sem acento e sem distinção de maiúsculas, ordenada por data decrescente e paginada. Usada pela server function `searchJournalLegs` na aba Lançamento → Buscar de `/razao`. Índices GIN trigram em `journal_legs` e `ledger_accounts`. |
+
 | `journal_top_counterparts(_period_id, _reduced_code, _limit)` | usuário logado | Contrapartidas mais frequentes da conta, com percentual — evidência das propostas do agente. |
 | `set_account_link(_reduced_code, _hierarchical_code, _nature)` | admin | Confirma manualmente o vínculo e a natureza; grava auditoria. |
 | `recalculate_period_indicators_internal(_period_id)` | interna | Recalcula indicadores; usa o razão quando há pernas no período, senão o balancete. |

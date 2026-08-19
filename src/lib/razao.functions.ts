@@ -195,6 +195,29 @@ export const getJournalDocument = createServerFn({ method: "POST" })
     }),
   );
 
+/** Busca livre nos lançamentos do período (doc, conta, contrapartida, histórico e valor). */
+export const searchJournalLegs = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        period_id: z.string().uuid(),
+        query: z.string().min(2).max(120),
+        limit: z.number().int().min(1).max(200).default(50),
+        offset: z.number().int().min(0).default(0),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) =>
+    callRpc<JsonObject>(context.supabase, "journal_search", {
+      _period_id: data.period_id,
+      _query: data.query,
+      _limit: data.limit,
+      _offset: data.offset,
+    }),
+  );
+
+
 export const setAccountLink = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
