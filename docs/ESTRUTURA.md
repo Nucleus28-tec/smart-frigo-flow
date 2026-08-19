@@ -256,5 +256,5 @@ Este projeto roda em **TanStack Start**: a lógica server-side vive em **server 
 
 ### Páginas novas
 
-- **`/razao`** — Gerenciador do Razão: abas Extrato, Lançamento, Conferência, Pendências, Vínculos e Histórico.
+- **`/razao`** — Gerenciador de Lançamentos (tela única, sem abas): grade de movimentos do período com busca, filtros, Novo / Editar / Cancelar reg. / Principal e exportação. As visões Extrato, Conferência, Pendências, Vínculos e Histórico foram desativadas na interface; suas RPCs continuam disponíveis para importação, recálculo e Agentes de IA.
 - **`/agentes`** e **`/agentes/{id}`** — chat com o Agente Contador e o Agente CFO, com cartões de proposta aprovados pelo Admin.
