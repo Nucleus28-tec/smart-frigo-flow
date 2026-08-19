@@ -7,17 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import {
-  Ban,
-  FileDown,
-  FileText,
-  Loader2,
-  Maximize2,
-  Pencil,
-  Plus,
-  Search,
-  X,
-} from "lucide-react";
+import { Ban, FileDown, FileText, Loader2, Maximize2, Pencil, Plus, Search, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -649,9 +639,7 @@ export function GerenciadorLancamentos({
                 onClick={() => cancelMutation.mutate(confirmCancel)}
                 disabled={cancelMutation.isPending}
               >
-                {cancelMutation.isPending ? (
-                  <Loader2 className="mr-2 size-4 animate-spin" />
-                ) : null}
+                {cancelMutation.isPending ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
                 Confirmar cancelamento
               </Button>
               <Button variant="outline" onClick={() => setConfirmCancel(null)}>

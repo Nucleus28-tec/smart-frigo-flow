@@ -36,7 +36,6 @@ import {
   linkReducedAccounts,
   pendingReport,
   reconcileJournal,
-  searchJournalLegs,
   setAccountLink,
 } from "@/lib/razao.functions";
 
@@ -151,25 +150,7 @@ type AuditRow = {
   actor_name: string;
 };
 
-
-const SEARCH_PAGE_SIZE = 50;
-
-type SearchRow = {
-  id: string;
-  entry_date: string | null;
-  doc_number: string | null;
-  valor: number;
-  historico: string | null;
-  debit_code: string | null;
-  debit_name: string | null;
-  credit_code: string | null;
-  credit_name: string | null;
-};
-
-type SearchResult = { total: number; rows: SearchRow[] };
-
 function fmtDate(iso: string | null) {
-
   if (!iso) return "—";
   const [y, m, d] = iso.split("-");
   return `${d}/${m}/${y}`;
@@ -186,41 +167,12 @@ function RazaoPage() {
   const [docNumber, setDocNumber] = useState<string | null>(null);
   const [docInput, setDocInput] = useState("");
   const [tab, setTab] = useState("extrato");
-  const [lancMode, setLancMode] = useState<"buscar" | "numero">("buscar");
-  const [freeQuery, setFreeQuery] = useState("");
-  const [freeTerm, setFreeTerm] = useState("");
-  const [freePage, setFreePage] = useState(0);
-
-  useEffect(() => {
-    const id = setTimeout(() => {
-      setFreeTerm(freeQuery.trim());
-      setFreePage(0);
-    }, 300);
-    return () => clearTimeout(id);
-  }, [freeQuery]);
-
   const fetchStatement = useServerFn(getAccountStatement);
   const fetchDocument = useServerFn(getJournalDocument);
-  const runSearch = useServerFn(searchJournalLegs);
   const runLink = useServerFn(linkReducedAccounts);
   const runReconcile = useServerFn(reconcileJournal);
   const saveLink = useServerFn(setAccountLink);
   const fetchPending = useServerFn(pendingReport);
-
-  const searchQuery = useQuery({
-    queryKey: ["journal_search", selectedPeriodId, freeTerm, freePage],
-    enabled: Boolean(selectedPeriodId) && freeTerm.length >= 2,
-    queryFn: async (): Promise<SearchResult> =>
-      (await runSearch({
-        data: {
-          period_id: selectedPeriodId!,
-          query: freeTerm,
-          limit: SEARCH_PAGE_SIZE,
-          offset: freePage * SEARCH_PAGE_SIZE,
-        },
-      })) as unknown as SearchResult,
-  });
-
 
   const accounts = useQuery({
     queryKey: ["journal_accounts", selectedPeriodId],
@@ -250,9 +202,10 @@ function RazaoPage() {
             opening_balance: Number(o.opening_balance ?? 0),
           };
         })
-        .sort((a, b) =>
-          (a.hierarchical_code ?? "zzz").localeCompare(b.hierarchical_code ?? "zzz") ||
-          a.reduced_code.localeCompare(b.reduced_code),
+        .sort(
+          (a, b) =>
+            (a.hierarchical_code ?? "zzz").localeCompare(b.hierarchical_code ?? "zzz") ||
+            a.reduced_code.localeCompare(b.reduced_code),
         );
     },
   });
@@ -278,7 +231,12 @@ function RazaoPage() {
     enabled: Boolean(selectedPeriodId && selectedAccount),
     queryFn: async () =>
       (await fetchStatement({
-        data: { period_id: selectedPeriodId!, reduced_code: selectedAccount!, limit: 500, offset: 0 },
+        data: {
+          period_id: selectedPeriodId!,
+          reduced_code: selectedAccount!,
+          limit: 500,
+          offset: 0,
+        },
       })) as unknown as Statement,
   });
 
@@ -288,7 +246,12 @@ function RazaoPage() {
     queryFn: async () =>
       (await fetchDocument({
         data: { period_id: selectedPeriodId!, doc_number: docNumber! },
-      })) as unknown as { doc_number: string; total_debit: number; total_credit: number; legs: DocLeg[] },
+      })) as unknown as {
+        doc_number: string;
+        total_debit: number;
+        total_credit: number;
+        legs: DocLeg[];
+      },
   });
 
   const reconciliation = useQuery({
@@ -344,8 +307,6 @@ function RazaoPage() {
       }));
     },
   });
-
-
 
   const linkMutation = useMutation({
     mutationFn: () => runLink({ data: { period_id: selectedPeriodId! } }),
@@ -418,50 +379,6 @@ function RazaoPage() {
         leg.debit ? formatCurrency(leg.debit) : "",
         leg.credit ? formatCurrency(leg.credit) : "",
         leg.running_balance != null ? formatCurrency(leg.running_balance) : "",
-      ]),
-    };
-  }
-
-  function buscaTable(): ExportTable | null {
-    const rows = searchQuery.data?.rows ?? [];
-    if (rows.length === 0) return null;
-    return {
-      title: `Busca "${freeTerm}"`,
-      subtitle: `Período ${selectedPeriod?.label ?? ""}`,
-      info: [{ label: "Resultados", value: String(searchQuery.data?.total ?? rows.length) }],
-      headers: ["Data", "Núm. doc.", "Conta débito", "Conta crédito", "Valor", "Histórico"],
-      numeric: [4],
-      rows: rows.map((row) => [
-        fmtDate(row.entry_date),
-        row.doc_number ?? "",
-        row.debit_name ?? row.debit_code ?? "",
-        row.credit_name ?? row.credit_code ?? "",
-        formatCurrency(row.valor),
-        row.historico ?? "",
-      ]),
-    };
-  }
-
-
-  function lancamentoTable(): ExportTable | null {
-    const data = documentQuery.data;
-    if (!data) return null;
-    return {
-      title: `Lançamento ${data.doc_number}`,
-      subtitle: `Período ${selectedPeriod?.label ?? ""}`,
-      info: [
-        { label: "Total débito", value: formatCurrency(data.total_debit) },
-        { label: "Total crédito", value: formatCurrency(data.total_credit) },
-      ],
-      headers: ["Data", "Conta", "Contrapartida", "Histórico", "Débito", "Crédito"],
-      numeric: [4, 5],
-      rows: data.legs.map((leg) => [
-        fmtDate(leg.entry_date),
-        `${leg.account_reduced_code} ${leg.account_name ?? ""}`.trim(),
-        leg.counterpart_name ?? leg.counterpart_reduced_code ?? "",
-        leg.historico ?? "",
-        leg.debit ? formatCurrency(leg.debit) : "",
-        leg.credit ? formatCurrency(leg.credit) : "",
       ]),
     };
   }
@@ -583,7 +500,9 @@ function RazaoPage() {
                         <span className="block text-xs text-muted-foreground">
                           {account.reduced_code}
                           {account.hierarchical_code ? ` · ${account.hierarchical_code}` : ""}
-                          {account.nature ? ` · ${NATURE_LABEL[account.nature] ?? account.nature}` : " · sem natureza"}
+                          {account.nature
+                            ? ` · ${NATURE_LABEL[account.nature] ?? account.nature}`
+                            : " · sem natureza"}
                         </span>
                       </button>
                     ))}
@@ -688,9 +607,7 @@ function RazaoPage() {
                                   <button
                                     type="button"
                                     className="flex items-center gap-1 text-left hover:underline"
-                                    onClick={() =>
-                                      setSelectedAccount(leg.counterpart_reduced_code)
-                                    }
+                                    onClick={() => setSelectedAccount(leg.counterpart_reduced_code)}
                                   >
                                     <ArrowRight className="size-3 shrink-0 text-muted-foreground" />
                                     <span className="truncate">
@@ -754,7 +671,6 @@ function RazaoPage() {
             />
           </TabsContent>
 
-
           {/* ------------------------ CONFERÊNCIA ------------------------ */}
           <TabsContent value="conferencia">
             {reconciliation.isLoading ? (
@@ -805,7 +721,9 @@ function RazaoPage() {
                           {reconciliation.data.linhas.map((row, index) => (
                             <TableRow key={`${row.reduced_code}-${row.code}-${index}`}>
                               <TableCell className="max-w-[260px]">
-                                <span className="block truncate font-medium">{row.name ?? "—"}</span>
+                                <span className="block truncate font-medium">
+                                  {row.name ?? "—"}
+                                </span>
                                 <span className="text-xs text-muted-foreground">
                                   {row.reduced_code}
                                 </span>
@@ -829,7 +747,9 @@ function RazaoPage() {
                               </TableCell>
                               <TableCell>
                                 <Badge
-                                  variant={row.status === "divergente" ? "destructive" : "secondary"}
+                                  variant={
+                                    row.status === "divergente" ? "destructive" : "secondary"
+                                  }
                                 >
                                   {row.status === "divergente"
                                     ? "Divergente"
