@@ -493,50 +493,74 @@ export type Database = {
         Row: {
           account_id: string | null
           account_reduced_code: string
+          cancelled_at: string | null
+          cancelled_by: string | null
           counterpart_reduced_code: string | null
           created_at: string
+          created_by: string | null
           credit: number
           debit: number
           doc_number: string | null
           entry_date: string | null
+          entry_group: string | null
           file_id: string | null
           historico: string | null
           id: string
           line_no: number | null
+          origin: string
           period_id: string
           running_balance: number | null
+          status: string
+          updated_at: string
+          updated_by: string | null
         }
         Insert: {
           account_id?: string | null
           account_reduced_code: string
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           counterpart_reduced_code?: string | null
           created_at?: string
+          created_by?: string | null
           credit?: number
           debit?: number
           doc_number?: string | null
           entry_date?: string | null
+          entry_group?: string | null
           file_id?: string | null
           historico?: string | null
           id?: string
           line_no?: number | null
+          origin?: string
           period_id: string
           running_balance?: number | null
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
         }
         Update: {
           account_id?: string | null
           account_reduced_code?: string
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           counterpart_reduced_code?: string | null
           created_at?: string
+          created_by?: string | null
           credit?: number
           debit?: number
           doc_number?: string | null
           entry_date?: string | null
+          entry_group?: string | null
           file_id?: string | null
           historico?: string | null
           id?: string
           line_no?: number | null
+          origin?: string
           period_id?: string
           running_balance?: number | null
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
         }
         Relationships: [
           {
@@ -544,6 +568,20 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "ledger_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_legs_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_legs_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
@@ -558,6 +596,13 @@ export type Database = {
             columns: ["period_id"]
             isOneToOne: false
             referencedRelation: "accounting_periods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_legs_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -986,6 +1031,10 @@ export type Database = {
         Args: { _decision: string; _suggestion_id: string }
         Returns: Json
       }
+      cancel_journal_entry: {
+        Args: { _leg_id: string; _motivo?: string }
+        Returns: Json
+      }
       generate_period_statements: {
         Args: { _period_id: string }
         Returns: Json
@@ -1011,6 +1060,19 @@ export type Database = {
       }
       journal_document: {
         Args: { _doc_number: string; _period_id: string }
+        Returns: Json
+      }
+      journal_entries_grid: {
+        Args: {
+          _account?: string
+          _from?: string
+          _include_cancelled?: boolean
+          _limit?: number
+          _offset?: number
+          _period_id: string
+          _query?: string
+          _to?: string
+        }
         Returns: Json
       }
       journal_pending_report: { Args: { _period_id: string }; Returns: Json }
@@ -1067,6 +1129,19 @@ export type Database = {
       }
       sync_accounts_for_period: { Args: { _period_id: string }; Returns: Json }
       txt_norm: { Args: { _t: string }; Returns: string }
+      upsert_manual_journal_entry: {
+        Args: {
+          _credit_code: string
+          _debit_code: string
+          _doc_number: string
+          _entry_date: string
+          _historico: string
+          _leg_id?: string
+          _period_id: string
+          _value: number
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

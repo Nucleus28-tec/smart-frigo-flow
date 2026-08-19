@@ -36,11 +36,11 @@ import {
   linkReducedAccounts,
   pendingReport,
   reconcileJournal,
-  searchJournalLegs,
   setAccountLink,
 } from "@/lib/razao.functions";
 
 import { exportCsv, exportPdf, type ExportTable } from "@/lib/razao-export";
+import { GerenciadorLancamentos } from "@/components/razao/GerenciadorLancamentos";
 
 export const Route = createFileRoute("/_authenticated/razao")({
   component: RazaoPage,
@@ -150,25 +150,7 @@ type AuditRow = {
   actor_name: string;
 };
 
-
-const SEARCH_PAGE_SIZE = 50;
-
-type SearchRow = {
-  id: string;
-  entry_date: string | null;
-  doc_number: string | null;
-  valor: number;
-  historico: string | null;
-  debit_code: string | null;
-  debit_name: string | null;
-  credit_code: string | null;
-  credit_name: string | null;
-};
-
-type SearchResult = { total: number; rows: SearchRow[] };
-
 function fmtDate(iso: string | null) {
-
   if (!iso) return "—";
   const [y, m, d] = iso.split("-");
   return `${d}/${m}/${y}`;
@@ -185,41 +167,12 @@ function RazaoPage() {
   const [docNumber, setDocNumber] = useState<string | null>(null);
   const [docInput, setDocInput] = useState("");
   const [tab, setTab] = useState("extrato");
-  const [lancMode, setLancMode] = useState<"buscar" | "numero">("buscar");
-  const [freeQuery, setFreeQuery] = useState("");
-  const [freeTerm, setFreeTerm] = useState("");
-  const [freePage, setFreePage] = useState(0);
-
-  useEffect(() => {
-    const id = setTimeout(() => {
-      setFreeTerm(freeQuery.trim());
-      setFreePage(0);
-    }, 300);
-    return () => clearTimeout(id);
-  }, [freeQuery]);
-
   const fetchStatement = useServerFn(getAccountStatement);
   const fetchDocument = useServerFn(getJournalDocument);
-  const runSearch = useServerFn(searchJournalLegs);
   const runLink = useServerFn(linkReducedAccounts);
   const runReconcile = useServerFn(reconcileJournal);
   const saveLink = useServerFn(setAccountLink);
   const fetchPending = useServerFn(pendingReport);
-
-  const searchQuery = useQuery({
-    queryKey: ["journal_search", selectedPeriodId, freeTerm, freePage],
-    enabled: Boolean(selectedPeriodId) && freeTerm.length >= 2,
-    queryFn: async (): Promise<SearchResult> =>
-      (await runSearch({
-        data: {
-          period_id: selectedPeriodId!,
-          query: freeTerm,
-          limit: SEARCH_PAGE_SIZE,
-          offset: freePage * SEARCH_PAGE_SIZE,
-        },
-      })) as unknown as SearchResult,
-  });
-
 
   const accounts = useQuery({
     queryKey: ["journal_accounts", selectedPeriodId],
@@ -249,9 +202,10 @@ function RazaoPage() {
             opening_balance: Number(o.opening_balance ?? 0),
           };
         })
-        .sort((a, b) =>
-          (a.hierarchical_code ?? "zzz").localeCompare(b.hierarchical_code ?? "zzz") ||
-          a.reduced_code.localeCompare(b.reduced_code),
+        .sort(
+          (a, b) =>
+            (a.hierarchical_code ?? "zzz").localeCompare(b.hierarchical_code ?? "zzz") ||
+            a.reduced_code.localeCompare(b.reduced_code),
         );
     },
   });
@@ -277,7 +231,12 @@ function RazaoPage() {
     enabled: Boolean(selectedPeriodId && selectedAccount),
     queryFn: async () =>
       (await fetchStatement({
-        data: { period_id: selectedPeriodId!, reduced_code: selectedAccount!, limit: 500, offset: 0 },
+        data: {
+          period_id: selectedPeriodId!,
+          reduced_code: selectedAccount!,
+          limit: 500,
+          offset: 0,
+        },
       })) as unknown as Statement,
   });
 
@@ -287,7 +246,12 @@ function RazaoPage() {
     queryFn: async () =>
       (await fetchDocument({
         data: { period_id: selectedPeriodId!, doc_number: docNumber! },
-      })) as unknown as { doc_number: string; total_debit: number; total_credit: number; legs: DocLeg[] },
+      })) as unknown as {
+        doc_number: string;
+        total_debit: number;
+        total_credit: number;
+        legs: DocLeg[];
+      },
   });
 
   const reconciliation = useQuery({
@@ -343,8 +307,6 @@ function RazaoPage() {
       }));
     },
   });
-
-
 
   const linkMutation = useMutation({
     mutationFn: () => runLink({ data: { period_id: selectedPeriodId! } }),
@@ -417,50 +379,6 @@ function RazaoPage() {
         leg.debit ? formatCurrency(leg.debit) : "",
         leg.credit ? formatCurrency(leg.credit) : "",
         leg.running_balance != null ? formatCurrency(leg.running_balance) : "",
-      ]),
-    };
-  }
-
-  function buscaTable(): ExportTable | null {
-    const rows = searchQuery.data?.rows ?? [];
-    if (rows.length === 0) return null;
-    return {
-      title: `Busca "${freeTerm}"`,
-      subtitle: `Período ${selectedPeriod?.label ?? ""}`,
-      info: [{ label: "Resultados", value: String(searchQuery.data?.total ?? rows.length) }],
-      headers: ["Data", "Núm. doc.", "Conta débito", "Conta crédito", "Valor", "Histórico"],
-      numeric: [4],
-      rows: rows.map((row) => [
-        fmtDate(row.entry_date),
-        row.doc_number ?? "",
-        row.debit_name ?? row.debit_code ?? "",
-        row.credit_name ?? row.credit_code ?? "",
-        formatCurrency(row.valor),
-        row.historico ?? "",
-      ]),
-    };
-  }
-
-
-  function lancamentoTable(): ExportTable | null {
-    const data = documentQuery.data;
-    if (!data) return null;
-    return {
-      title: `Lançamento ${data.doc_number}`,
-      subtitle: `Período ${selectedPeriod?.label ?? ""}`,
-      info: [
-        { label: "Total débito", value: formatCurrency(data.total_debit) },
-        { label: "Total crédito", value: formatCurrency(data.total_credit) },
-      ],
-      headers: ["Data", "Conta", "Contrapartida", "Histórico", "Débito", "Crédito"],
-      numeric: [4, 5],
-      rows: data.legs.map((leg) => [
-        fmtDate(leg.entry_date),
-        `${leg.account_reduced_code} ${leg.account_name ?? ""}`.trim(),
-        leg.counterpart_name ?? leg.counterpart_reduced_code ?? "",
-        leg.historico ?? "",
-        leg.debit ? formatCurrency(leg.debit) : "",
-        leg.credit ? formatCurrency(leg.credit) : "",
       ]),
     };
   }
@@ -582,7 +500,9 @@ function RazaoPage() {
                         <span className="block text-xs text-muted-foreground">
                           {account.reduced_code}
                           {account.hierarchical_code ? ` · ${account.hierarchical_code}` : ""}
-                          {account.nature ? ` · ${NATURE_LABEL[account.nature] ?? account.nature}` : " · sem natureza"}
+                          {account.nature
+                            ? ` · ${NATURE_LABEL[account.nature] ?? account.nature}`
+                            : " · sem natureza"}
                         </span>
                       </button>
                     ))}
@@ -687,9 +607,7 @@ function RazaoPage() {
                                   <button
                                     type="button"
                                     className="flex items-center gap-1 text-left hover:underline"
-                                    onClick={() =>
-                                      setSelectedAccount(leg.counterpart_reduced_code)
-                                    }
+                                    onClick={() => setSelectedAccount(leg.counterpart_reduced_code)}
                                   >
                                     <ArrowRight className="size-3 shrink-0 text-muted-foreground" />
                                     <span className="truncate">
@@ -735,276 +653,22 @@ function RazaoPage() {
 
           {/* ------------------------ LANÇAMENTO ------------------------ */}
           <TabsContent value="lancamento">
-            {!docNumber ? (
-              <>
-                <Card className="mb-4">
-                  <CardContent className="space-y-4 pt-6">
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant={lancMode === "buscar" ? "default" : "outline"}
-                        onClick={() => setLancMode("buscar")}
-                      >
-                        Buscar
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={lancMode === "numero" ? "default" : "outline"}
-                        onClick={() => setLancMode("numero")}
-                      >
-                        Abrir por número
-                      </Button>
-                    </div>
-
-                    {lancMode === "buscar" ? (
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium" htmlFor="busca-livre">
-                          Pesquisar lançamentos
-                        </label>
-                        <div className="relative">
-                          <Search className="absolute left-2 top-2.5 size-4 text-muted-foreground" />
-                          <Input
-                            id="busca-livre"
-                            value={freeQuery}
-                            onChange={(e) => setFreeQuery(e.target.value)}
-                            placeholder="Núm. doc., conta, contrapartida, histórico ou valor"
-                            className="pl-8"
-                          />
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          Ignora acentos e maiúsculas. Digite ao menos 2 caracteres.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="flex flex-wrap items-end gap-3">
-                        <div className="grow space-y-2">
-                          <label className="text-sm font-medium" htmlFor="doc">
-                            Número do lançamento
-                          </label>
-                          <Input
-                            id="doc"
-                            value={docInput}
-                            onChange={(e) => setDocInput(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") setDocNumber(docInput.trim() || null);
-                            }}
-                            placeholder="Ex.: 100721"
-                          />
-                        </div>
-                        <Button onClick={() => setDocNumber(docInput.trim() || null)}>Abrir</Button>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {lancMode === "numero" ? (
-                  <EmptyState
-                    title="Nenhum lançamento aberto"
-                    description="Informe o número do lançamento ou clique em um número no extrato."
-                  />
-                ) : freeTerm.length < 2 ? (
-                  <EmptyState
-                    title="Busca livre de lançamentos"
-                    description="Procure por fornecedor, funcionário, conta, contrapartida, histórico, número do documento ou valor."
-                  />
-                ) : searchQuery.isLoading ? (
-                  <LoadingRows />
-                ) : searchQuery.error ? (
-                  <ErrorState
-                    message={(searchQuery.error as Error).message}
-                    onRetry={() => void searchQuery.refetch()}
-                  />
-                ) : (searchQuery.data?.rows.length ?? 0) === 0 ? (
-                  <EmptyState
-                    title="Nenhum lançamento encontrado"
-                    description={`Nada combina com “${freeTerm}” neste período.`}
-                  />
-                ) : (
-                  <Card>
-                    <CardContent className="p-0">
-                      <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
-                        <p className="text-sm text-muted-foreground">
-                          {searchQuery.data!.total} lançamento(s) encontrado(s)
-                        </p>
-                        <ExportButtons table={buscaTable()} filename={`busca-${freeTerm}`} />
-                      </div>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Data</TableHead>
-                            <TableHead>Núm. doc.</TableHead>
-                            <TableHead>Conta débito</TableHead>
-                            <TableHead>Conta crédito</TableHead>
-                            <TableHead className="text-right">Valor</TableHead>
-                            <TableHead>Histórico</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {searchQuery.data!.rows.map((row) => (
-                            <TableRow
-                              key={row.id}
-                              className="cursor-pointer"
-                              onClick={() => {
-                                if (row.doc_number) {
-                                  setDocInput(row.doc_number);
-                                  setDocNumber(row.doc_number);
-                                }
-                              }}
-                            >
-                              <TableCell className="whitespace-nowrap">
-                                {fmtDate(row.entry_date)}
-                              </TableCell>
-                              <TableCell className="whitespace-nowrap font-medium">
-                                {row.doc_number ?? "—"}
-                              </TableCell>
-                              <TableCell>{row.debit_name ?? row.debit_code ?? "—"}</TableCell>
-                              <TableCell>{row.credit_name ?? row.credit_code ?? "—"}</TableCell>
-                              <TableCell className="text-right tabular-nums">
-                                {formatCurrency(row.valor)}
-                              </TableCell>
-                              <TableCell className="max-w-[320px]">
-                                <span className="block truncate">{row.historico ?? "—"}</span>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                      <div className="flex items-center justify-between border-t p-3 text-sm text-muted-foreground">
-                        <span>
-                          {freePage * SEARCH_PAGE_SIZE + 1}–
-                          {freePage * SEARCH_PAGE_SIZE + searchQuery.data!.rows.length} de{" "}
-                          {searchQuery.data!.total}
-                        </span>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={freePage === 0}
-                            onClick={() => setFreePage((p) => Math.max(0, p - 1))}
-                          >
-                            Anterior
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={
-                              (freePage + 1) * SEARCH_PAGE_SIZE >= (searchQuery.data!.total ?? 0)
-                            }
-                            onClick={() => setFreePage((p) => p + 1)}
-                          >
-                            Próxima
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </>
-
-            ) : documentQuery.isLoading ? (
-              <LoadingRows />
-            ) : documentQuery.data && documentQuery.data.legs.length > 0 ? (
-              <Card>
-                <CardContent className="p-0">
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
-                    <Button variant="ghost" size="sm" onClick={() => setDocNumber(null)}>
-                      Voltar à busca
-                    </Button>
-                    <ExportButtons
-                      table={lancamentoTable()}
-                      filename={`lancamento-${documentQuery.data.doc_number}`}
-                    />
-                  </div>
-
-                  <div className="flex flex-wrap gap-6 border-b p-4">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Lançamento</p>
-                      <p className="font-medium">{documentQuery.data.doc_number}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Total débito</p>
-                      <p className="tabular-nums font-medium">
-                        {formatCurrency(documentQuery.data.total_debit)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Total crédito</p>
-                      <p className="tabular-nums font-medium">
-                        {formatCurrency(documentQuery.data.total_credit)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Conferência</p>
-                      <Badge
-                        variant={
-                          Math.abs(
-                            Number(documentQuery.data.total_debit) -
-                              Number(documentQuery.data.total_credit),
-                          ) < 0.01
-                            ? "default"
-                            : "destructive"
-                        }
-                      >
-                        {Math.abs(
-                          Number(documentQuery.data.total_debit) -
-                            Number(documentQuery.data.total_credit),
-                        ) < 0.01
-                          ? "Débito = crédito"
-                          : "Partidas desbalanceadas"}
-                      </Badge>
-                    </div>
-                  </div>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Data</TableHead>
-                        <TableHead>Conta</TableHead>
-                        <TableHead>Contrapartida</TableHead>
-                        <TableHead>Histórico</TableHead>
-                        <TableHead className="text-right">Débito</TableHead>
-                        <TableHead className="text-right">Crédito</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {documentQuery.data.legs.map((leg) => (
-                        <TableRow key={leg.id}>
-                          <TableCell className="whitespace-nowrap">
-                            {fmtDate(leg.entry_date)}
-                          </TableCell>
-                          <TableCell>
-                            <button
-                              type="button"
-                              className="text-left hover:underline"
-                              onClick={() => {
-                                setSelectedAccount(leg.account_reduced_code);
-                                setTab("extrato");
-                              }}
-                            >
-                              {leg.account_name ?? leg.account_reduced_code}
-                            </button>
-                          </TableCell>
-                          <TableCell>{leg.counterpart_name ?? leg.counterpart_reduced_code ?? "—"}</TableCell>
-                          <TableCell className="max-w-[320px]">
-                            <span className="block truncate">{leg.historico ?? "—"}</span>
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">
-                            {leg.debit ? formatCurrency(leg.debit) : "—"}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">
-                            {leg.credit ? formatCurrency(leg.credit) : "—"}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            ) : (
-              <EmptyState
-                title="Lançamento não encontrado"
-                description="Confira o número informado para este período."
-              />
-            )}
+            <GerenciadorLancamentos
+              periodId={selectedPeriodId}
+              periodLabel={selectedPeriod?.label ?? ""}
+              referenceMonth={selectedPeriod?.reference_month ?? null}
+              isAdmin={isAdmin}
+              canEdit={selectedPeriod?.status !== "fechado"}
+              accounts={(accounts.data ?? []).map((a) => ({
+                reduced_code: a.reduced_code,
+                name: a.name,
+              }))}
+              docNumber={docNumber}
+              onDocNumberChange={(doc: string | null) => {
+                setDocNumber(doc);
+                setDocInput(doc ?? "");
+              }}
+            />
           </TabsContent>
 
           {/* ------------------------ CONFERÊNCIA ------------------------ */}
@@ -1057,7 +721,9 @@ function RazaoPage() {
                           {reconciliation.data.linhas.map((row, index) => (
                             <TableRow key={`${row.reduced_code}-${row.code}-${index}`}>
                               <TableCell className="max-w-[260px]">
-                                <span className="block truncate font-medium">{row.name ?? "—"}</span>
+                                <span className="block truncate font-medium">
+                                  {row.name ?? "—"}
+                                </span>
                                 <span className="text-xs text-muted-foreground">
                                   {row.reduced_code}
                                 </span>
@@ -1081,7 +747,9 @@ function RazaoPage() {
                               </TableCell>
                               <TableCell>
                                 <Badge
-                                  variant={row.status === "divergente" ? "destructive" : "secondary"}
+                                  variant={
+                                    row.status === "divergente" ? "destructive" : "secondary"
+                                  }
                                 >
                                   {row.status === "divergente"
                                     ? "Divergente"
