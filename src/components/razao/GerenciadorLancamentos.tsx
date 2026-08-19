@@ -33,6 +33,43 @@ import {
 
 const PAGE_SIZE = 50;
 
+const STORAGE_KEY = "rotta-razao-grid";
+
+type SortKey = "doc" | "debito" | "credito" | "data" | "valor" | "historico";
+type SortDir = "asc" | "desc";
+type Density = "compacto" | "confortavel";
+
+const COLUMNS: { key: string; label: string; width: number; sort?: SortKey; right?: boolean }[] = [
+  { key: "cod", label: "Cód. mov.", width: 96 },
+  { key: "doc", label: "Doc", width: 130, sort: "doc" },
+  { key: "debito", label: "Conta débito", width: 250, sort: "debito" },
+  { key: "credito", label: "Conta crédito", width: 250, sort: "credito" },
+  { key: "data", label: "Data", width: 108, sort: "data" },
+  { key: "valor", label: "Valor", width: 140, sort: "valor", right: true },
+  { key: "historico", label: "Histórico", width: 320, sort: "historico" },
+];
+
+const DEFAULT_WIDTHS: Record<string, number> = Object.fromEntries(
+  COLUMNS.map((c) => [c.key, c.width]),
+);
+
+function sortValue(row: GridRow, key: SortKey): string | number {
+  switch (key) {
+    case "doc":
+      return row.doc_number ?? "";
+    case "debito":
+      return (row.debit_name ?? row.debit_code ?? "").toLowerCase();
+    case "credito":
+      return (row.credit_name ?? row.credit_code ?? "").toLowerCase();
+    case "data":
+      return row.entry_date ?? "";
+    case "valor":
+      return row.valor;
+    case "historico":
+      return (row.historico ?? "").toLowerCase();
+  }
+}
+
 export type GridRow = {
   id: string;
   entry_group: string | null;
