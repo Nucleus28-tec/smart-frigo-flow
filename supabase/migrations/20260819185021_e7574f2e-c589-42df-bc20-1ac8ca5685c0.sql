@@ -1,0 +1,2 @@
+GRANT EXECUTE ON FUNCTION public.journal_report_analytic(uuid, text[], date, date, text, integer) TO postgres;
+GRANT EXECUTE ON FUNCTION public.trial_balance_report(uuid, text[], date, date) TO postgres;

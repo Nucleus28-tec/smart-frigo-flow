@@ -414,3 +414,155 @@ export const setChartAccountActive = createServerFn({ method: "POST" })
       _active: data.active,
     }),
   );
+
+/* ------------------------------- RELATÓRIOS ------------------------------- */
+
+const reportFilters = {
+  period_id: z.string().uuid(),
+  codes: z.array(z.string().min(1)).max(2000).default([]),
+  from: z.string().nullable().default(null),
+  to: z.string().nullable().default(null),
+};
+
+/** Razão contábil analítico: contas selecionadas com saldo anterior, lançamentos e totais. */
+export const getLedgerReport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({ ...reportFilters, doc_number: z.string().max(40).nullable().default(null) })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) =>
+    callRpc<JsonObject>(context.supabase, "journal_report_analytic", {
+      _period_id: data.period_id,
+      _codes: data.codes.length ? data.codes : null,
+      _from: data.from,
+      _to: data.to,
+      _doc_number: data.doc_number,
+    }),
+  );
+
+/** Balancete analítico do intervalo, por conta (saldo anterior, débito, crédito, saldo atual). */
+export const getTrialBalanceReport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object(reportFilters).parse(input))
+  .handler(async ({ data, context }) =>
+    callRpc<JsonObject>(context.supabase, "trial_balance_report", {
+      _period_id: data.period_id,
+      _codes: data.codes.length ? data.codes : null,
+      _from: data.from,
+      _to: data.to,
+    }),
+  );
+
+/** Gera PDF ou Excel do relatório escolhido, salva no bucket privado e devolve signed URL. */
+export const exportLedgerReport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        ...reportFilters,
+        doc_number: z.string().max(40).nullable().default(null),
+        kind: z.enum(["razao", "balancete"]),
+        format: z.enum(["pdf", "xlsx"]),
+        multi_page: z.boolean().default(false),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: period, error: periodError } = await context.supabase
+      .from("accounting_periods")
+      .select("id, label")
+      .eq("id", data.period_id)
+      .maybeSingle();
+    if (periodError) throw new Error(periodError.message);
+    if (!period) throw new Error("Período não encontrado.");
+
+    const generatedAt = new Date();
+    const codes = data.codes.length ? data.codes : null;
+    const builders = await import("@/lib/razao-report.server");
+
+    let bytes: Uint8Array;
+    let contentType: string;
+
+    if (data.kind === "razao") {
+      const report = await callRpc<import("@/lib/razao-report-types").LedgerReport>(
+        context.supabase,
+        "journal_report_analytic",
+        {
+          _period_id: data.period_id,
+          _codes: codes,
+          _from: data.from,
+          _to: data.to,
+          _doc_number: data.doc_number,
+        },
+      );
+      if (data.format === "pdf") {
+        bytes = await builders.buildLedgerReportPdf({
+          periodLabel: period.label,
+          report,
+          multiPage: data.multi_page,
+          generatedAt,
+        });
+        contentType = "application/pdf";
+      } else {
+        bytes = new Uint8Array(
+          builders.buildLedgerReportXlsx({
+            periodLabel: period.label,
+            report,
+            multiPage: data.multi_page,
+            generatedAt,
+          }),
+        );
+        contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+      }
+    } else {
+      const report = await callRpc<import("@/lib/razao-report-types").TrialBalanceReport>(
+        context.supabase,
+        "trial_balance_report",
+        { _period_id: data.period_id, _codes: codes, _from: data.from, _to: data.to },
+      );
+      if (data.format === "pdf") {
+        bytes = await builders.buildTrialBalanceReportPdf({
+          periodLabel: period.label,
+          report,
+          generatedAt,
+        });
+        contentType = "application/pdf";
+      } else {
+        bytes = new Uint8Array(
+          builders.buildTrialBalanceReportXlsx({
+            periodLabel: period.label,
+            report,
+            generatedAt,
+          }),
+        );
+        contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+      }
+    }
+
+    const stamp = generatedAt.toISOString().slice(0, 19).replace(/[:T-]/g, "");
+    const fileName = `${data.kind === "razao" ? "razao-analitico" : "balancete-analitico"}-${stamp}.${data.format}`;
+    const path = `${data.period_id}/relatorios/${fileName}`;
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from("exports")
+      .upload(path, bytes, { contentType, upsert: true });
+    if (uploadError) throw new Error(`Falha ao salvar o arquivo: ${uploadError.message}`);
+
+    const { data: signed, error: signedError } = await supabaseAdmin.storage
+      .from("exports")
+      .createSignedUrl(path, 60 * 10, { download: fileName });
+    if (signedError || !signed) {
+      throw new Error(`Falha ao gerar link de download: ${signedError?.message ?? ""}`);
+    }
+
+    await context.supabase.rpc("log_activity", {
+      _action: `exportou ${data.kind} em ${data.format.toUpperCase()}`,
+      _entity_type: "journal_legs",
+      _metadata: { period_id: data.period_id, path, contas: data.codes.length },
+    });
+
+    return { url: signed.signedUrl, file_name: fileName, size: bytes.byteLength };
+  });
