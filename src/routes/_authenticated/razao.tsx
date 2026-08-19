@@ -166,13 +166,41 @@ function RazaoPage() {
   const [docNumber, setDocNumber] = useState<string | null>(null);
   const [docInput, setDocInput] = useState("");
   const [tab, setTab] = useState("extrato");
+  const [lancMode, setLancMode] = useState<"buscar" | "numero">("buscar");
+  const [freeQuery, setFreeQuery] = useState("");
+  const [freeTerm, setFreeTerm] = useState("");
+  const [freePage, setFreePage] = useState(0);
+
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setFreeTerm(freeQuery.trim());
+      setFreePage(0);
+    }, 300);
+    return () => clearTimeout(id);
+  }, [freeQuery]);
 
   const fetchStatement = useServerFn(getAccountStatement);
   const fetchDocument = useServerFn(getJournalDocument);
+  const runSearch = useServerFn(searchJournalLegs);
   const runLink = useServerFn(linkReducedAccounts);
   const runReconcile = useServerFn(reconcileJournal);
   const saveLink = useServerFn(setAccountLink);
   const fetchPending = useServerFn(pendingReport);
+
+  const searchQuery = useQuery({
+    queryKey: ["journal_search", selectedPeriodId, freeTerm, freePage],
+    enabled: Boolean(selectedPeriodId) && freeTerm.length >= 2,
+    queryFn: async (): Promise<SearchResult> =>
+      (await runSearch({
+        data: {
+          period_id: selectedPeriodId!,
+          query: freeTerm,
+          limit: SEARCH_PAGE_SIZE,
+          offset: freePage * SEARCH_PAGE_SIZE,
+        },
+      })) as unknown as SearchResult,
+  });
+
 
   const accounts = useQuery({
     queryKey: ["journal_accounts", selectedPeriodId],
