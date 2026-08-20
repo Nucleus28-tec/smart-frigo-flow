@@ -593,3 +593,146 @@ export const exportLedgerReport = createServerFn({ method: "POST" })
 
     return { url: signed.signedUrl, file_name: fileName, size: bytes.byteLength };
   });
+
+/* ------------------------------ FECHAMENTO CONTÁBIL ------------------------------ */
+
+/** Quadro do ano: situação dos 12 meses, fechamento anual e contas de encerramento. */
+export const getClosingGrid = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ year: z.number().int().min(2000).max(2100) }).parse(input),
+  )
+  .handler(async ({ data, context }) =>
+    callRpc<JsonObject>(context.supabase, "closing_year_grid", { _year: data.year }),
+  );
+
+/** Resumo por grupo contábil (Ativo, Passivo, Custos/Despesas, Receitas) do período. */
+export const getClosingSummary = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ period_id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) =>
+    callRpc<JsonObject>(context.supabase, "closing_summary", { _period_id: data.period_id }),
+  );
+
+/** Fechamento parcial do mês: gera a apuração no razão (ou apenas trava) e fecha o período. */
+export const closePeriodPartial = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        period_id: z.string().uuid(),
+        result_code: z.string().max(20).default(""),
+        profit_code: z.string().max(20).default(""),
+        mode: z.enum(["gerar", "travar"]).default("gerar"),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) =>
+    callRpc<{ accounts: number; result_value: number; mode: string }>(
+      context.supabase,
+      "close_period_partial",
+      {
+        _period_id: data.period_id,
+        _result_code: data.result_code,
+        _profit_code: data.profit_code,
+        _mode: data.mode,
+      },
+    ),
+  );
+
+/** Cancela o fechamento do mês, estornando os lançamentos de encerramento. */
+export const reopenPeriod = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ period_id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) =>
+    callRpc<{ cancelled_legs: number }>(context.supabase, "reopen_period", {
+      _period_id: data.period_id,
+    }),
+  );
+
+/** Fecha o exercício (exige os 12 meses fechados). */
+export const closeFiscalYear = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ year: z.number().int().min(2000).max(2100) }).parse(input),
+  )
+  .handler(async ({ data, context }) =>
+    callRpc<{ result_value: number }>(context.supabase, "close_fiscal_year", { _year: data.year }),
+  );
+
+/** Cancela o fechamento do exercício, liberando a reabertura dos meses. */
+export const reopenFiscalYear = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ year: z.number().int().min(2000).max(2100) }).parse(input),
+  )
+  .handler(async ({ data, context }) =>
+    callRpc<{ cancelled_legs: number }>(context.supabase, "reopen_fiscal_year", {
+      _year: data.year,
+    }),
+  );
+
+/** Salva as contas padrão de encerramento (Admin). */
+export const saveClosingAccounts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({ result_code: z.string().min(1).max(20), profit_code: z.string().min(1).max(20) })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const rows = [
+      { key: "closing.result_account", value: data.result_code.trim() },
+      { key: "closing.profit_account", value: data.profit_code.trim() },
+    ];
+    for (const row of rows) {
+      const { error } = await context.supabase
+        .from("app_settings")
+        .upsert({ ...row, updated_by: context.userId, updated_at: new Date().toISOString() }, {
+          onConflict: "key",
+        });
+      if (error) throw new Error(error.message);
+    }
+    return { ok: true };
+  });
+
+/** Cria o período de um mês do ano quando ele ainda não existe (Admin). */
+export const ensurePeriodForMonth = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        year: z.number().int().min(2000).max(2100),
+        month: z.number().int().min(1).max(12),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const reference = `${data.year}-${String(data.month).padStart(2, "0")}-01`;
+    const { data: existing } = await context.supabase
+      .from("accounting_periods")
+      .select("id")
+      .eq("reference_month", reference)
+      .maybeSingle();
+    if (existing) return { id: existing.id, created: false };
+
+    const label = new Date(Date.UTC(data.year, data.month - 1, 1)).toLocaleDateString("pt-BR", {
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+    const pretty = `${label.charAt(0).toUpperCase()}${label.slice(1)}`.replace(" de ", "/");
+
+    const { data: created, error } = await context.supabase
+      .from("accounting_periods")
+      .insert({
+        label: pretty,
+        reference_month: reference,
+        status: "aberto",
+        created_by: context.userId,
+      })
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    return { id: created.id, created: true };
+  });
