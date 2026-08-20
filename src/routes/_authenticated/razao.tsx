@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 
@@ -14,8 +14,28 @@ import { FechamentoContabil } from "@/components/razao/FechamentoContabil";
 
 
 
+type RazaoSearch = {
+  tab?: string | undefined;
+  codes?: string | undefined;
+  de?: string | undefined;
+  ate?: string | undefined;
+  kind?: string | undefined;
+  dl?: string | undefined;
+};
+
 export const Route = createFileRoute("/_authenticated/razao")({
   component: RazaoPage,
+  validateSearch: (search: Record<string, unknown>): RazaoSearch => {
+    const str = (key: string) => (typeof search[key] === "string" ? (search[key] as string) : undefined);
+    return {
+      tab: str("tab"),
+      codes: str("codes"),
+      de: str("de"),
+      ate: str("ate"),
+      kind: str("kind"),
+      dl: str("dl"),
+    };
+  },
   head: () => ({
     meta: [
       { title: "Lançamentos contábeis | Rotta Financeiro" },
@@ -45,7 +65,24 @@ function RazaoPage() {
   const { data: profile } = useProfile();
   const isAdmin = profile?.role === "admin";
   const [docNumber, setDocNumber] = useState<string | null>(null);
-  const [tab, setTab] = useState("lancamentos");
+  const search = Route.useSearch();
+  const [tab, setTab] = useState(search.tab ?? "lancamentos");
+
+  useEffect(() => {
+    if (search.tab) setTab(search.tab);
+  }, [search.tab, search.dl]);
+
+  /** Drill-down de um demonstrativo: contas + intervalo vindos da URL. */
+  const drill = useMemo(() => {
+    if (!search.dl || !search.codes) return null;
+    return {
+      token: search.dl,
+      codes: search.codes.split(",").filter(Boolean),
+      kind: (search.kind === "balancete" ? "balancete" : "razao") as "razao" | "balancete",
+      from: search.de ?? null,
+      to: search.ate ?? null,
+    };
+  }, [search.dl, search.codes, search.kind, search.de, search.ate]);
 
   const accounts = useQuery({
     queryKey: ["journal_accounts", selectedPeriodId],
@@ -140,6 +177,7 @@ function RazaoPage() {
             periodId={selectedPeriodId}
             periodLabel={selectedPeriod?.label ?? ""}
             referenceMonth={selectedPeriod?.reference_month ?? null}
+            drill={drill}
           />
         </TabsContent>
 

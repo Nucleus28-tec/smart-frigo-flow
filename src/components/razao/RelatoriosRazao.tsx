@@ -3,7 +3,7 @@
  * visualização em tela do Razão Contábil Analítico e do Balancete Analítico,
  * com exportação em PDF (multi página opcional) e Excel.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -67,10 +67,26 @@ type AccountRow = {
   legs_count: number;
 };
 
+export type DrillDown = {
+  token: string;
+  codes: string[];
+  kind?: ReportKind;
+  from?: string | null;
+  to?: string | null;
+};
+
+type ViewOverrides = {
+  codes?: string[];
+  kind?: ReportKind;
+  from?: string | null;
+  to?: string | null;
+};
+
 type Props = {
   periodId: string;
   periodLabel: string;
   referenceMonth: string | null;
+  drill?: DrillDown | null;
 };
 
 function monthRange(referenceMonth: string | null) {
@@ -85,7 +101,7 @@ function monthRange(referenceMonth: string | null) {
   };
 }
 
-export function RelatoriosRazao({ periodId, periodLabel, referenceMonth }: Props) {
+export function RelatoriosRazao({ periodId, periodLabel, referenceMonth, drill }: Props) {
   const initial = monthRange(referenceMonth);
   const { periods } = usePeriod();
   const [kind, setKind] = useState<ReportKind>("razao");
@@ -154,28 +170,29 @@ export function RelatoriosRazao({ periodId, periodLabel, referenceMonth }: Props
   const total = accountsQuery.data?.total ?? 0;
   const allVisibleSelected = rows.length > 0 && rows.every((r) => selected.includes(r.reduced_code));
 
-  const filters = () => ({
+  const filters = (overrides?: ViewOverrides) => ({
     period_id: periodId,
     period_ids: periodIds,
-    codes: selected,
-    from: from || null,
-    to: to || null,
+    codes: overrides?.codes ?? selected,
+    from: (overrides?.from ?? from) || null,
+    to: (overrides?.to ?? to) || null,
   });
 
 
-  async function handleView() {
+  async function handleView(overrides?: ViewOverrides) {
+    const effectiveKind = overrides?.kind ?? kind;
     setBusy("view");
     try {
-      if (kind === "razao") {
+      if (effectiveKind === "razao") {
         const result = (await runLedger({
-          data: { ...filters(), doc_number: docNumber.trim() || null },
+          data: { ...filters(overrides), doc_number: docNumber.trim() || null },
         })) as unknown as LedgerReport;
         setLedger(result);
         setTrial(null);
         if ((result?.accounts ?? []).length === 0) toast.info("Nenhum lançamento no filtro.");
         if (result?.truncated) toast.warning("Resultado muito grande: exibindo as primeiras linhas.");
       } else {
-        const result = (await runTrial({ data: filters() })) as unknown as TrialBalanceReport;
+        const result = (await runTrial({ data: filters(overrides) })) as unknown as TrialBalanceReport;
         setTrial(result);
         setLedger(null);
         if ((result?.rows ?? []).length === 0) toast.info("Nenhum movimento no filtro.");
@@ -186,6 +203,22 @@ export function RelatoriosRazao({ periodId, periodLabel, referenceMonth }: Props
       setBusy(null);
     }
   }
+
+  /** Drill-down vindo de /demonstrativos: aplica os filtros da linha e já executa. */
+  const lastDrill = useRef<string | null>(null);
+  useEffect(() => {
+    if (!drill || drill.token === lastDrill.current) return;
+    lastDrill.current = drill.token;
+    const codes = drill.codes ?? [];
+    const drillKind = drill.kind ?? "razao";
+    const next = { from: drill.from ?? initial.from, to: drill.to ?? initial.to };
+    setKind(drillKind);
+    setSelected(codes);
+    setDocNumber("");
+    setRange(next);
+    void handleView({ codes, kind: drillKind, from: next.from, to: next.to });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drill?.token]);
 
   async function handleExport(format: "pdf" | "xlsx") {
     setBusy(format);
