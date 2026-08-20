@@ -25,14 +25,17 @@ type RazaoSearch = {
 
 export const Route = createFileRoute("/_authenticated/razao")({
   component: RazaoPage,
-  validateSearch: (search: Record<string, unknown>): RazaoSearch => ({
-    tab: typeof search.tab === "string" ? search.tab : undefined,
-    codes: typeof search.codes === "string" ? search.codes : undefined,
-    de: typeof search.de === "string" ? search.de : undefined,
-    ate: typeof search.ate === "string" ? search.ate : undefined,
-    kind: typeof search.kind === "string" ? search.kind : undefined,
-    dl: typeof search.dl === "string" ? search.dl : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): RazaoSearch => {
+    const str = (key: string) => (typeof search[key] === "string" ? (search[key] as string) : undefined);
+    return {
+      tab: str("tab"),
+      codes: str("codes"),
+      de: str("de"),
+      ate: str("ate"),
+      kind: str("kind"),
+      dl: str("dl"),
+    };
+  },
   head: () => ({
     meta: [
       { title: "Lançamentos contábeis | Rotta Financeiro" },
