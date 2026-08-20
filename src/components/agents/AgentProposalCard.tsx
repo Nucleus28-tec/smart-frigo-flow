@@ -31,9 +31,19 @@ export function AgentProposalCard({ threadId, periodId, payload, isAdmin }: Prop
   const [applying, setApplying] = useState(false);
   const [applied, setApplied] = useState(false);
 
-  const kind = payload["proposta"] as "classificacao" | "apontamento";
+  const kind = payload["proposta"] as "classificacao" | "apontamento" | "ajuste_lancamento";
   const contas = (payload["contas"] as Array<{ id: string; nome: string }> | undefined) ?? [];
   const natureza = payload["natureza"] as string | undefined;
+
+  const contaAtual = String(payload["conta_atual"] ?? "");
+  const contaAtualNome = String(payload["conta_atual_nome"] ?? "");
+  const novaConta = payload["nova_conta"] ? String(payload["nova_conta"]) : null;
+  const novaContaNome = payload["nova_conta_nome"] ? String(payload["nova_conta_nome"]) : "";
+  const valorAtual = Number(payload["valor_atual"] ?? 0);
+  const novoValor = Number(payload["novo_valor"] ?? valorAtual);
+  const mudaConta = Boolean(novaConta && novaConta !== contaAtual);
+  const mudaValor = Math.abs(novoValor - valorAtual) > 0.004;
+
 
   async function handleApply() {
     setApplying(true);
