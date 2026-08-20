@@ -170,7 +170,7 @@ export function RelatoriosRazao({ periodId, periodLabel, referenceMonth, drill }
   const total = accountsQuery.data?.total ?? 0;
   const allVisibleSelected = rows.length > 0 && rows.every((r) => selected.includes(r.reduced_code));
 
-  const filters = () => ({
+  const filters = (overrides?: ViewOverrides) => ({
     period_id: periodId,
     period_ids: periodIds,
     codes: overrides?.codes ?? selected,
