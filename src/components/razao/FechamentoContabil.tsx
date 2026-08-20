@@ -126,6 +126,49 @@ function statusBadge(row: MonthRow) {
   return <Badge variant="outline">Aberto</Badge>;
 }
 
+function listMonths(months: number[]) {
+  const names = months.map((m) => MONTHS[m - 1]);
+  if (names.length === 1) return names[0]!;
+  return `${names.slice(0, -1).join(", ")} e ${names[names.length - 1]}`;
+}
+
+/** Motivo que impede fechar o mês, ou null quando o fechamento é permitido. */
+function closeBlocker(row: MonthRow, grid: Grid | undefined): string | null {
+  if (!grid) return null;
+  if (grid.annual)
+    return `O exercício ${grid.year} está fechado. Cancele o fechamento do exercício antes de movimentar os meses.`;
+  const pending = grid.months
+    .filter((m) => m.month < row.month && m.status !== "fechado" && m.status !== "inexistente")
+    .map((m) => m.month);
+  if (pending.length > 0)
+    return `Ordem obrigatória: feche antes ${listMonths(pending)} de ${grid.year}.`;
+  return null;
+}
+
+/** Motivo que impede cancelar o fechamento do mês, ou null quando é permitido. */
+function reopenBlocker(row: MonthRow, grid: Grid | undefined): string | null {
+  if (!grid) return null;
+  if (grid.annual)
+    return `Cancele primeiro o fechamento do exercício ${grid.year} para poder reabrir os meses.`;
+  const later = grid.months.filter((m) => m.month > row.month && m.status === "fechado").map((m) => m.month);
+  if (later.length > 0)
+    return `Ordem obrigatória: reabra antes ${listMonths(later)} de ${grid.year} (do mês mais recente para o mais antigo).`;
+  return null;
+}
+
+/** Motivo que impede fechar o exercício, ou null quando é permitido. */
+function yearBlocker(grid: Grid | undefined): string | null {
+  if (!grid) return null;
+  const missing = grid.months.filter((m) => m.status === "inexistente").map((m) => m.month);
+  if (missing.length > 0)
+    return `Falta cadastrar o período de ${listMonths(missing)} de ${grid.year}.`;
+  const open = grid.months.filter((m) => m.status !== "fechado").map((m) => m.month);
+  if (open.length > 0)
+    return `Ainda estão abertos ${listMonths(open)} de ${grid.year}. Feche os 12 meses, em ordem, antes do fechamento anual.`;
+  return null;
+}
+
+
 export function FechamentoContabil({ periodId, periodLabel, referenceMonth, isAdmin }: Props) {
   const currentYear = referenceMonth ? Number(referenceMonth.slice(0, 4)) : new Date().getFullYear();
   const [year, setYear] = useState<number>(currentYear);
@@ -178,6 +221,8 @@ export function FechamentoContabil({ periodId, periodLabel, referenceMonth, isAd
   }, [currentYear, year]);
 
   const grid = gridQuery.data;
+  const yearBlock = yearBlocker(grid);
+
   const totals = useMemo(() => {
     const rows = summaryQuery.data ?? [];
     return rows.reduce(
@@ -323,14 +368,23 @@ export function FechamentoContabil({ periodId, periodLabel, referenceMonth, isAd
                 </Button>
               ) : null
             ) : isAdmin ? (
-              <Button
-                disabled={(grid?.closed_months ?? 0) < 12}
-                onClick={() => setConfirm({ kind: "close-year" })}
-              >
-                <Lock className="mr-2 h-4 w-4" />
-                Fechar exercício {year}
-              </Button>
+              <div className="flex flex-col items-end gap-1">
+                <Button
+                  disabled={Boolean(yearBlock)}
+                  title={yearBlock ?? undefined}
+                  onClick={() => setConfirm({ kind: "close-year" })}
+                >
+                  <Lock className="mr-2 h-4 w-4" />
+                  Fechar exercício {year}
+                </Button>
+                {yearBlock ? (
+                  <span className="max-w-xs text-right text-xs text-muted-foreground">
+                    {yearBlock}
+                  </span>
+                ) : null}
+              </div>
             ) : null}
+
           </div>
         </CardContent>
       </Card>
@@ -424,29 +478,46 @@ export function FechamentoContabil({ periodId, periodLabel, referenceMonth, isAd
                             Criar período
                           </Button>
                         ) : closed ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={busy === key || Boolean(grid?.annual)}
-                            onClick={() => setConfirm({ kind: "reopen", row })}
-                          >
-                            <LockOpen className="mr-2 h-4 w-4" />
-                            Reabrir
-                          </Button>
+                          <div className="flex flex-col items-end gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={busy === key || Boolean(reopenBlocker(row, grid))}
+                              title={reopenBlocker(row, grid) ?? undefined}
+                              onClick={() => setConfirm({ kind: "reopen", row })}
+                            >
+                              <LockOpen className="mr-2 h-4 w-4" />
+                              Reabrir
+                            </Button>
+                            {reopenBlocker(row, grid) ? (
+                              <span className="max-w-[18rem] text-right text-xs text-muted-foreground">
+                                {reopenBlocker(row, grid)}
+                              </span>
+                            ) : null}
+                          </div>
                         ) : (
-                          <Button
-                            size="sm"
-                            disabled={busy === key}
-                            onClick={() => setConfirm({ kind: "close", row })}
-                          >
-                            {busy === key ? (
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                              <Lock className="mr-2 h-4 w-4" />
-                            )}
-                            Fechar mês
-                          </Button>
+                          <div className="flex flex-col items-end gap-1">
+                            <Button
+                              size="sm"
+                              disabled={busy === key || Boolean(closeBlocker(row, grid))}
+                              title={closeBlocker(row, grid) ?? undefined}
+                              onClick={() => setConfirm({ kind: "close", row })}
+                            >
+                              {busy === key ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              ) : (
+                                <Lock className="mr-2 h-4 w-4" />
+                              )}
+                              Fechar mês
+                            </Button>
+                            {closeBlocker(row, grid) ? (
+                              <span className="max-w-[18rem] text-right text-xs text-muted-foreground">
+                                {closeBlocker(row, grid)}
+                              </span>
+                            ) : null}
+                          </div>
                         )}
+
                       </TableCell>
                     </TableRow>
                   );
@@ -562,13 +633,14 @@ export function FechamentoContabil({ periodId, periodLabel, referenceMonth, isAd
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirm?.kind === "close"
-                ? "Serão gerados os lançamentos de apuração das contas de resultado contra a conta de resultado do exercício, e o período será travado para edição."
+                ? "Serão gerados os lançamentos de apuração das contas de resultado contra a conta de resultado do exercício, e o período será travado para edição. Depois de fechado, só é possível reabrir este mês se nenhum mês posterior estiver fechado."
                 : confirm?.kind === "reopen"
-                  ? "Os lançamentos de encerramento gerados serão cancelados e o período volta a aceitar edições."
+                  ? "Os lançamentos de encerramento gerados serão cancelados e o período volta a aceitar edições. A reabertura segue a ordem inversa: do mês mais recente para o mais antigo."
                   : confirm?.kind === "close-year"
-                    ? "O saldo da conta de resultado será transferido para a conta de lucros/prejuízos acumulados em 31/12."
-                    : "Os lançamentos do encerramento anual serão cancelados, liberando a reabertura dos meses."}
+                    ? "O saldo da conta de resultado será transferido para a conta de lucros/prejuízos acumulados em 31/12. Enquanto o exercício estiver fechado, nenhum mês do ano poderá ser fechado ou reaberto."
+                    : "Os lançamentos do encerramento anual serão cancelados, liberando a reabertura dos meses (a partir de dezembro)."}
             </AlertDialogDescription>
+
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Voltar</AlertDialogCancel>

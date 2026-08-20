@@ -1224,6 +1224,7 @@ export type Database = {
         Args: { _entries: Json; _file_id: string }
         Returns: Json
       }
+      month_names_pt: { Args: { _months: number[] }; Returns: string }
       nature_from_code: { Args: { _code: string }; Returns: string }
       nature_from_hierarchical: { Args: { _hier: string }; Returns: string }
       nightly_refresh_periods: { Args: never; Returns: Json }
