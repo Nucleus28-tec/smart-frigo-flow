@@ -10,6 +10,8 @@ import { EmptyState, ErrorState, LoadingRows, PageHeader } from "@/components/Pa
 import { GerenciadorLancamentos } from "@/components/razao/GerenciadorLancamentos";
 import { PlanoDeContasRazao } from "@/components/razao/PlanoDeContasRazao";
 import { RelatoriosRazao } from "@/components/razao/RelatoriosRazao";
+import { FechamentoContabil } from "@/components/razao/FechamentoContabil";
+
 
 
 export const Route = createFileRoute("/_authenticated/razao")({
