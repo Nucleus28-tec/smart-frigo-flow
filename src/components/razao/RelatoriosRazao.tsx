@@ -246,14 +246,21 @@ export function RelatoriosRazao({ periodId, periodLabel, referenceMonth }: Props
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Data mov. (de)</Label>
-            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <div className="space-y-1.5 md:col-span-2">
+            <Label className="text-xs">Data movimento (de / até)</Label>
+            <DateRangeField
+              value={range}
+              onChange={setRange}
+              referenceMonth={referenceMonth}
+              placeholder="Todo o período"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              {periodIds.length > 1
+                ? `${periodIds.length} períodos contábeis incluídos no intervalo.`
+                : `Período ${periodLabel}.`}
+            </p>
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Até</Label>
-            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-          </div>
+
           <div className="space-y-1.5">
             <Label className="text-xs">Núm. documento</Label>
             <Input
