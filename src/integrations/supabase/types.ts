@@ -585,6 +585,7 @@ export type Database = {
           file_id: string | null
           historico: string | null
           id: string
+          is_closing: boolean
           line_no: number | null
           origin: string
           period_id: string
@@ -609,6 +610,7 @@ export type Database = {
           file_id?: string | null
           historico?: string | null
           id?: string
+          is_closing?: boolean
           line_no?: number | null
           origin?: string
           period_id: string
@@ -633,6 +635,7 @@ export type Database = {
           file_id?: string | null
           historico?: string | null
           id?: string
+          is_closing?: boolean
           line_no?: number | null
           origin?: string
           period_id?: string
@@ -1141,6 +1144,7 @@ export type Database = {
         }
         Returns: Json
       }
+      closing_result_codes: { Args: never; Returns: string[] }
       closing_summary: { Args: { _period_id: string }; Returns: Json }
       closing_year_grid: { Args: { _year: number }; Returns: Json }
       generate_period_statements: {
@@ -1211,6 +1215,15 @@ export type Database = {
         Args: { _limit?: number; _period_id: string; _reduced_code: string }
         Returns: Json
       }
+      leg_is_closing: {
+        Args: {
+          _account: string
+          _counterpart: string
+          _entry_group: string
+          _historico: string
+        }
+        Returns: boolean
+      }
       link_reduced_accounts: { Args: { _period_id: string }; Returns: Json }
       log_activity: {
         Args: {
@@ -1232,6 +1245,21 @@ export type Database = {
       norm_account_base: { Args: { _name: string }; Returns: string }
       norm_account_name: { Args: { _name: string }; Returns: string }
       norm_reduced_code: { Args: { _code: string }; Returns: string }
+      period_account_balances: {
+        Args: { _period_id: string }
+        Returns: {
+          account_name: string
+          closing_balance: number
+          credit_all: number
+          credit_mov: number
+          debit_all: number
+          debit_mov: number
+          hierarchical_code: string
+          nature: string
+          opening_balance: number
+          reduced_code: string
+        }[]
+      }
       recalculate_period_indicators: {
         Args: { _period_id: string }
         Returns: Json
