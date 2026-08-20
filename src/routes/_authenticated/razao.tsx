@@ -140,7 +140,17 @@ function RazaoPage() {
             referenceMonth={selectedPeriod?.reference_month ?? null}
           />
         </TabsContent>
+
+        <TabsContent value="fechamento">
+          <FechamentoContabil
+            periodId={selectedPeriodId}
+            periodLabel={selectedPeriod?.label ?? ""}
+            referenceMonth={selectedPeriod?.reference_month ?? null}
+            isAdmin={isAdmin}
+          />
+        </TabsContent>
       </Tabs>
+
     </>
   );
 
