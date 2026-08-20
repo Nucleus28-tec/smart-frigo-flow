@@ -633,13 +633,14 @@ export function FechamentoContabil({ periodId, periodLabel, referenceMonth, isAd
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirm?.kind === "close"
-                ? "Serão gerados os lançamentos de apuração das contas de resultado contra a conta de resultado do exercício, e o período será travado para edição."
+                ? "Serão gerados os lançamentos de apuração das contas de resultado contra a conta de resultado do exercício, e o período será travado para edição. Depois de fechado, só é possível reabrir este mês se nenhum mês posterior estiver fechado."
                 : confirm?.kind === "reopen"
-                  ? "Os lançamentos de encerramento gerados serão cancelados e o período volta a aceitar edições."
+                  ? "Os lançamentos de encerramento gerados serão cancelados e o período volta a aceitar edições. A reabertura segue a ordem inversa: do mês mais recente para o mais antigo."
                   : confirm?.kind === "close-year"
-                    ? "O saldo da conta de resultado será transferido para a conta de lucros/prejuízos acumulados em 31/12."
-                    : "Os lançamentos do encerramento anual serão cancelados, liberando a reabertura dos meses."}
+                    ? "O saldo da conta de resultado será transferido para a conta de lucros/prejuízos acumulados em 31/12. Enquanto o exercício estiver fechado, nenhum mês do ano poderá ser fechado ou reaberto."
+                    : "Os lançamentos do encerramento anual serão cancelados, liberando a reabertura dos meses (a partir de dezembro)."}
             </AlertDialogDescription>
+
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Voltar</AlertDialogCancel>
