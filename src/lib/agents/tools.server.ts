@@ -334,7 +334,7 @@ export function buildAgentTools(options: {
       },
     }),
 
-    razao_lancamento: tool({
+    razao_lancamento_detalhe: tool({
       description:
         "Detalhe de um lançamento específico do razão pelo id: conta, contrapartida, valor, documento, histórico, status e período. Use antes de propor qualquer ajuste.",
       inputSchema: z.object({ leg_id: z.string().describe("id (uuid) do lançamento no razão") }),
