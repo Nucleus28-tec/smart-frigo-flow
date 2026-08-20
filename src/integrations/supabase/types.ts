@@ -14,6 +14,85 @@ export type Database = {
   }
   public: {
     Tables: {
+      accounting_closings: {
+        Row: {
+          closed_at: string
+          closed_by: string | null
+          created_at: string
+          entry_group: string | null
+          id: string
+          kind: string
+          mode: string
+          month: number | null
+          period_id: string | null
+          profit_code: string | null
+          reopened_at: string | null
+          reopened_by: string | null
+          result_code: string | null
+          result_value: number
+          status: string
+          year: number
+        }
+        Insert: {
+          closed_at?: string
+          closed_by?: string | null
+          created_at?: string
+          entry_group?: string | null
+          id?: string
+          kind: string
+          mode?: string
+          month?: number | null
+          period_id?: string | null
+          profit_code?: string | null
+          reopened_at?: string | null
+          reopened_by?: string | null
+          result_code?: string | null
+          result_value?: number
+          status?: string
+          year: number
+        }
+        Update: {
+          closed_at?: string
+          closed_by?: string | null
+          created_at?: string
+          entry_group?: string | null
+          id?: string
+          kind?: string
+          mode?: string
+          month?: number | null
+          period_id?: string | null
+          profit_code?: string | null
+          reopened_at?: string | null
+          reopened_by?: string | null
+          result_code?: string | null
+          result_value?: number
+          status?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_closings_closed_by_fkey"
+            columns: ["closed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_closings_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_periods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_closings_reopened_by_fkey"
+            columns: ["reopened_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       accounting_periods: {
         Row: {
           created_at: string
@@ -1052,6 +1131,18 @@ export type Database = {
         }
         Returns: Json
       }
+      close_fiscal_year: { Args: { _year: number }; Returns: Json }
+      close_period_partial: {
+        Args: {
+          _mode?: string
+          _period_id: string
+          _profit_code?: string
+          _result_code?: string
+        }
+        Returns: Json
+      }
+      closing_summary: { Args: { _period_id: string }; Returns: Json }
+      closing_year_grid: { Args: { _year: number }; Returns: Json }
       generate_period_statements: {
         Args: { _period_id: string }
         Returns: Json
@@ -1151,6 +1242,8 @@ export type Database = {
         Args: { _period_id: string }
         Returns: Json
       }
+      reopen_fiscal_year: { Args: { _year: number }; Returns: Json }
+      reopen_period: { Args: { _period_id: string }; Returns: Json }
       set_account_link: {
         Args: {
           _hierarchical_code: string
@@ -1168,15 +1261,26 @@ export type Database = {
         Returns: Json
       }
       sync_accounts_for_period: { Args: { _period_id: string }; Returns: Json }
-      trial_balance_report: {
-        Args: {
-          _codes?: string[]
-          _from?: string
-          _period_id: string
-          _to?: string
-        }
-        Returns: Json
-      }
+      trial_balance_report:
+        | {
+            Args: {
+              _codes?: string[]
+              _from?: string
+              _period_id: string
+              _to?: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              _codes?: string[]
+              _from?: string
+              _mode?: string
+              _period_id: string
+              _to?: string
+            }
+            Returns: Json
+          }
       txt_norm: { Args: { _t: string }; Returns: string }
       upsert_ledger_account: {
         Args: {
