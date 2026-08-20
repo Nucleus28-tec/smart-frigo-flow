@@ -442,18 +442,27 @@ export const getLedgerReport = createServerFn({ method: "POST" })
     }),
   );
 
-/** Balancete analítico do intervalo, por conta (saldo anterior, débito, crédito, saldo atual). */
+/** Balancete do intervalo, analítico (por conta) ou sintético (por grupo contábil). */
 export const getTrialBalanceReport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object(reportFilters).parse(input))
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        ...reportFilters,
+        mode: z.enum(["analitico", "sintetico"]).default("analitico"),
+      })
+      .parse(input),
+  )
   .handler(async ({ data, context }) =>
     callRpc<JsonObject>(context.supabase, "trial_balance_report", {
       _period_id: data.period_id,
       _codes: data.codes.length ? data.codes : null,
       _from: data.from,
       _to: data.to,
+      _mode: data.mode,
     }),
   );
+
 
 /** Gera PDF ou Excel do relatório escolhido, salva no bucket privado e devolve signed URL. */
 export const exportLedgerReport = createServerFn({ method: "POST" })
