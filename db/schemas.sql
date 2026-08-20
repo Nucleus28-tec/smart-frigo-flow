@@ -698,3 +698,20 @@ create policy "messages_delete" on public.agent_messages for delete to authentic
 --   margem_liquida, margem_ebitda, liquidez_corrente, liquidez_seca,
 --   liquidez_imediata, endividamento_geral, endividamento_pl,
 --   giro_ativo, giro_estoque, pmr, pmp
+
+-- ---------------------------------------------------------------------------
+-- Fase 5 — Agente Contábil sobre o razão (propostas com aprovação obrigatória)
+-- ---------------------------------------------------------------------------
+-- journal_leg_detail(_leg_id)  : leitura de um lançamento (conta, contrapartida,
+--                                valor, doc, histórico, período) usada pelo agente
+--                                para montar a proposta com evidência.
+-- apply_journal_adjustment(_leg_id, _new_account, _new_value, _justificativa, _thread_id)
+--   • somente Admin (is_admin());
+--   • recusa período com status 'fechado' e mês/exercício com fechamento ativo;
+--   • NUNCA edita o lançamento original: gera lançamento(s) de ajuste com
+--     origin='ajuste' e entry_group próprio — diferença de valor contra a
+--     contrapartida original e transferência do valor final para a nova conta;
+--   • grava ledger_account_audit (field_changed='lancamento_ajustado',
+--     source='agente_contador', old_value → new_value, actor_id, created_at),
+--     tabela sem UPDATE/DELETE;
+--   • dispara recalculate_period_indicators_internal.

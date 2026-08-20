@@ -20,9 +20,13 @@ const TOOL_LABELS: Record<string, string> = {
   apontamentos: "Apontamentos",
   comparar_periodos: "Comparação de períodos",
   periodos_disponiveis: "Períodos disponíveis",
+  razao_buscar_lancamentos: "Busca no razão",
+  razao_lancamento_detalhe: "Detalhe do lançamento",
   propor_classificacao: "Proposta de classificação",
   propor_apontamento: "Proposta de apontamento",
+  propor_ajuste_lancamento: "Proposta de ajuste de lançamento",
 };
+
 
 type Props = {
   threadId: string;
@@ -151,7 +155,11 @@ export function AgentChat({
                     | Record<string, unknown>
                     | undefined;
                   const proposal = output?.["proposta"];
-                  if (proposal === "classificacao" || proposal === "apontamento") {
+                  if (
+                    proposal === "classificacao" ||
+                    proposal === "apontamento" ||
+                    proposal === "ajuste_lancamento"
+                  ) {
                     return (
                       <AgentProposalCard
                         key={index}

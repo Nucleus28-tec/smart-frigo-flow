@@ -313,7 +313,39 @@ export function buildAgentTools(options: {
         return data;
       },
     }),
+
+    razao_buscar_lancamentos: tool({
+      description:
+        "Busca livre nos lançamentos do razão do período (histórico, documento, conta). Retorna o id de cada lançamento, necessário para propor um ajuste.",
+      inputSchema: z.object({
+        texto: z.string().describe("Texto livre: histórico, documento ou código/nome de conta"),
+        limite: z.number().describe("Quantos lançamentos retornar (até 100)"),
+      }),
+      execute: async ({ texto, limite }) => {
+        const id = requirePeriod();
+        const { data, error } = await supabase.rpc("journal_search", {
+          _period_id: id,
+          _query: texto,
+          _limit: Math.min(Math.max(1, Math.round(limite || 30)), 100),
+          _offset: 0,
+        });
+        if (error) throw new Error(error.message);
+        return data;
+      },
+    }),
+
+    razao_lancamento_detalhe: tool({
+      description:
+        "Detalhe de um lançamento específico do razão pelo id: conta, contrapartida, valor, documento, histórico, status e período. Use antes de propor qualquer ajuste.",
+      inputSchema: z.object({ leg_id: z.string().describe("id (uuid) do lançamento no razão") }),
+      execute: async ({ leg_id }) => {
+        const { data, error } = await supabase.rpc("journal_leg_detail", { _leg_id: leg_id });
+        if (error) throw new Error(error.message);
+        return data;
+      },
+    }),
   };
+
 
   if (agent === "contador") {
     tools["propor_classificacao"] = tool({
@@ -361,7 +393,45 @@ export function buildAgentTools(options: {
         status: "aguardando aprovação do administrador",
       }),
     });
+
+    tools["propor_ajuste_lancamento"] = tool({
+      description:
+        "Cria uma PROPOSTA de ajuste de um lançamento do razão (não grava): reclassificação de conta e/ou correção de valor. " +
+        "Use antes 'razao_buscar_lancamentos' para achar o id e 'razao_lancamento_detalhe' para ler a situação atual. " +
+        "Informe sempre o valor/conta atuais lidos da ferramenta — eles são o lado 'de' do diff mostrado ao administrador. " +
+        "Quando aplicado por um Admin, vira um LANÇAMENTO DE AJUSTE rastreável; o lançamento original nunca é editado.",
+      inputSchema: z.object({
+        leg_id: z.string().describe("id (uuid) do lançamento original no razão"),
+        conta_atual: z.string().describe("Código reduzido da conta atual do lançamento"),
+        conta_atual_nome: z.string().describe("Nome da conta atual"),
+        valor_atual: z.number().describe("Valor atual do lançamento"),
+        nova_conta: z
+          .string()
+          .describe("Código reduzido da conta proposta; use string vazia para manter a conta atual"),
+        nova_conta_nome: z.string().describe("Nome da conta proposta; string vazia se não houver reclassificação"),
+        novo_valor: z.number().describe("Valor proposto; use o mesmo valor atual se não houver correção de valor"),
+        justificativa: z.string().describe("Por que o ajuste é necessário, em linguagem contábil"),
+        evidencias: z
+          .array(z.string())
+          .describe("Evidências: contrapartidas, histórico do lançamento, documento, padrão da conta"),
+      }),
+      execute: async (input) => ({
+        proposta: "ajuste_lancamento",
+        leg_id: input.leg_id,
+        conta_atual: input.conta_atual,
+        conta_atual_nome: input.conta_atual_nome,
+        valor_atual: input.valor_atual,
+        nova_conta: input.nova_conta?.trim() ? input.nova_conta.trim() : null,
+        nova_conta_nome: input.nova_conta_nome || null,
+        novo_valor: input.novo_valor,
+        justificativa: input.justificativa,
+        evidencias: (input.evidencias ?? []).slice(0, 10),
+        periodo_id: periodId,
+        status: "aguardando aprovação do administrador",
+      }),
+    });
   }
+
 
   return tools;
 }

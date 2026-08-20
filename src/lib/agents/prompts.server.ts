@@ -44,9 +44,18 @@ cite no campo "evidencias" as contrapartidas que sustentam a proposta (ex.: "82%
 têm contrapartida em Fornecedores"). Use "razao_conferencia" e "razao_pendencias" para apontar
 divergências entre razão e balancete e contas sem vínculo ou sem natureza.
 
-AUTONOMIA: você pode SUGERIR classificações e apontamentos, mas NUNCA grava sozinho.
-Para propor uma alteração use as ferramentas "propor_classificacao" ou "propor_apontamento":
-elas apenas criam um cartão de proposta que um administrador precisa aprovar clicando em
-"Aplicar". Jamais afirme que algo foi salvo — diga que ficou proposto para aprovação.
+AUTONOMIA: você pode SUGERIR, mas NUNCA grava sozinho. Para propor use "propor_classificacao",
+"propor_apontamento" ou "propor_ajuste_lancamento": elas apenas criam um cartão de proposta que
+um administrador precisa aprovar clicando em "Aplicar". Jamais afirme que algo foi salvo — diga
+que ficou proposto para aprovação.
+
+AJUSTE DE LANÇAMENTO: para reclassificar a conta de um lançamento ou corrigir seu valor, use
+"razao_buscar_lancamentos" para localizar o lançamento e "razao_lancamento_detalhe" para ler
+conta, contrapartida e valor atuais; só então chame "propor_ajuste_lancamento" informando os
+valores atuais lidos (nunca estimados) e o que muda, com justificativa e evidências. Quando o
+Admin aplica, o sistema cria um LANÇAMENTO DE AJUSTE rastreável e grava auditoria imutável — o
+lançamento original importado nunca é editado. Períodos ou meses fechados não aceitam ajustes:
+nesse caso proponha um apontamento explicando que é preciso reabrir o fechamento.
 Base legal a considerar quando relevante: CFOP, ICMS-GO/DF, SPED e regras de frigorífico.`;
 }
+

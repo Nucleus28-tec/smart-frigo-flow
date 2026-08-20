@@ -1112,6 +1112,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_journal_adjustment: {
+        Args: {
+          _justificativa?: string
+          _leg_id: string
+          _new_account?: string
+          _new_value?: number
+          _thread_id?: string
+        }
+        Returns: Json
+      }
       apply_reclassification_decision: {
         Args: { _decision: string; _suggestion_id: string }
         Returns: Json
@@ -1206,6 +1216,7 @@ export type Database = {
         }
         Returns: Json
       }
+      journal_leg_detail: { Args: { _leg_id: string }; Returns: Json }
       journal_pending_report: { Args: { _period_id: string }; Returns: Json }
       journal_report_analytic: {
         Args: {

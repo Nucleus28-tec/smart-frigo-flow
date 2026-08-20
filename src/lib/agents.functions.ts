@@ -37,7 +37,16 @@ const applySchema = z.discriminatedUnion("kind", [
     correcao_sugerida: z.string().optional(),
     severidade: z.enum(["baixa", "media", "alta"]),
   }),
+  z.object({
+    kind: z.literal("ajuste_lancamento"),
+    thread_id: z.string().uuid(),
+    leg_id: z.string().uuid(),
+    nova_conta: z.string().trim().min(1).nullable(),
+    novo_valor: z.number().positive().nullable(),
+    justificativa: z.string().min(1),
+  }),
 ]);
+
 
 async function assertAdmin(supabase: {
   rpc: (name: "is_admin") => Promise<{ data: unknown; error: unknown }>;
@@ -149,6 +158,45 @@ export const applyAgentAction = createServerFn({ method: "POST" })
       });
       return { ok: true, affected: data.account_ids.length };
     }
+
+    if (data.kind === "ajuste_lancamento") {
+      const { data: result, error } = await context.supabase.rpc("apply_journal_adjustment", {
+        _leg_id: data.leg_id,
+        ...(data.nova_conta ? { _new_account: data.nova_conta } : {}),
+        ...(data.novo_valor !== null ? { _new_value: data.novo_valor } : {}),
+        _justificativa: data.justificativa,
+        _thread_id: data.thread_id,
+      });
+      if (error) throw new Error(error.message);
+
+      await context.supabase.rpc("log_activity", {
+        _action: "agent_action_applied",
+        _entity_type: "journal_legs",
+        _entity_id: data.leg_id,
+        _metadata: {
+          kind: "ajuste_lancamento",
+          thread_id: data.thread_id,
+          nova_conta: data.nova_conta,
+          novo_valor: data.novo_valor,
+        },
+      });
+
+      const parsed = (result ?? {}) as {
+        entry_group?: string;
+        legs_criadas?: number;
+        para?: { conta?: string; valor?: number };
+      };
+      return {
+        ok: true,
+        affected: Number(parsed.legs_criadas ?? 0),
+        entry_group: String(parsed.entry_group ?? ""),
+        conta_final: String(parsed.para?.conta ?? ""),
+        valor_final: Number(parsed.para?.valor ?? 0),
+      };
+    }
+
+
+
 
     const { data: finding, error } = await context.supabase
       .from("audit_findings")
