@@ -107,8 +107,13 @@ export function AgentProposalCard({ threadId, periodId, payload, isAdmin }: Prop
         <div className="flex items-center gap-2">
           <ShieldCheck className="size-4 text-brand" />
           <span className="text-sm font-medium">
-            {kind === "classificacao" ? "Proposta de classificação" : "Proposta de apontamento"}
+            {kind === "classificacao"
+              ? "Proposta de classificação"
+              : kind === "ajuste_lancamento"
+                ? "Proposta de ajuste de lançamento"
+                : "Proposta de apontamento"}
           </span>
+
         </div>
         <Badge variant="outline">Requer aprovação</Badge>
       </div>
