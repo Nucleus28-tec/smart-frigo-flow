@@ -569,7 +569,16 @@ function ImportarPage() {
                         </span>
                       ) : null}
                     </TableCell>
-                    <TableCell>{FILE_TYPE_LABEL[row.file_type] ?? row.file_type}</TableCell>
+                    <TableCell>
+                      <span className="block">
+                        {FILE_TYPE_LABEL[row.file_type] ?? row.file_type}
+                      </span>
+                      {row.file_type === "balancete" ? (
+                        <Badge variant="outline" className="mt-1 text-amber-700 dark:text-amber-400">
+                          Em descontinuação
+                        </Badge>
+                      ) : null}
+                    </TableCell>
                     <TableCell>
                       <StatusBadge status={row.processing_status} />
                     </TableCell>
