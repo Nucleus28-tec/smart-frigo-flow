@@ -82,7 +82,7 @@ export function analisarConferencia(rows: SaldoConta[]): Conferencia {
         abertura >= OPENING_VS_MOV * Math.max(movimento, 1),
     )
     .sort((a, b) => b.abertura - a.abertura)
-    .map(({ conta, abertura, movimento, share }) => ({
+    .map(({ conta, movimento, share }): PendenciaConta => ({
       reduced_code: conta.reduced_code,
       account_name: conta.account_name,
       nature: conta.nature,
@@ -95,8 +95,7 @@ export function analisarConferencia(rows: SaldoConta[]): Conferencia {
           : "Saldo de abertura muito maior que a movimentação do período — provável acúmulo de encerramentos anteriores nesta conta.",
       acao:
         "Revisar a natureza/classificação da conta ou lançar o ajuste de zeramento no razão. Contas de apuração não devem compor o Patrimônio Líquido.",
-      _abertura: abertura,
-    })) as PendenciaConta[];
+    }));
 
   return {
     contas,
