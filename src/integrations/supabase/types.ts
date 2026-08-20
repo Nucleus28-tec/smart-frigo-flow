@@ -1193,6 +1193,7 @@ export type Database = {
           _from?: string
           _max_rows?: number
           _period_id: string
+          _period_ids?: string[]
           _to?: string
         }
         Returns: Json
@@ -1268,6 +1269,7 @@ export type Database = {
           _from?: string
           _mode?: string
           _period_id: string
+          _period_ids?: string[]
           _to?: string
         }
         Returns: Json

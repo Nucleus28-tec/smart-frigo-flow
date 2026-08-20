@@ -419,10 +419,21 @@ export const setChartAccountActive = createServerFn({ method: "POST" })
 
 const reportFilters = {
   period_id: z.string().uuid(),
+  /** Períodos que cobrem o intervalo de datas escolhido; vazio = apenas o período ativo. */
+  period_ids: z.array(z.string().uuid()).max(60).default([]),
   codes: z.array(z.string().min(1)).max(2000).default([]),
   from: z.string().nullable().default(null),
   to: z.string().nullable().default(null),
 };
+
+/** Rótulo do cabeçalho: intervalo de datas quando houver, senão o rótulo do período. */
+function rangeLabel(periodLabel: string, from: string | null, to: string | null, count: number) {
+  const day = (v: string) => v.slice(0, 10).split("-").reverse().join("/");
+  if (!from && !to) return periodLabel;
+  const range = `${from ? day(from) : "início"} a ${to ? day(to) : "fim"}`;
+  return count > 1 ? `${range} · ${count} períodos` : `${periodLabel} · ${range}`;
+}
+
 
 /** Razão contábil analítico: contas selecionadas com saldo anterior, lançamentos e totais. */
 export const getLedgerReport = createServerFn({ method: "POST" })
@@ -435,6 +446,7 @@ export const getLedgerReport = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) =>
     callRpc<JsonObject>(context.supabase, "journal_report_analytic", {
       _period_id: data.period_id,
+      _period_ids: data.period_ids.length ? data.period_ids : null,
       _codes: data.codes.length ? data.codes : null,
       _from: data.from,
       _to: data.to,
@@ -456,12 +468,14 @@ export const getTrialBalanceReport = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) =>
     callRpc<JsonObject>(context.supabase, "trial_balance_report", {
       _period_id: data.period_id,
+      _period_ids: data.period_ids.length ? data.period_ids : null,
       _codes: data.codes.length ? data.codes : null,
       _from: data.from,
       _to: data.to,
       _mode: data.mode,
     }),
   );
+
 
 
 /** Gera PDF ou Excel do relatório escolhido, salva no bucket privado e devolve signed URL. */
@@ -492,6 +506,13 @@ export const exportLedgerReport = createServerFn({ method: "POST" })
 
     const generatedAt = new Date();
     const codes = data.codes.length ? data.codes : null;
+    const periodIds = data.period_ids.length ? data.period_ids : null;
+    const headerLabel = rangeLabel(
+      period.label,
+      data.from,
+      data.to,
+      data.period_ids.length || 1,
+    );
     const builders = await import("@/lib/razao-report.server");
 
     let bytes: Uint8Array;
@@ -503,6 +524,7 @@ export const exportLedgerReport = createServerFn({ method: "POST" })
         "journal_report_analytic",
         {
           _period_id: data.period_id,
+          _period_ids: periodIds,
           _codes: codes,
           _from: data.from,
           _to: data.to,
@@ -511,7 +533,7 @@ export const exportLedgerReport = createServerFn({ method: "POST" })
       );
       if (data.format === "pdf") {
         bytes = await builders.buildLedgerReportPdf({
-          periodLabel: period.label,
+          periodLabel: headerLabel,
           report,
           multiPage: data.multi_page,
           generatedAt,
@@ -520,7 +542,7 @@ export const exportLedgerReport = createServerFn({ method: "POST" })
       } else {
         bytes = new Uint8Array(
           builders.buildLedgerReportXlsx({
-            periodLabel: period.label,
+            periodLabel: headerLabel,
             report,
             multiPage: data.multi_page,
             generatedAt,
@@ -534,6 +556,7 @@ export const exportLedgerReport = createServerFn({ method: "POST" })
         "trial_balance_report",
         {
           _period_id: data.period_id,
+          _period_ids: periodIds,
           _codes: codes,
           _from: data.from,
           _to: data.to,
@@ -542,7 +565,7 @@ export const exportLedgerReport = createServerFn({ method: "POST" })
       );
       if (data.format === "pdf") {
         bytes = await builders.buildTrialBalanceReportPdf({
-          periodLabel: period.label,
+          periodLabel: headerLabel,
           report,
           generatedAt,
           mode: data.mode,
@@ -552,7 +575,7 @@ export const exportLedgerReport = createServerFn({ method: "POST" })
       } else {
         bytes = new Uint8Array(
           builders.buildTrialBalanceReportXlsx({
-            periodLabel: period.label,
+            periodLabel: headerLabel,
             report,
             generatedAt,
             mode: data.mode,
@@ -562,6 +585,7 @@ export const exportLedgerReport = createServerFn({ method: "POST" })
         contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
       }
     }
+
 
     const stamp = generatedAt.toISOString().slice(0, 19).replace(/[:T-]/g, "");
     const baseName =
