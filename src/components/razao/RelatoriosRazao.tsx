@@ -67,10 +67,26 @@ type AccountRow = {
   legs_count: number;
 };
 
+export type DrillDown = {
+  token: string;
+  codes: string[];
+  kind?: ReportKind;
+  from?: string | null;
+  to?: string | null;
+};
+
+type ViewOverrides = {
+  codes?: string[];
+  kind?: ReportKind;
+  from?: string | null;
+  to?: string | null;
+};
+
 type Props = {
   periodId: string;
   periodLabel: string;
   referenceMonth: string | null;
+  drill?: DrillDown | null;
 };
 
 function monthRange(referenceMonth: string | null) {
