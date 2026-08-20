@@ -31,6 +31,8 @@ import {
 import { EmptyState, ErrorState, LoadingRows, PageHeader } from "@/components/PageState";
 import { NATURE_LABEL, NATURE_OPTIONS, formatCurrency, parseCurrencyInput } from "@/lib/rotta";
 import { revertLedgerEntry, updateLedgerEntry } from "@/lib/ledger.functions";
+import { ConferenciaBalanco } from "@/components/ConferenciaBalanco";
+
 
 export const Route = createFileRoute("/_authenticated/balancete")({
   component: BalancetePage,
