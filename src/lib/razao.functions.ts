@@ -532,13 +532,21 @@ export const exportLedgerReport = createServerFn({ method: "POST" })
       const report = await callRpc<import("@/lib/razao-report-types").TrialBalanceReport>(
         context.supabase,
         "trial_balance_report",
-        { _period_id: data.period_id, _codes: codes, _from: data.from, _to: data.to },
+        {
+          _period_id: data.period_id,
+          _codes: codes,
+          _from: data.from,
+          _to: data.to,
+          _mode: data.mode,
+        },
       );
       if (data.format === "pdf") {
         bytes = await builders.buildTrialBalanceReportPdf({
           periodLabel: period.label,
           report,
           generatedAt,
+          mode: data.mode,
+          showPlan: data.show_plan,
         });
         contentType = "application/pdf";
       } else {
@@ -547,6 +555,8 @@ export const exportLedgerReport = createServerFn({ method: "POST" })
             periodLabel: period.label,
             report,
             generatedAt,
+            mode: data.mode,
+            showPlan: data.show_plan,
           }),
         );
         contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -554,7 +564,12 @@ export const exportLedgerReport = createServerFn({ method: "POST" })
     }
 
     const stamp = generatedAt.toISOString().slice(0, 19).replace(/[:T-]/g, "");
-    const fileName = `${data.kind === "razao" ? "razao-analitico" : "balancete-analitico"}-${stamp}.${data.format}`;
+    const baseName =
+      data.kind === "razao"
+        ? "razao-analitico"
+        : `balancete-${data.mode === "sintetico" ? "sintetico" : "analitico"}`;
+    const fileName = `${baseName}-${stamp}.${data.format}`;
+
     const path = `${data.period_id}/relatorios/${fileName}`;
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
