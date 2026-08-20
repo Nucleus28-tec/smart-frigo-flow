@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Download, FileSpreadsheet, FileText, RefreshCw } from "lucide-react";
+import { ChevronRight, Download, FileSpreadsheet, FileText, RefreshCw } from "lucide-react";
 import { EmptyState, ErrorState, PageHeader } from "@/components/PageState";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,11 +16,24 @@ import { exportReport, generateStatements } from "@/lib/reports.functions";
 import { formatCurrency } from "@/lib/rotta";
 import { ConferenciaBalanco } from "@/components/ConferenciaBalanco";
 
-type Line = { label: string; value: number; kind?: string };
+type Line = {
+  label: string;
+  value: number;
+  kind?: string;
+  nature?: string;
+  base?: string;
+  codes?: string[];
+};
 type Statement = {
   statement_type: string;
-  content: { titulo?: string; linhas?: Line[] };
+  content: { titulo?: string; linhas?: Line[]; fonte?: string; base?: string };
   generated_at: string;
+};
+
+const BASE_LABEL: Record<string, string> = {
+  movimento: "movimento do período (sem encerramento)",
+  saldo: "saldo da conta",
+  variacao_caixa: "variação das contas de caixa/banco/aplicação",
 };
 
 const TITLES: Record<string, string> = {
@@ -29,26 +43,45 @@ const TITLES: Record<string, string> = {
 };
 const ORDER = ["dre", "balanco_patrimonial", "fluxo_de_caixa"];
 
-function StatementCard({ statement }: { statement: Statement }) {
+function StatementCard({
+  statement,
+  onDrill,
+}: {
+  statement: Statement;
+  onDrill: (line: Line) => void;
+}) {
   const lines = statement.content?.linhas ?? [];
+  const fonte = statement.content?.fonte;
+  const base = statement.content?.base;
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-base">
-          {TITLES[statement.statement_type] ?? statement.statement_type}
-        </CardTitle>
+      <CardHeader className="space-y-2">
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle className="text-base">
+            {TITLES[statement.statement_type] ?? statement.statement_type}
+          </CardTitle>
+          {fonte ? (
+            <Badge variant={fonte === "razao" ? "default" : "secondary"} className="shrink-0">
+              Fonte: {fonte === "razao" ? "razão" : "balancete"}
+            </Badge>
+          ) : null}
+        </div>
+        {base ? (
+          <p className="text-xs text-muted-foreground">Base de cálculo: {BASE_LABEL[base] ?? base}.</p>
+        ) : null}
       </CardHeader>
       <CardContent className="space-y-1">
         {lines.map((line, index) => {
           const isTotal = line.kind === "total" || line.kind === "subtotal";
-          return (
-            <div
-              key={`${line.label}-${index}`}
-              className={`flex items-center justify-between rounded-md px-2 py-1.5 text-sm ${
-                isTotal ? "bg-muted font-semibold" : "text-muted-foreground"
-              }`}
-            >
-              <span>{line.label}</span>
+          const canDrill = (line.codes?.length ?? 0) > 0;
+          const content = (
+            <>
+              <span className="flex items-center gap-1 text-left">
+                {line.label}
+                {canDrill ? (
+                  <ChevronRight className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-70" />
+                ) : null}
+              </span>
               <span
                 className={
                   Number(line.value) < 0 ? "text-destructive tabular-nums" : "tabular-nums"
@@ -56,6 +89,24 @@ function StatementCard({ statement }: { statement: Statement }) {
               >
                 {formatCurrency(line.value)}
               </span>
+            </>
+          );
+          const className = `flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm ${
+            isTotal ? "bg-muted font-semibold" : "text-muted-foreground"
+          }`;
+          return canDrill ? (
+            <button
+              key={`${line.label}-${index}`}
+              type="button"
+              onClick={() => onDrill(line)}
+              title={`Ver os lançamentos que compõem “${line.label}” no razão`}
+              className={`${className} group cursor-pointer transition-colors hover:bg-accent hover:text-accent-foreground`}
+            >
+              {content}
+            </button>
+          ) : (
+            <div key={`${line.label}-${index}`} className={className}>
+              {content}
             </div>
           );
         })}
@@ -74,6 +125,33 @@ function DemonstrativosPage() {
   const queryClient = useQueryClient();
   const periodId = selectedPeriod?.id ?? null;
   const [busy, setBusy] = useState<"pdf" | "xlsx" | null>(null);
+  const navigate = useNavigate();
+
+  /** Abre no /razao os lançamentos que compõem a linha clicada. */
+  function handleDrill(line: Line) {
+    const codes = line.codes ?? [];
+    if (codes.length === 0) return;
+    const ref = selectedPeriod?.reference_month?.slice(0, 10) ?? null;
+    let de: string | undefined;
+    let ate: string | undefined;
+    if (ref) {
+      const [y, m] = ref.split("-").map(Number);
+      const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+      de = `${ref.slice(0, 8)}01`;
+      ate = `${ref.slice(0, 8)}${String(last).padStart(2, "0")}`;
+    }
+    void navigate({
+      to: "/razao",
+      search: {
+        tab: "relatorios",
+        codes: codes.join(","),
+        kind: line.base === "saldo" ? "balancete" : "razao",
+        de,
+        ate,
+        dl: `${Date.now()}`,
+      },
+    });
+  }
 
   const generate = useServerFn(generateStatements);
   const doExport = useServerFn(exportReport);
@@ -96,7 +174,7 @@ function DemonstrativosPage() {
   const generateMutation = useMutation({
     mutationFn: async () => generate({ data: { period_id: periodId! } }),
     onSuccess: () => {
-      toast.success("Demonstrativos gerados a partir do balancete do período.");
+      toast.success("Demonstrativos gerados a partir do razão contábil do período.");
       queryClient.invalidateQueries({ queryKey: ["financial_statements", periodId] });
     },
     onError: (error: Error) => toast.error(error.message),
@@ -125,7 +203,7 @@ function DemonstrativosPage() {
     <>
       <PageHeader
         title="Demonstrativos"
-        description="DRE, Balanço Patrimonial e Fluxo de Caixa gerados a partir do balancete do período."
+        description="DRE, Balanço e Fluxo de Caixa derivados do razão contábil. Clique em uma linha para ver os lançamentos que a compõem."
       />
 
       {!periodId ? (
@@ -188,7 +266,11 @@ function DemonstrativosPage() {
           ) : (
             <div className="grid gap-4 lg:grid-cols-3">
               {(statementsQuery.data ?? []).map((statement) => (
-                <StatementCard key={statement.statement_type} statement={statement} />
+                <StatementCard
+                  key={statement.statement_type}
+                  statement={statement}
+                  onDrill={handleDrill}
+                />
               ))}
             </div>
           )}
