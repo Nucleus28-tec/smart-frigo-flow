@@ -101,7 +101,7 @@ function monthRange(referenceMonth: string | null) {
   };
 }
 
-export function RelatoriosRazao({ periodId, periodLabel, referenceMonth }: Props) {
+export function RelatoriosRazao({ periodId, periodLabel, referenceMonth, drill }: Props) {
   const initial = monthRange(referenceMonth);
   const { periods } = usePeriod();
   const [kind, setKind] = useState<ReportKind>("razao");
