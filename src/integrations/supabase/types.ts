@@ -1162,6 +1162,23 @@ export type Database = {
         Args: { _file_id: string; _lines: Json }
         Returns: Json
       }
+      indicator_components: {
+        Args: { _period_id: string }
+        Returns: {
+          account_name: string
+          basis: string
+          component_key: string
+          hierarchical_code: string
+          nature: string
+          reduced_code: string
+          value: number
+        }[]
+      }
+      indicator_drilldown: {
+        Args: { _indicator_key: string; _period_id: string }
+        Returns: Json
+      }
+      indicator_formulas: { Args: never; Returns: Json }
       is_admin: { Args: never; Returns: boolean }
       journal_account_statement: {
         Args: {
