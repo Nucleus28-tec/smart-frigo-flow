@@ -59,6 +59,23 @@ export function AgentProposalCard({ threadId, periodId, payload, isAdmin }: Prop
           },
         });
         toast.success(`${result.affected} conta(s) classificada(s) como ${NATURE_LABELS[natureza]}.`);
+      } else if (kind === "ajuste_lancamento") {
+        const legId = String(payload["leg_id"] ?? "");
+        if (!legId) throw new Error("Proposta sem lançamento de referência.");
+        if (!mudaConta && !mudaValor) throw new Error("A proposta não altera conta nem valor.");
+        const result = await apply({
+          data: {
+            kind: "ajuste_lancamento",
+            thread_id: threadId,
+            leg_id: legId,
+            nova_conta: mudaConta ? novaConta : null,
+            novo_valor: mudaValor ? novoValor : null,
+            justificativa: String(payload["justificativa"] ?? "Ajuste proposto pelo Agente Contador"),
+          },
+        });
+        toast.success(
+          `Lançamento de ajuste registrado (${result.affected} partida(s)). O lançamento original foi preservado.`,
+        );
       } else {
         if (!periodId) throw new Error("Selecione um período contábil.");
         await apply({
@@ -74,6 +91,7 @@ export function AgentProposalCard({ threadId, periodId, payload, isAdmin }: Prop
         });
         toast.success("Apontamento criado.");
       }
+
       setApplied(true);
       await queryClient.invalidateQueries();
     } catch (error) {
