@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { applyAgentAction } from "@/lib/agents.functions";
+import { formatCurrency } from "@/lib/rotta";
 
 type Props = {
   threadId: string;
@@ -152,7 +153,7 @@ export function AgentProposalCard({ threadId, periodId, payload, isAdmin }: Prop
               <p>
                 Conta: {contaAtual} {contaAtualNome ? `· ${contaAtualNome}` : ""}
               </p>
-              <p>Valor: {formatBRL(valorAtual)}</p>
+              <p>Valor: {formatCurrency(valorAtual)}</p>
             </div>
             <div className="rounded-md border border-brand/40 bg-brand/5 p-2">
               <p className="mb-1 font-medium text-foreground">Proposto</p>
@@ -161,8 +162,8 @@ export function AgentProposalCard({ threadId, periodId, payload, isAdmin }: Prop
                 {mudaConta ? (novaContaNome ? `· ${novaContaNome}` : "") : contaAtualNome ? `· ${contaAtualNome}` : ""}
               </p>
               <p className={mudaValor ? "font-medium text-foreground" : undefined}>
-                Valor: {formatBRL(mudaValor ? novoValor : valorAtual)}
-                {mudaValor ? ` (${novoValor > valorAtual ? "+" : "−"}${formatBRL(Math.abs(novoValor - valorAtual))})` : ""}
+                Valor: {formatCurrency(mudaValor ? novoValor : valorAtual)}
+                {mudaValor ? ` (${novoValor > valorAtual ? "+" : "−"}${formatCurrency(Math.abs(novoValor - valorAtual))})` : ""}
               </p>
             </div>
           </div>
