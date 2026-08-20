@@ -674,3 +674,27 @@ alter table public.agent_messages enable row level security;
 create policy "messages_select" on public.agent_messages for select to authenticated using (user_id = auth.uid() or public.is_admin());
 create policy "messages_insert" on public.agent_messages for insert to authenticated with check (user_id = auth.uid());
 create policy "messages_delete" on public.agent_messages for delete to authenticated using (user_id = auth.uid() or public.is_admin());
+
+-- =====================================================================
+-- FASE 4 — Índices financeiros derivados do razão contábil
+-- Camada única: period_account_balances -> indicator_components ->
+-- recalculate_period_indicators_internal -> dashboard_indicators.
+-- indicator_drilldown responde "de onde veio esse número".
+-- Definições vigentes: ver migrações Supabase (funções abaixo são
+-- recriadas por lá; este arquivo documenta o contrato).
+-- =====================================================================
+-- indicator_components(_period_id) -> (component_key, basis, reduced_code,
+--   account_name, hierarchical_code, nature, value)
+--   component_key: receita | custo | despesa | caixa | estoques | clientes |
+--   fornecedores | ativo_circulante | ativo_nao_circulante |
+--   passivo_circulante | passivo_nao_circulante | patrimonio_liquido
+--   basis: 'movimento' (sem lançamentos de encerramento) | 'saldo'
+-- indicator_formulas() -> jsonb com label/fórmula/kind/components por índice
+-- indicator_drilldown(_period_id, _indicator_key) -> jsonb com fórmula,
+--   blocos, totais e contas que compõem o número
+-- dashboard_indicators.indicator_key aceita:
+--   receita_total, custo_total, despesa_total, margem_bruta, ebitda,
+--   resultado_liquido, posicao_caixa, ativo_total, capital_giro,
+--   margem_liquida, margem_ebitda, liquidez_corrente, liquidez_seca,
+--   liquidez_imediata, endividamento_geral, endividamento_pl,
+--   giro_ativo, giro_estoque, pmr, pmp

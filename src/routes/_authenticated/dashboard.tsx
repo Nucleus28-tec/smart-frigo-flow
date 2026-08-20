@@ -1,17 +1,15 @@
+import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   AlertTriangle,
-  Banknote,
   FileSpreadsheet,
   ListChecks,
-  Percent,
   RefreshCw,
+  Search,
   Table2,
-  TrendingUp,
   Upload,
-  Wallet,
 } from "lucide-react";
 import {
   Bar,
@@ -38,6 +36,13 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { EmptyState, ErrorState, LoadingRows, PageHeader } from "@/components/PageState";
+import { IndicadorDrilldown } from "@/components/dashboard/IndicadorDrilldown";
+import {
+  GROUP_LABEL,
+  GROUP_ORDER,
+  INDICATORS,
+  formatIndicatorValue,
+} from "@/lib/indicadores";
 import { PERIOD_STATUS_LABEL, formatCurrency, formatDateTime } from "@/lib/rotta";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -48,7 +53,7 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
       {
         name: "description",
         content:
-          "Indicadores financeiros do período: margem bruta, EBITDA, resultado líquido, posição de caixa, sugestões pendentes e apontamentos abertos.",
+          "Índices financeiros do período calculados sobre o razão contábil: liquidez, margens, endividamento, giro e prazos médios, com rastreabilidade até o lançamento.",
       },
       { property: "og:title", content: "Dashboard | Rotta Financeiro" },
       {
@@ -76,35 +81,6 @@ type Indicator = {
   period_id: string;
 };
 
-const INDICATOR_META: Record<
-  string,
-  { label: string; icon: typeof Wallet; kind: "currency" | "percent" }
-> = {
-  receita_total: { label: "Receita total", icon: TrendingUp, kind: "currency" },
-  custo_total: { label: "Custo total", icon: Banknote, kind: "currency" },
-  margem_bruta: { label: "Margem bruta", icon: Percent, kind: "percent" },
-  ebitda: { label: "EBITDA", icon: TrendingUp, kind: "currency" },
-  resultado_liquido: { label: "Resultado líquido", icon: Wallet, kind: "currency" },
-  posicao_caixa: { label: "Posição de caixa", icon: Wallet, kind: "currency" },
-};
-
-const INDICATOR_ORDER = [
-  "receita_total",
-  "custo_total",
-  "margem_bruta",
-  "ebitda",
-  "resultado_liquido",
-  "posicao_caixa",
-];
-
-function formatIndicator(key: string, value: number | undefined) {
-  if (value === undefined) return "—";
-  if (INDICATOR_META[key]?.kind === "percent") {
-    return `${value.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
-  }
-  return formatCurrency(value);
-}
-
 const compactCurrency = (value: number) =>
   value.toLocaleString("pt-BR", { notation: "compact", maximumFractionDigits: 1 });
 
@@ -112,6 +88,7 @@ const chartConfig = {
   valor: { label: "Valor", color: "hsl(var(--chart-1, 220 70% 50%))" },
   resultado: { label: "Resultado líquido", color: "hsl(var(--chart-2, 160 60% 45%))" },
 } satisfies ChartConfig;
+
 
 function DashboardPage() {
   const {
@@ -126,6 +103,8 @@ function DashboardPage() {
   const isAdmin = profile?.role === "admin";
   const queryClient = useQueryClient();
   const recalc = useServerFn(recalculateIndicators);
+  const [drillKey, setDrillKey] = useState<string | null>(null);
+
 
   const summary = useQuery({
     queryKey: ["period-summary", selectedPeriodId],
@@ -153,7 +132,7 @@ function DashboardPage() {
   const recalcMutation = useMutation({
     mutationFn: async () => recalc({ data: { period_id: selectedPeriodId! } }),
     onSuccess: () => {
-      toast.success("Indicadores recalculados a partir do balancete do período.");
+      toast.success("Índices recalculados a partir do razão contábil do período.");
       void queryClient.invalidateQueries({ queryKey: ["dashboard-indicators"] });
       void queryClient.invalidateQueries({ queryKey: ["accounting_periods"] });
     },
@@ -295,32 +274,63 @@ function DashboardPage() {
           }
         />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {INDICATOR_ORDER.map((key) => {
-            const meta = INDICATOR_META[key]!;
-            const Icon = meta.icon;
-            const value = currentIndicators.get(key)?.indicator_value;
+        <div className="space-y-6">
+          {GROUP_ORDER.map((group) => {
+            const items = INDICATORS.filter((i) => i.group === group);
             return (
-              <Card key={key}>
-                <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">
-                    {meta.label}
-                  </CardTitle>
-                  <Icon className="size-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-semibold tabular-nums">
-                    {formatIndicator(key, value)}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {formatDateTime(currentIndicators.get(key)?.calculated_at)}
-                  </p>
-                </CardContent>
-              </Card>
+              <section key={group}>
+                <h2 className="mb-2 text-sm font-semibold text-muted-foreground">
+                  {GROUP_LABEL[group]}
+                </h2>
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {items.map((meta) => {
+                    const value = currentIndicators.get(meta.key)?.indicator_value;
+                    return (
+                      <Card
+                        key={meta.key}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setDrillKey(meta.key)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") setDrillKey(meta.key);
+                        }}
+                        className="cursor-pointer transition-colors hover:border-primary/40"
+                      >
+                        <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+                          <CardTitle className="text-sm font-medium text-muted-foreground">
+                            {meta.label}
+                          </CardTitle>
+                          <Search className="size-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-2xl font-semibold tabular-nums">
+                            {formatIndicatorValue(meta.kind, value)}
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">{meta.hint}</p>
+                          <p className="mt-1 text-[11px] text-muted-foreground">
+                            {formatDateTime(currentIndicators.get(meta.key)?.calculated_at)}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </section>
             );
           })}
         </div>
       )}
+
+      <IndicadorDrilldown
+        indicatorKey={drillKey}
+        periodId={selectedPeriodId}
+        referenceMonth={selectedPeriod?.reference_month}
+        value={drillKey ? currentIndicators.get(drillKey)?.indicator_value : undefined}
+        onOpenChange={(open) => {
+          if (!open) setDrillKey(null);
+        }}
+      />
+
 
       {hasIndicators ? (
         <div className="mt-6 grid gap-4 lg:grid-cols-2">
