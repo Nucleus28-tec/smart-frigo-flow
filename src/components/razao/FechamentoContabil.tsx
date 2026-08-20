@@ -221,6 +221,8 @@ export function FechamentoContabil({ periodId, periodLabel, referenceMonth, isAd
   }, [currentYear, year]);
 
   const grid = gridQuery.data;
+  const yearBlock = yearBlocker(grid);
+
   const totals = useMemo(() => {
     const rows = summaryQuery.data ?? [];
     return rows.reduce(
