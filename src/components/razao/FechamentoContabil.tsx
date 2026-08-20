@@ -366,14 +366,23 @@ export function FechamentoContabil({ periodId, periodLabel, referenceMonth, isAd
                 </Button>
               ) : null
             ) : isAdmin ? (
-              <Button
-                disabled={(grid?.closed_months ?? 0) < 12}
-                onClick={() => setConfirm({ kind: "close-year" })}
-              >
-                <Lock className="mr-2 h-4 w-4" />
-                Fechar exercício {year}
-              </Button>
+              <div className="flex flex-col items-end gap-1">
+                <Button
+                  disabled={Boolean(yearBlock)}
+                  title={yearBlock ?? undefined}
+                  onClick={() => setConfirm({ kind: "close-year" })}
+                >
+                  <Lock className="mr-2 h-4 w-4" />
+                  Fechar exercício {year}
+                </Button>
+                {yearBlock ? (
+                  <span className="max-w-xs text-right text-xs text-muted-foreground">
+                    {yearBlock}
+                  </span>
+                ) : null}
+              </div>
             ) : null}
+
           </div>
         </CardContent>
       </Card>
