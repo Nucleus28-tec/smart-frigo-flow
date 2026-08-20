@@ -313,7 +313,39 @@ export function buildAgentTools(options: {
         return data;
       },
     }),
+
+    razao_buscar_lancamentos: tool({
+      description:
+        "Busca livre nos lançamentos do razão do período (histórico, documento, conta). Retorna o id de cada lançamento, necessário para propor um ajuste.",
+      inputSchema: z.object({
+        texto: z.string().describe("Texto livre: histórico, documento ou código/nome de conta"),
+        limite: z.number().describe("Quantos lançamentos retornar (até 100)"),
+      }),
+      execute: async ({ texto, limite }) => {
+        const id = requirePeriod();
+        const { data, error } = await supabase.rpc("journal_search", {
+          _period_id: id,
+          _query: texto,
+          _limit: Math.min(Math.max(1, Math.round(limite || 30)), 100),
+          _offset: 0,
+        });
+        if (error) throw new Error(error.message);
+        return data;
+      },
+    }),
+
+    razao_lancamento: tool({
+      description:
+        "Detalhe de um lançamento específico do razão pelo id: conta, contrapartida, valor, documento, histórico, status e período. Use antes de propor qualquer ajuste.",
+      inputSchema: z.object({ leg_id: z.string().describe("id (uuid) do lançamento no razão") }),
+      execute: async ({ leg_id }) => {
+        const { data, error } = await supabase.rpc("journal_leg_detail", { _leg_id: leg_id });
+        if (error) throw new Error(error.message);
+        return data;
+      },
+    }),
   };
+
 
   if (agent === "contador") {
     tools["propor_classificacao"] = tool({
