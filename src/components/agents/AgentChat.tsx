@@ -155,7 +155,11 @@ export function AgentChat({
                     | Record<string, unknown>
                     | undefined;
                   const proposal = output?.["proposta"];
-                  if (proposal === "classificacao" || proposal === "apontamento") {
+                  if (
+                    proposal === "classificacao" ||
+                    proposal === "apontamento" ||
+                    proposal === "ajuste_lancamento"
+                  ) {
                     return (
                       <AgentProposalCard
                         key={index}
