@@ -1186,17 +1186,30 @@ export type Database = {
         Returns: Json
       }
       journal_pending_report: { Args: { _period_id: string }; Returns: Json }
-      journal_report_analytic: {
-        Args: {
-          _codes?: string[]
-          _doc_number?: string
-          _from?: string
-          _max_rows?: number
-          _period_id: string
-          _to?: string
-        }
-        Returns: Json
-      }
+      journal_report_analytic:
+        | {
+            Args: {
+              _codes?: string[]
+              _doc_number?: string
+              _from?: string
+              _max_rows?: number
+              _period_id: string
+              _to?: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              _codes?: string[]
+              _doc_number?: string
+              _from?: string
+              _max_rows?: number
+              _period_id: string
+              _period_ids?: string[]
+              _to?: string
+            }
+            Returns: Json
+          }
       journal_search: {
         Args: {
           _limit?: number
@@ -1262,16 +1275,28 @@ export type Database = {
         Returns: Json
       }
       sync_accounts_for_period: { Args: { _period_id: string }; Returns: Json }
-      trial_balance_report: {
-        Args: {
-          _codes?: string[]
-          _from?: string
-          _mode?: string
-          _period_id: string
-          _to?: string
-        }
-        Returns: Json
-      }
+      trial_balance_report:
+        | {
+            Args: {
+              _codes?: string[]
+              _from?: string
+              _mode?: string
+              _period_id: string
+              _to?: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              _codes?: string[]
+              _from?: string
+              _mode?: string
+              _period_id: string
+              _period_ids?: string[]
+              _to?: string
+            }
+            Returns: Json
+          }
       txt_norm: { Args: { _t: string }; Returns: string }
       upsert_ledger_account: {
         Args: {
