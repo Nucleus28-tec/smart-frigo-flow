@@ -419,10 +419,21 @@ export const setChartAccountActive = createServerFn({ method: "POST" })
 
 const reportFilters = {
   period_id: z.string().uuid(),
+  /** Períodos que cobrem o intervalo de datas escolhido; vazio = apenas o período ativo. */
+  period_ids: z.array(z.string().uuid()).max(60).default([]),
   codes: z.array(z.string().min(1)).max(2000).default([]),
   from: z.string().nullable().default(null),
   to: z.string().nullable().default(null),
 };
+
+/** Rótulo do cabeçalho: intervalo de datas quando houver, senão o rótulo do período. */
+function rangeLabel(periodLabel: string, from: string | null, to: string | null, count: number) {
+  const day = (v: string) => v.slice(0, 10).split("-").reverse().join("/");
+  if (!from && !to) return periodLabel;
+  const range = `${from ? day(from) : "início"} a ${to ? day(to) : "fim"}`;
+  return count > 1 ? `${range} · ${count} períodos` : `${periodLabel} · ${range}`;
+}
+
 
 /** Razão contábil analítico: contas selecionadas com saldo anterior, lançamentos e totais. */
 export const getLedgerReport = createServerFn({ method: "POST" })
