@@ -286,31 +286,42 @@ export async function buildLedgerReportPdf(options: {
   return await pdf.save();
 }
 
-/* ------------------------------ Balancete analítico ------------------------------ */
+/* ------------------------------ Balancete ------------------------------ */
 
-const TB_COLS = [
-  { key: "code", label: "CODIGO", width: 60 },
-  { key: "hier", label: "PLANO DE CONTAS", width: 105 },
-  { key: "name", label: "DESCRICAO", width: 215 },
-  { key: "ant", label: "SALDO ANTERIOR", width: 92, right: true },
-  { key: "deb", label: "DEBITO", width: 82, right: true },
-  { key: "cred", label: "CREDITO", width: 82, right: true },
-  { key: "atual", label: "SALDO ATUAL", width: 94, right: true },
-];
+type TbCol = { key: string; label: string; width: number; right?: boolean };
 
-function tbColX(index: number) {
-  let x = MARGIN;
-  for (let i = 0; i < index; i += 1) x += TB_COLS[i]!.width + 4;
-  return x;
+function tbCols(showPlan: boolean): TbCol[] {
+  const cols: TbCol[] = [{ key: "code", label: "CODIGO", width: 60 }];
+  if (showPlan) cols.push({ key: "hier", label: "PLANO DE CONTAS", width: 105 });
+  cols.push(
+    { key: "name", label: "DESCRICAO", width: showPlan ? 215 : 320 },
+    { key: "ant", label: "SALDO ANTERIOR", width: 92, right: true },
+    { key: "deb", label: "DEBITO", width: 82, right: true },
+    { key: "cred", label: "CREDITO", width: 82, right: true },
+    { key: "atual", label: "SALDO ATUAL", width: 94, right: true },
+  );
+  return cols;
 }
 
 export async function buildTrialBalanceReportPdf(options: {
   periodLabel: string;
   report: TrialBalanceReport;
   generatedAt: Date;
+  mode?: "analitico" | "sintetico";
+  showPlan?: boolean;
 }) {
+  const mode = options.mode ?? "analitico";
+  const showPlan = options.showPlan ?? true;
+  const cols = tbCols(showPlan);
+  const colX = (index: number) => {
+    let x = MARGIN;
+    for (let i = 0; i < index; i += 1) x += cols[i]!.width + 4;
+    return x;
+  };
+  const title = mode === "sintetico" ? "BALANCETE SINTETICO" : "BALANCETE ANALITICO";
+
   const pdf = await PDFDocument.create();
-  pdf.setTitle(`Balancete Analitico - ${options.periodLabel}`);
+  pdf.setTitle(`${title} - ${options.periodLabel}`);
   pdf.setAuthor("Rotta Financeiro");
   const ctx: Ctx = {
     pdf,
@@ -319,13 +330,13 @@ export async function buildTrialBalanceReportPdf(options: {
   };
   const subtitle = `${options.periodLabel} - Data mov.: ${periodText(options.report.from, options.report.to)}`;
 
-  let page = makePage(ctx, "BALANCETE ANALITICO", subtitle, options.generatedAt);
+  let page = makePage(ctx, title, subtitle, options.generatedAt);
   let y = PAGE_H - 84;
 
   const drawHeader = () => {
-    TB_COLS.forEach((col, index) => {
+    cols.forEach((col, index) => {
       drawRow(page, ctx, y, [
-        { text: col.label, x: tbColX(index), width: col.width, right: Boolean(col.right), bold: true },
+        { text: col.label, x: colX(index), width: col.width, right: Boolean(col.right), bold: true },
       ]);
     });
     y -= 5;
@@ -340,36 +351,51 @@ export async function buildTrialBalanceReportPdf(options: {
 
   drawHeader();
 
+  const valueIndex = showPlan ? 3 : 2;
+
   for (const row of options.report.rows) {
     if (y < 56) {
-      page = makePage(ctx, "BALANCETE ANALITICO", subtitle, options.generatedAt);
+      page = makePage(ctx, title, subtitle, options.generatedAt);
       y = PAGE_H - 84;
       drawHeader();
     }
-    drawRow(page, ctx, y, [
-      { text: row.code, x: tbColX(0), width: TB_COLS[0]!.width },
-      { text: row.hierarchical_code ?? "", x: tbColX(1), width: TB_COLS[1]!.width },
-      { text: row.name, x: tbColX(2), width: TB_COLS[2]!.width },
+    const cells = [
+      { text: row.code, x: colX(0), width: cols[0]!.width },
+      ...(showPlan
+        ? [{ text: row.hierarchical_code ?? "", x: colX(1), width: cols[1]!.width }]
+        : []),
+      { text: row.name, x: colX(showPlan ? 2 : 1), width: cols[showPlan ? 2 : 1]!.width },
       {
         text: balanceLabel(row.saldo_anterior),
-        x: tbColX(3),
-        width: TB_COLS[3]!.width,
+        x: colX(valueIndex),
+        width: cols[valueIndex]!.width,
         right: true,
       },
-      { text: amount(row.debito), x: tbColX(4), width: TB_COLS[4]!.width, right: true },
-      { text: amount(row.credito), x: tbColX(5), width: TB_COLS[5]!.width, right: true },
+      {
+        text: amount(row.debito),
+        x: colX(valueIndex + 1),
+        width: cols[valueIndex + 1]!.width,
+        right: true,
+      },
+      {
+        text: amount(row.credito),
+        x: colX(valueIndex + 2),
+        width: cols[valueIndex + 2]!.width,
+        right: true,
+      },
       {
         text: balanceLabel(row.saldo_atual),
-        x: tbColX(6),
-        width: TB_COLS[6]!.width,
+        x: colX(valueIndex + 3),
+        width: cols[valueIndex + 3]!.width,
         right: true,
       },
-    ]);
+    ];
+    drawRow(page, ctx, y, cells);
     y -= 11;
   }
 
   if (y < 56) {
-    page = makePage(ctx, "BALANCETE ANALITICO", subtitle, options.generatedAt);
+    page = makePage(ctx, title, subtitle, options.generatedAt);
     y = PAGE_H - 84;
     drawHeader();
   }
@@ -383,15 +409,15 @@ export async function buildTrialBalanceReportPdf(options: {
     { text: `Total de contas: ${options.report.rows.length}`, x: MARGIN, width: 240, bold: true },
     {
       text: amount(options.report.totals.debito),
-      x: tbColX(4),
-      width: TB_COLS[4]!.width,
+      x: colX(valueIndex + 1),
+      width: cols[valueIndex + 1]!.width,
       right: true,
       bold: true,
     },
     {
       text: amount(options.report.totals.credito),
-      x: tbColX(5),
-      width: TB_COLS[5]!.width,
+      x: colX(valueIndex + 2),
+      width: cols[valueIndex + 2]!.width,
       right: true,
       bold: true,
     },
@@ -409,6 +435,7 @@ export async function buildTrialBalanceReportPdf(options: {
 
   return await pdf.save();
 }
+
 
 /* ---------------------------------- Excel ---------------------------------- */
 
@@ -566,27 +593,32 @@ export function buildTrialBalanceReportXlsx(options: {
   periodLabel: string;
   report: TrialBalanceReport;
   generatedAt: Date;
+  mode?: "analitico" | "sintetico";
+  showPlan?: boolean;
 }) {
+  const mode = options.mode ?? "analitico";
+  const showPlan = options.showPlan ?? true;
   const wb = XLSX.utils.book_new();
+  const header = [
+    "Código",
+    ...(showPlan ? ["Plano de contas"] : []),
+    "Descrição",
+    "Natureza",
+    "Saldo anterior",
+    "Débito",
+    "Crédito",
+    "Saldo atual",
+  ];
   const rows: (string | number)[][] = [
-    ["Rotta Financeiro — Balancete Analítico"],
+    [`Rotta Financeiro — Balancete ${mode === "sintetico" ? "Sintético" : "Analítico"}`],
     ["Período", options.periodLabel],
     ["Data mov.", periodText(options.report.from, options.report.to)],
     ["Gerado em", options.generatedAt.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })],
     [],
-    [
-      "Código",
-      "Plano de contas",
-      "Descrição",
-      "Natureza",
-      "Saldo anterior",
-      "Débito",
-      "Crédito",
-      "Saldo atual",
-    ],
+    header,
     ...options.report.rows.map((row) => [
       row.code,
-      row.hierarchical_code ?? "",
+      ...(showPlan ? [row.hierarchical_code ?? ""] : []),
       row.name,
       row.nature ?? "",
       row.saldo_anterior,
@@ -595,12 +627,21 @@ export function buildTrialBalanceReportXlsx(options: {
       row.saldo_atual,
     ]),
     [],
-    ["Totais", "", "", "", "", options.report.totals.debito, options.report.totals.credito, ""],
+    [
+      "Totais",
+      ...(showPlan ? [""] : []),
+      "",
+      "",
+      "",
+      options.report.totals.debito,
+      options.report.totals.credito,
+      "",
+    ],
   ];
   const sheet = XLSX.utils.aoa_to_sheet(rows);
   sheet["!cols"] = [
     { wch: 12 },
-    { wch: 24 },
+    ...(showPlan ? [{ wch: 24 }] : []),
     { wch: 48 },
     { wch: 18 },
     { wch: 18 },
@@ -611,3 +652,4 @@ export function buildTrialBalanceReportXlsx(options: {
   XLSX.utils.book_append_sheet(wb, sheet, "Balancete");
   return XLSX.write(wb, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
 }
+

@@ -10,6 +10,8 @@ import { EmptyState, ErrorState, LoadingRows, PageHeader } from "@/components/Pa
 import { GerenciadorLancamentos } from "@/components/razao/GerenciadorLancamentos";
 import { PlanoDeContasRazao } from "@/components/razao/PlanoDeContasRazao";
 import { RelatoriosRazao } from "@/components/razao/RelatoriosRazao";
+import { FechamentoContabil } from "@/components/razao/FechamentoContabil";
+
 
 
 export const Route = createFileRoute("/_authenticated/razao")({
@@ -97,7 +99,9 @@ function RazaoPage() {
           <TabsTrigger value="lancamentos">Lançamentos</TabsTrigger>
           <TabsTrigger value="plano">Plano de contas</TabsTrigger>
           <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
+          <TabsTrigger value="fechamento">Fechamento</TabsTrigger>
         </TabsList>
+
 
         <TabsContent value="lancamentos" className="space-y-4">
           {accounts.isLoading ? (
@@ -138,7 +142,17 @@ function RazaoPage() {
             referenceMonth={selectedPeriod?.reference_month ?? null}
           />
         </TabsContent>
+
+        <TabsContent value="fechamento">
+          <FechamentoContabil
+            periodId={selectedPeriodId}
+            periodLabel={selectedPeriod?.label ?? ""}
+            referenceMonth={selectedPeriod?.reference_month ?? null}
+            isAdmin={isAdmin}
+          />
+        </TabsContent>
       </Tabs>
+
     </>
   );
 
