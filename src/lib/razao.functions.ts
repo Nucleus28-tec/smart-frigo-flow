@@ -446,6 +446,7 @@ export const getLedgerReport = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) =>
     callRpc<JsonObject>(context.supabase, "journal_report_analytic", {
       _period_id: data.period_id,
+      _period_ids: data.period_ids.length ? data.period_ids : null,
       _codes: data.codes.length ? data.codes : null,
       _from: data.from,
       _to: data.to,
@@ -467,12 +468,14 @@ export const getTrialBalanceReport = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) =>
     callRpc<JsonObject>(context.supabase, "trial_balance_report", {
       _period_id: data.period_id,
+      _period_ids: data.period_ids.length ? data.period_ids : null,
       _codes: data.codes.length ? data.codes : null,
       _from: data.from,
       _to: data.to,
       _mode: data.mode,
     }),
   );
+
 
 
 /** Gera PDF ou Excel do relatório escolhido, salva no bucket privado e devolve signed URL. */
