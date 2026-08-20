@@ -506,6 +506,13 @@ export const exportLedgerReport = createServerFn({ method: "POST" })
 
     const generatedAt = new Date();
     const codes = data.codes.length ? data.codes : null;
+    const periodIds = data.period_ids.length ? data.period_ids : null;
+    const headerLabel = rangeLabel(
+      period.label,
+      data.from,
+      data.to,
+      data.period_ids.length || 1,
+    );
     const builders = await import("@/lib/razao-report.server");
 
     let bytes: Uint8Array;
@@ -517,6 +524,7 @@ export const exportLedgerReport = createServerFn({ method: "POST" })
         "journal_report_analytic",
         {
           _period_id: data.period_id,
+          _period_ids: periodIds,
           _codes: codes,
           _from: data.from,
           _to: data.to,
@@ -525,7 +533,7 @@ export const exportLedgerReport = createServerFn({ method: "POST" })
       );
       if (data.format === "pdf") {
         bytes = await builders.buildLedgerReportPdf({
-          periodLabel: period.label,
+          periodLabel: headerLabel,
           report,
           multiPage: data.multi_page,
           generatedAt,
@@ -534,7 +542,7 @@ export const exportLedgerReport = createServerFn({ method: "POST" })
       } else {
         bytes = new Uint8Array(
           builders.buildLedgerReportXlsx({
-            periodLabel: period.label,
+            periodLabel: headerLabel,
             report,
             multiPage: data.multi_page,
             generatedAt,
@@ -548,6 +556,7 @@ export const exportLedgerReport = createServerFn({ method: "POST" })
         "trial_balance_report",
         {
           _period_id: data.period_id,
+          _period_ids: periodIds,
           _codes: codes,
           _from: data.from,
           _to: data.to,
@@ -556,7 +565,7 @@ export const exportLedgerReport = createServerFn({ method: "POST" })
       );
       if (data.format === "pdf") {
         bytes = await builders.buildTrialBalanceReportPdf({
-          periodLabel: period.label,
+          periodLabel: headerLabel,
           report,
           generatedAt,
           mode: data.mode,
@@ -566,7 +575,7 @@ export const exportLedgerReport = createServerFn({ method: "POST" })
       } else {
         bytes = new Uint8Array(
           builders.buildTrialBalanceReportXlsx({
-            periodLabel: period.label,
+            periodLabel: headerLabel,
             report,
             generatedAt,
             mode: data.mode,
@@ -576,6 +585,7 @@ export const exportLedgerReport = createServerFn({ method: "POST" })
         contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
       }
     }
+
 
     const stamp = generatedAt.toISOString().slice(0, 19).replace(/[:T-]/g, "");
     const baseName =
