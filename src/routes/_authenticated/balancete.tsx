@@ -1,14 +1,13 @@
+/**
+ * /balancete — balancete derivado do razão (somente leitura).
+ * Saldo anterior + débito − crédito por conta, agrupado por natureza,
+ * com conferência Ativo × Passivo+PL. Correções só por lançamento de ajuste.
+ */
 import { Fragment, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
-import { toast } from "sonner";
-import { Check, ChevronDown, ChevronRight, Loader2, Pencil, Undo2, X } from "lucide-react";
+import { ChevronDown, ChevronRight, PlusCircle } from "lucide-react";
 
-import { supabase } from "@/integrations/supabase/client";
 import { usePeriod } from "@/hooks/usePeriod";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -29,10 +28,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EmptyState, ErrorState, LoadingRows, PageHeader } from "@/components/PageState";
-import { NATURE_LABEL, NATURE_OPTIONS, formatCurrency, parseCurrencyInput } from "@/lib/rotta";
-import { revertLedgerEntry, updateLedgerEntry } from "@/lib/ledger.functions";
+import { NATURE_LABEL, NATURE_OPTIONS, formatCurrency } from "@/lib/rotta";
 import { ConferenciaBalanco } from "@/components/ConferenciaBalanco";
-
+import { useConferencia, type SaldoConta } from "@/lib/conferencia";
+import {
+  LancamentoAjusteDialog,
+  type AjusteContexto,
+} from "@/components/razao/LancamentoAjusteDialog";
 
 export const Route = createFileRoute("/_authenticated/balancete")({
   component: BalancetePage,
@@ -42,12 +44,12 @@ export const Route = createFileRoute("/_authenticated/balancete")({
       {
         name: "description",
         content:
-          "Tabela editável dos lançamentos do período: revise valores, ajuste naturezas e acompanhe edições manuais.",
+          "Balancete gerado a partir do razão contábil: saldo anterior, débito, crédito e saldo atual por conta, com conferência Ativo × Passivo+PL.",
       },
       { property: "og:title", content: "Balancete | Rotta Financeiro" },
       {
         property: "og:description",
-        content: "Revisão dos lançamentos contábeis do período no Rotta Financeiro.",
+        content: "Balancete derivado do razão contábil do período no Rotta Financeiro.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -55,401 +57,229 @@ export const Route = createFileRoute("/_authenticated/balancete")({
   }),
 });
 
-type Entry = {
-  id: string;
-  file_id: string;
-  account_id: string | null;
-  source_account_name: string;
-  raw_value: number;
-  reviewed_value: number | null;
-  nature: string | null;
-  is_manually_edited: boolean;
-  entry_date: string | null;
+const GRUPOS: { key: string; label: string; naturezas: string[] }[] = [
+  {
+    key: "ativo",
+    label: "Ativo",
+    naturezas: ["ativo_circulante", "ativo_nao_circulante"],
+  },
+  {
+    key: "passivo_pl",
+    label: "Passivo e Patrimônio Líquido",
+    naturezas: ["passivo_circulante", "passivo_nao_circulante", "patrimonio_liquido"],
+  },
+  {
+    key: "resultado",
+    label: "Resultado",
+    naturezas: ["receita", "custo", "despesa"],
+  },
+];
+
+const CREDORAS = new Set([
+  "passivo_circulante",
+  "passivo_nao_circulante",
+  "patrimonio_liquido",
+  "receita",
+]);
+
+type Secao = {
+  nature: string;
+  label: string;
+  contas: SaldoConta[];
+  anterior: number;
+  debito: number;
+  credito: number;
+  saldo: number;
 };
 
-function appliedValue(entry: Entry) {
-  return entry.reviewed_value ?? entry.raw_value;
+function somar(contas: SaldoConta[]) {
+  return contas.reduce(
+    (acc, c) => ({
+      anterior: acc.anterior + c.opening_balance,
+      debito: acc.debito + c.debit_mov,
+      credito: acc.credito + c.credit_mov,
+      saldo: acc.saldo + c.closing_balance,
+    }),
+    { anterior: 0, debito: 0, credito: 0, saldo: 0 },
+  );
+}
+
+/** Saldo com sinal contábil de leitura: contas credoras aparecem positivas. */
+function sinal(nature: string | null, value: number) {
+  return nature && CREDORAS.has(nature) ? -value : value;
 }
 
 function BalancetePage() {
   const { selectedPeriod, selectedPeriodId } = usePeriod();
-  const queryClient = useQueryClient();
+  const conferencia = useConferencia(selectedPeriodId);
 
   const [search, setSearch] = useState("");
   const [natureFilter, setNatureFilter] = useState("todas");
-  const [onlyEdited, setOnlyEdited] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [draftValue, setDraftValue] = useState("");
+  const [onlyMoved, setOnlyMoved] = useState(false);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [bulkNature, setBulkNature] = useState<string>("");
-  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
+  const [ajuste, setAjuste] = useState<AjusteContexto | null>(null);
 
   const isClosed = selectedPeriod?.status === "fechado";
-  const saveEntry = useServerFn(updateLedgerEntry);
-  const revertEntry = useServerFn(revertLedgerEntry);
+  const monthStart = selectedPeriod?.reference_month
+    ? `${selectedPeriod.reference_month.slice(0, 8)}01`
+    : new Date().toISOString().slice(0, 10);
 
+  const contas = conferencia.data?.contas ?? [];
 
-  const entries = useQuery({
-    queryKey: ["ledger_entries", selectedPeriodId],
-    enabled: Boolean(selectedPeriodId),
-    queryFn: async (): Promise<Entry[]> => {
-      const { data, error } = await supabase
-        .from("ledger_entries")
-        .select(
-          "id, file_id, account_id, source_account_name, raw_value, reviewed_value, nature, is_manually_edited, entry_date",
-        )
-        .eq("period_id", selectedPeriodId!)
-        .order("source_account_name", { ascending: true })
-        .limit(5000);
-      if (error) throw error;
-      return (data ?? []) as Entry[];
-    },
-  });
-
-  const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: ["ledger_entries", selectedPeriodId] });
-  };
-
-  const updateMutation = useMutation({
-    mutationFn: (vars: { entry_id: string; reviewed_value?: number | null; nature?: string }) =>
-      saveEntry({
-        data: {
-          entry_id: vars.entry_id,
-          ...(vars.reviewed_value !== undefined ? { reviewed_value: vars.reviewed_value } : {}),
-          ...(vars.nature !== undefined ? { nature: vars.nature as never } : {}),
-        },
-      }),
-    onSuccess: () => {
-      invalidate();
-      setEditingId(null);
-      toast.success("Lançamento atualizado.");
-    },
-    onError: (error: Error) => toast.error(error.message),
-  });
-
-  const revertMutation = useMutation({
-    mutationFn: (entryId: string) => revertEntry({ data: { entry_id: entryId } }),
-    onSuccess: () => {
-      invalidate();
-      toast.success("Edição manual revertida.");
-    },
-    onError: (error: Error) => toast.error(error.message),
-  });
-
-  const rows = useMemo(() => {
-    const list = entries.data ?? [];
+  const filtradas = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return list.filter((entry) => {
-      if (onlyEdited && !entry.is_manually_edited) return false;
-      if (natureFilter === "sem_natureza" && entry.nature) return false;
-      if (
-        natureFilter !== "todas" &&
-        natureFilter !== "sem_natureza" &&
-        entry.nature !== natureFilter
-      ) {
+    return contas.filter((c) => {
+      if (term && !`${c.reduced_code} ${c.account_name}`.toLowerCase().includes(term)) return false;
+      if (natureFilter === "sem_natureza" && c.nature) return false;
+      if (natureFilter !== "todas" && natureFilter !== "sem_natureza" && c.nature !== natureFilter)
         return false;
-      }
-      if (!term) return true;
-      return entry.source_account_name.toLowerCase().includes(term);
+      if (onlyMoved && c.debit_mov === 0 && c.credit_mov === 0) return false;
+      return true;
     });
-  }, [entries.data, search, natureFilter, onlyEdited]);
+  }, [contas, search, natureFilter, onlyMoved]);
 
-  const grouped = useMemo(() => {
-    const map = new Map<string, Entry[]>();
-    for (const entry of rows) {
-      const key = entry.nature ?? "sem_natureza";
-      const list = map.get(key);
-      if (list) list.push(entry);
-      else map.set(key, [entry]);
+  const secoes = useMemo<Map<string, Secao>>(() => {
+    const map = new Map<string, Secao>();
+    for (const nature of [...NATURE_OPTIONS, "sem_natureza"]) {
+      const lista = filtradas
+        .filter((c) => (c.nature ?? "sem_natureza") === nature)
+        .sort((a, b) =>
+          a.reduced_code.localeCompare(b.reduced_code, "pt-BR", { numeric: true }),
+        );
+      if (!lista.length) continue;
+      const totais = somar(lista);
+      map.set(nature, {
+        nature,
+        label: NATURE_LABEL[nature] ?? "Contas sem natureza",
+        contas: lista,
+        ...totais,
+      });
     }
-    const sum = (key: string) =>
-      (map.get(key) ?? []).reduce((acc, e) => acc + Number(appliedValue(e)), 0);
-    const totals: Record<string, number> = {};
-    for (const key of [...NATURE_OPTIONS, "sem_natureza"]) totals[key] = sum(key);
-    const t = (key: string) => totals[key] ?? 0;
+    return map;
+  }, [filtradas]);
 
-    const ativo = Math.abs(t("ativo_circulante") + t("ativo_nao_circulante"));
-    const passivoPl = Math.abs(
-      t("passivo_circulante") + t("passivo_nao_circulante") + t("patrimonio_liquido"),
-    );
-    const receita = Math.abs(t("receita"));
-    const custo = Math.abs(t("custo"));
-    const despesa = Math.abs(t("despesa"));
-
+  const totaisGrupo = useMemo(() => {
+    const total = (naturezas: string[]) =>
+      naturezas.reduce((acc, n) => acc + sinal(n, secoes.get(n)?.saldo ?? 0), 0);
+    const movimento = (nature: string) => {
+      const s = secoes.get(nature);
+      if (!s) return 0;
+      return CREDORAS.has(nature) ? s.credito - s.debito : s.debito - s.credito;
+    };
+    const receita = movimento("receita");
+    const custo = movimento("custo");
+    const despesa = movimento("despesa");
     return {
-      map,
-      totals,
-      ativo,
-      passivoPl,
-      diferenca: ativo - passivoPl,
+      ativo: total(["ativo_circulante", "ativo_nao_circulante"]),
+      passivoPl: total([
+        "passivo_circulante",
+        "passivo_nao_circulante",
+        "patrimonio_liquido",
+      ]),
       receita,
       custo,
       despesa,
       lucroBruto: receita - custo,
       resultado: receita - custo - despesa,
-      semNatureza: map.get("sem_natureza") ?? [],
     };
-  }, [rows]);
+  }, [secoes]);
 
-  function toggleSection(key: string) {
+  const semNatureza = secoes.get("sem_natureza");
+  const filtroAtivo = Boolean(search.trim()) || natureFilter !== "todas" || onlyMoved;
+
+  function toggle(nature: string) {
     setCollapsed((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
+      if (next.has(nature)) next.delete(nature);
+      else next.add(nature);
       return next;
     });
   }
-
-  function toggleSelected(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  function setManySelected(ids: string[], checked: boolean) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      for (const id of ids) {
-        if (checked) next.add(id);
-        else next.delete(id);
-      }
-      return next;
-    });
-  }
-
-  const allVisibleSelected = rows.length > 0 && rows.every((e) => selected.has(e.id));
-
-  async function applyBulkNature() {
-    if (!bulkNature || selected.size === 0) return;
-    const ids = rows.filter((e) => selected.has(e.id)).map((e) => e.id);
-    setBulkProgress({ done: 0, total: ids.length });
-    let ok = 0;
-    let failed = 0;
-    for (let i = 0; i < ids.length; i += 5) {
-      const chunk = ids.slice(i, i + 5);
-      const results = await Promise.allSettled(
-        chunk.map((entry_id) => saveEntry({ data: { entry_id, nature: bulkNature as never } })),
-      );
-      for (const r of results) {
-        if (r.status === "fulfilled") ok += 1;
-        else failed += 1;
-      }
-      setBulkProgress({ done: Math.min(i + chunk.length, ids.length), total: ids.length });
-    }
-    setBulkProgress(null);
-    setSelected(new Set());
-    invalidate();
-    if (failed) toast.error(`${ok} conta(s) classificada(s), ${failed} falharam.`);
-    else toast.success(`${ok} conta(s) classificada(s) como ${NATURE_LABEL[bulkNature] ?? bulkNature}.`);
-  }
-
-
-  function startEdit(entry: Entry) {
-    setEditingId(entry.id);
-    setDraftValue(String(appliedValue(entry)).replace(".", ","));
-  }
-
-  function commitEdit(entry: Entry) {
-    const parsed = parseCurrencyInput(draftValue);
-    if (parsed === null) {
-      toast.error("Informe um valor válido, ex.: 1.234,56 ou -1234,56.");
-      return;
-    }
-    updateMutation.mutate({ entry_id: entry.id, reviewed_value: parsed });
-  }
-
-  function renderEntryRow(entry: Entry) {
-    const editing = editingId === entry.id;
-    return (
-      <TableRow
-        key={entry.id}
-        className={entry.is_manually_edited ? "bg-amber-500/10 hover:bg-amber-500/15" : ""}
-      >
-        <TableCell className="w-[44px] pl-4">
-          <Checkbox
-            checked={selected.has(entry.id)}
-            disabled={isClosed}
-            aria-label={`Selecionar ${entry.source_account_name}`}
-            onCheckedChange={() => toggleSelected(entry.id)}
-          />
-        </TableCell>
-        <TableCell className="pl-2 font-medium">
-          <span className="block">{entry.source_account_name}</span>
-          {entry.is_manually_edited ? (
-            <Badge variant="outline" className="mt-1 border-amber-500/60">
-              Editado manualmente
-            </Badge>
-          ) : null}
-        </TableCell>
-        <TableCell>
-          <Select
-            value={entry.nature ?? ""}
-            disabled={isClosed || updateMutation.isPending}
-            onValueChange={(nature) => updateMutation.mutate({ entry_id: entry.id, nature })}
-          >
-            <SelectTrigger
-              aria-label={`Natureza de ${entry.source_account_name}`}
-              className="h-9"
-            >
-              <SelectValue placeholder="Sem natureza" />
-            </SelectTrigger>
-            <SelectContent>
-              {NATURE_OPTIONS.map((nature) => (
-                <SelectItem key={nature} value={nature}>
-                  {NATURE_LABEL[nature]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </TableCell>
-        <TableCell className="text-right tabular-nums text-muted-foreground">
-          {formatCurrency(entry.raw_value)}
-        </TableCell>
-        <TableCell className="text-right">
-          {editing ? (
-            <div className="flex items-center justify-end gap-1">
-              <Input
-                autoFocus
-                value={draftValue}
-                aria-label={`Valor revisado de ${entry.source_account_name}`}
-                onChange={(e) => setDraftValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") commitEdit(entry);
-                  if (e.key === "Escape") setEditingId(null);
-                }}
-                className="h-9 text-right"
-              />
-              <Button
-                size="sm"
-                variant="ghost"
-                aria-label="Salvar valor"
-                onClick={() => commitEdit(entry)}
-              >
-                {updateMutation.isPending ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Check className="size-4" />
-                )}
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                aria-label="Cancelar edição"
-                onClick={() => setEditingId(null)}
-              >
-                <X className="size-4" />
-              </Button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              disabled={isClosed}
-              onClick={() => startEdit(entry)}
-              className="inline-flex items-center gap-2 rounded px-2 py-1 tabular-nums hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {entry.reviewed_value === null ? "—" : formatCurrency(entry.reviewed_value)}
-              <Pencil className="size-3.5 text-muted-foreground" />
-            </button>
-          )}
-        </TableCell>
-        <TableCell className="text-right font-medium tabular-nums">
-          {formatCurrency(appliedValue(entry))}
-        </TableCell>
-        <TableCell className="text-right">
-          {entry.is_manually_edited ? (
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={isClosed || revertMutation.isPending}
-              onClick={() => revertMutation.mutate(entry.id)}
-            >
-              <Undo2 className="mr-1 size-4" />
-              Reverter
-            </Button>
-          ) : null}
-        </TableCell>
-      </TableRow>
-    );
-  }
-
-  function renderSection(key: string, label: string) {
-    const list = grouped.map.get(key) ?? [];
-    if (!list.length) return null;
-    const isCollapsed = collapsed.has(key);
-    return (
-      <Fragment key={key}>
-        <TableRow className="bg-muted/60 hover:bg-muted/60">
-          <TableCell className="w-[44px] pl-4">
-            <Checkbox
-              checked={list.every((e) => selected.has(e.id))}
-              disabled={isClosed}
-              aria-label={`Selecionar todas as contas de ${label}`}
-              onCheckedChange={(checked) =>
-                setManySelected(
-                  list.map((e) => e.id),
-                  checked === true,
-                )
-              }
-            />
-          </TableCell>
-          <TableCell colSpan={4}>
-            <button
-              type="button"
-              onClick={() => toggleSection(key)}
-              className="inline-flex items-center gap-2 text-sm font-semibold"
-            >
-              {isCollapsed ? (
-                <ChevronRight className="size-4" />
-              ) : (
-                <ChevronDown className="size-4" />
-              )}
-              {label}
-              <span className="text-xs font-normal text-muted-foreground">
-                {list.length} conta(s)
-              </span>
-            </button>
-          </TableCell>
-          <TableCell className="text-right font-semibold tabular-nums">
-            {formatCurrency(grouped.totals[key] ?? 0)}
-          </TableCell>
-          <TableCell />
-        </TableRow>
-        {isCollapsed ? null : list.map(renderEntryRow)}
-      </Fragment>
-    );
-  }
-
-  function renderGroupTotal(label: string, value: number) {
-    return (
-      <TableRow className="border-t-2 border-border hover:bg-transparent">
-        <TableCell colSpan={5} className="text-sm font-semibold uppercase tracking-wide">
-          {label}
-        </TableCell>
-        <TableCell className="text-right font-semibold tabular-nums">
-          {formatCurrency(value)}
-        </TableCell>
-        <TableCell />
-      </TableRow>
-    );
-  }
-
 
   if (!selectedPeriodId) {
     return (
       <>
         <PageHeader
           title="Balancete"
-          description="Lançamentos do período com valores revisados e naturezas contábeis."
+          description="Balancete gerado a partir do razão contábil do período."
         />
         <EmptyState
           title="Selecione um período"
-          description="Escolha um período contábil no cabeçalho para revisar os lançamentos."
+          description="Escolha um período contábil no cabeçalho para ver o balancete."
         />
       </>
+    );
+  }
+
+  function renderSecao(secao: Secao) {
+    const aberta = !collapsed.has(secao.nature);
+    return (
+      <Fragment key={secao.nature}>
+        <TableRow className="bg-muted/60">
+          <TableCell colSpan={2}>
+            <button
+              type="button"
+              onClick={() => toggle(secao.nature)}
+              className="flex items-center gap-2 text-sm font-semibold"
+            >
+              {aberta ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+              {secao.label}
+              <span className="font-normal text-muted-foreground">
+                ({secao.contas.length} conta{secao.contas.length > 1 ? "s" : ""})
+              </span>
+            </button>
+          </TableCell>
+          <TableCell className="text-right tabular-nums">{formatCurrency(secao.anterior)}</TableCell>
+          <TableCell className="text-right tabular-nums">{formatCurrency(secao.debito)}</TableCell>
+          <TableCell className="text-right tabular-nums">{formatCurrency(secao.credito)}</TableCell>
+          <TableCell className="text-right font-semibold tabular-nums">
+            {formatCurrency(sinal(secao.nature, secao.saldo))}
+          </TableCell>
+          <TableCell />
+        </TableRow>
+        {aberta
+          ? secao.contas.map((c) => (
+              <TableRow key={c.reduced_code}>
+                <TableCell className="font-mono text-xs">{c.reduced_code}</TableCell>
+                <TableCell className="max-w-[280px] truncate">{c.account_name}</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatCurrency(c.opening_balance)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatCurrency(c.debit_mov)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatCurrency(c.credit_mov)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatCurrency(sinal(c.nature, c.closing_balance))}
+                </TableCell>
+                <TableCell className="text-right">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={isClosed}
+                    title={
+                      isClosed
+                        ? "Período fechado: reabra o período para lançar ajustes."
+                        : "Ajustar por lançamento no razão"
+                    }
+                    onClick={() =>
+                      setAjuste({
+                        reduced_code: c.reduced_code,
+                        account_name: c.account_name,
+                        side: c.nature && CREDORAS.has(c.nature) ? "credito" : "debito",
+                      })
+                    }
+                  >
+                    <PlusCircle className="mr-1 size-4" />
+                    Ajustar
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))
+          : null}
+      </Fragment>
     );
   }
 
@@ -457,15 +287,14 @@ function BalancetePage() {
     <>
       <PageHeader
         title="Balancete"
-        description={`Lançamentos de ${selectedPeriod?.label ?? ""}. O valor revisado prevalece sobre o valor bruto importado.`}
+        description={`Balancete de ${selectedPeriod?.label ?? ""} gerado pelo razão contábil. Correções são feitas por lançamento de ajuste.`}
       />
 
       <ConferenciaBalanco periodId={selectedPeriodId} />
 
-
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
         <Input
-          placeholder="Buscar conta"
+          placeholder="Buscar por código ou nome da conta"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="sm:max-w-sm"
@@ -486,215 +315,144 @@ function BalancetePage() {
         </Select>
         <div className="flex items-center gap-2 sm:ml-auto">
           <Checkbox
-            id="somente-editados"
-            checked={onlyEdited}
-            onCheckedChange={(checked) => setOnlyEdited(checked === true)}
+            id="somente-movimento"
+            checked={onlyMoved}
+            onCheckedChange={(checked) => setOnlyMoved(checked === true)}
           />
-          <Label htmlFor="somente-editados" className="text-sm font-normal">
-            Somente editados
+          <Label htmlFor="somente-movimento" className="text-sm font-normal">
+            Somente contas com movimento
           </Label>
         </div>
       </div>
 
       {isClosed ? (
         <p className="mb-4 text-sm text-muted-foreground">
-          Período fechado: os lançamentos estão em modo somente leitura.
+          Período fechado: lançamentos de ajuste ficam bloqueados até a reabertura.
         </p>
       ) : null}
 
-      {entries.isLoading ? (
+      {conferencia.isLoading ? (
         <LoadingRows />
-      ) : entries.isError ? (
+      ) : conferencia.isError ? (
         <ErrorState
-          message={(entries.error as Error)?.message}
-          onRetry={() => void entries.refetch()}
+          message={(conferencia.error as Error)?.message}
+          onRetry={() => void conferencia.refetch()}
         />
-      ) : rows.length === 0 ? (
+      ) : contas.length === 0 ? (
         <EmptyState
-          title="Nenhum lançamento"
-          description={
-            (entries.data ?? []).length === 0
-              ? "Importe o balancete do período na tela Importar."
-              : "Ajuste os filtros para ver outros lançamentos."
-          }
+          title="Nenhum saldo no período"
+          description="Importe o razão contábil do período em Importar › Razão contábil (G2)."
+        />
+      ) : filtradas.length === 0 ? (
+        <EmptyState
+          title="Nenhuma conta encontrada"
+          description="Ajuste os filtros para ver outras contas."
         />
       ) : (
         <>
-          <div className="mb-4 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-md border border-border bg-card px-4 py-3">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Ativo</p>
-              <p className="text-lg font-semibold tabular-nums">
-                {formatCurrency(grouped.ativo)}
-              </p>
-            </div>
-            <div className="rounded-md border border-border bg-card px-4 py-3">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                Passivo + PL
-              </p>
-              <p className="text-lg font-semibold tabular-nums">
-                {formatCurrency(grouped.passivoPl)}
-              </p>
-            </div>
-            <div
-              className={`rounded-md border px-4 py-3 ${
-                Math.abs(grouped.diferenca) < 0.01
-                  ? "border-border bg-card"
-                  : "border-amber-500/60 bg-amber-500/10"
-              }`}
-            >
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                {Math.abs(grouped.diferenca) < 0.01 ? "Balancete fechado" : "Diferença"}
-              </p>
-              <p className="text-lg font-semibold tabular-nums">
-                {formatCurrency(grouped.diferenca)}
-              </p>
-            </div>
-          </div>
-
-          {grouped.semNatureza.length ? (
+          {semNatureza ? (
             <p className="mb-4 text-sm text-amber-700 dark:text-amber-400">
-              {grouped.semNatureza.length} conta(s) sem natureza — classifique-as para consolidar
-              o resultado.
+              {semNatureza.contas.length} conta(s) sem natureza — classifique-as no plano de contas
+              do razão para consolidar o resultado.
             </p>
           ) : null}
 
-          {search.trim() || natureFilter !== "todas" || onlyEdited ? (
+          {filtroAtivo ? (
             <p className="mb-4 text-sm text-muted-foreground">
               Filtros ativos: os subtotais consideram apenas as contas visíveis.
             </p>
           ) : null}
 
-          {selected.size > 0 ? (
-            <div className="sticky top-2 z-20 mb-4 flex flex-col gap-3 rounded-md border border-primary/40 bg-card px-4 py-3 shadow-sm sm:flex-row sm:items-center">
-              <span className="text-sm font-medium">
-                {selected.size} conta(s) selecionada(s)
-              </span>
-              <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-                <Select value={bulkNature} onValueChange={setBulkNature}>
-                  <SelectTrigger className="sm:w-[240px]" aria-label="Natureza para aplicar em massa">
-                    <SelectValue placeholder="Escolha a natureza" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {NATURE_OPTIONS.map((nature) => (
-                      <SelectItem key={nature} value={nature}>
-                        {NATURE_LABEL[nature]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  disabled={isClosed || !bulkNature || bulkProgress !== null}
-                  onClick={() => void applyBulkNature()}
-                >
-                  {bulkProgress ? (
-                    <>
-                      <Loader2 className="mr-2 size-4 animate-spin" />
-                      {bulkProgress.done}/{bulkProgress.total}
-                    </>
-                  ) : (
-                    "Classificar selecionadas"
-                  )}
-                </Button>
-                <Button
-                  variant="ghost"
-                  disabled={bulkProgress !== null}
-                  onClick={() => setSelected(new Set())}
-                >
-                  Limpar
-                </Button>
-              </div>
-            </div>
-          ) : null}
+          <div className="rounded-md border border-border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[110px]">Código</TableHead>
+                  <TableHead>Conta</TableHead>
+                  <TableHead className="text-right">Saldo anterior</TableHead>
+                  <TableHead className="text-right">Débito</TableHead>
+                  <TableHead className="text-right">Crédito</TableHead>
+                  <TableHead className="text-right">Saldo atual</TableHead>
+                  <TableHead className="w-[120px]" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {semNatureza ? renderSecao(semNatureza) : null}
 
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[44px] pl-4">
-                      <Checkbox
-                        checked={allVisibleSelected}
-                        disabled={isClosed}
-                        aria-label="Selecionar todas as contas visíveis"
-                        onCheckedChange={(checked) =>
-                          setManySelected(
-                            rows.map((e) => e.id),
-                            checked === true,
-                          )
-                        }
-                      />
-                    </TableHead>
-                    <TableHead>Conta</TableHead>
-                    <TableHead className="w-[230px]">Natureza</TableHead>
-                    <TableHead className="text-right">Valor bruto</TableHead>
-                    <TableHead className="w-[220px] text-right">Valor revisado</TableHead>
-                    <TableHead className="text-right">Valor aplicado</TableHead>
-                    <TableHead className="w-[110px] text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {renderSection("sem_natureza", "Contas sem natureza")}
-
-                  {renderSection("ativo_circulante", "Ativo circulante")}
-                  {renderSection("ativo_nao_circulante", "Ativo não circulante")}
-                  {grouped.map.has("ativo_circulante") ||
-                  grouped.map.has("ativo_nao_circulante")
-                    ? renderGroupTotal("Total do Ativo", grouped.ativo)
-                    : null}
-
-                  {renderSection("passivo_circulante", "Passivo circulante")}
-                  {renderSection("passivo_nao_circulante", "Passivo não circulante")}
-                  {renderSection("patrimonio_liquido", "Patrimônio líquido")}
-                  {grouped.map.has("passivo_circulante") ||
-                  grouped.map.has("passivo_nao_circulante") ||
-                  grouped.map.has("patrimonio_liquido")
-                    ? renderGroupTotal("Total do Passivo + Patrimônio líquido", grouped.passivoPl)
-                    : null}
-
-                  {renderSection("receita", "Receita")}
-                  {renderSection("custo", "Custo")}
-                  {grouped.map.has("receita") || grouped.map.has("custo")
-                    ? renderGroupTotal("(=) Lucro bruto", grouped.lucroBruto)
-                    : null}
-                  {renderSection("despesa", "Despesa")}
-                  {grouped.map.has("receita") ||
-                  grouped.map.has("custo") ||
-                  grouped.map.has("despesa")
-                    ? renderGroupTotal("(=) Resultado do período", grouped.resultado)
-                    : null}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-
-          <Card className="mt-6">
-            <CardContent className="pt-6">
-              <h2 className="mb-3 text-sm font-semibold">Resumo de fechamento</h2>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {[
-                  ["Total do Ativo", grouped.ativo],
-                  ["Total do Passivo + PL", grouped.passivoPl],
-                  ["Diferença (Ativo − Passivo/PL)", grouped.diferenca],
-                  ["Receita", grouped.receita],
-                  ["Custo", grouped.custo],
-                  ["Despesa", grouped.despesa],
-                  ["Lucro bruto", grouped.lucroBruto],
-                  ["Resultado do período", grouped.resultado],
-                ].map(([label, value]) => (
-                  <div
-                    key={label as string}
-                    className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm"
-                  >
-                    <span className="text-muted-foreground">{label as string}</span>
-                    <span className="tabular-nums">{formatCurrency(value as number)}</span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                {GRUPOS.map((grupo) => {
+                  const secoesGrupo = grupo.naturezas
+                    .map((n) => secoes.get(n))
+                    .filter((s): s is Secao => Boolean(s));
+                  if (!secoesGrupo.length) return null;
+                  return (
+                    <Fragment key={grupo.key}>
+                      <TableRow className="bg-primary/10">
+                        <TableCell colSpan={7} className="text-sm font-semibold uppercase tracking-wide">
+                          {grupo.label}
+                        </TableCell>
+                      </TableRow>
+                      {secoesGrupo.map(renderSecao)}
+                      {grupo.key === "ativo" ? (
+                        <TableRow className="border-t-2">
+                          <TableCell colSpan={5} className="font-semibold">
+                            Total do Ativo
+                          </TableCell>
+                          <TableCell className="text-right font-semibold tabular-nums">
+                            {formatCurrency(totaisGrupo.ativo)}
+                          </TableCell>
+                          <TableCell />
+                        </TableRow>
+                      ) : null}
+                      {grupo.key === "passivo_pl" ? (
+                        <TableRow className="border-t-2">
+                          <TableCell colSpan={5} className="font-semibold">
+                            Total do Passivo + Patrimônio Líquido
+                          </TableCell>
+                          <TableCell className="text-right font-semibold tabular-nums">
+                            {formatCurrency(totaisGrupo.passivoPl)}
+                          </TableCell>
+                          <TableCell />
+                        </TableRow>
+                      ) : null}
+                      {grupo.key === "resultado" ? (
+                        <>
+                          <TableRow>
+                            <TableCell colSpan={5} className="font-medium">
+                              (=) Lucro bruto
+                            </TableCell>
+                            <TableCell className="text-right font-medium tabular-nums">
+                              {formatCurrency(totaisGrupo.lucroBruto)}
+                            </TableCell>
+                            <TableCell />
+                          </TableRow>
+                          <TableRow className="border-t-2">
+                            <TableCell colSpan={5} className="font-semibold">
+                              (=) Resultado do período
+                            </TableCell>
+                            <TableCell className="text-right font-semibold tabular-nums">
+                              {formatCurrency(totaisGrupo.resultado)}
+                            </TableCell>
+                            <TableCell />
+                          </TableRow>
+                        </>
+                      ) : null}
+                    </Fragment>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
         </>
       )}
 
+      <LancamentoAjusteDialog
+        periodId={selectedPeriodId}
+        contexto={ajuste}
+        defaultDate={monthStart}
+        onOpenChange={(open) => {
+          if (!open) setAjuste(null);
+        }}
+      />
     </>
   );
 }

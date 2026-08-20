@@ -484,11 +484,17 @@ function ImportarPage() {
               <SelectContent>
                 {Object.entries(FILE_TYPE_LABEL).map(([value, label]) => (
                   <SelectItem key={value} value={value}>
-                    {label}
+                    {value === "balancete" ? `${label} — em descontinuação` : label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {fileType === "balancete" ? (
+              <p className="text-xs text-amber-700 dark:text-amber-400">
+                Em descontinuação: o balancete oficial agora é gerado pelo razão contábil. Esta
+                importação serve apenas como espelho de conferência.
+              </p>
+            ) : null}
           </div>
           <div className="space-y-2">
             <Label htmlFor="arquivo">Arquivo (PDF, Excel ou CSV)</Label>
@@ -563,7 +569,16 @@ function ImportarPage() {
                         </span>
                       ) : null}
                     </TableCell>
-                    <TableCell>{FILE_TYPE_LABEL[row.file_type] ?? row.file_type}</TableCell>
+                    <TableCell>
+                      <span className="block">
+                        {FILE_TYPE_LABEL[row.file_type] ?? row.file_type}
+                      </span>
+                      {row.file_type === "balancete" ? (
+                        <Badge variant="outline" className="mt-1 text-amber-700 dark:text-amber-400">
+                          Em descontinuação
+                        </Badge>
+                      ) : null}
+                    </TableCell>
                     <TableCell>
                       <StatusBadge status={row.processing_status} />
                     </TableCell>
