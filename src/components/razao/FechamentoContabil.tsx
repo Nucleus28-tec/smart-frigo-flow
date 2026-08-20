@@ -478,29 +478,46 @@ export function FechamentoContabil({ periodId, periodLabel, referenceMonth, isAd
                             Criar período
                           </Button>
                         ) : closed ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={busy === key || Boolean(grid?.annual)}
-                            onClick={() => setConfirm({ kind: "reopen", row })}
-                          >
-                            <LockOpen className="mr-2 h-4 w-4" />
-                            Reabrir
-                          </Button>
+                          <div className="flex flex-col items-end gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={busy === key || Boolean(reopenBlocker(row, grid))}
+                              title={reopenBlocker(row, grid) ?? undefined}
+                              onClick={() => setConfirm({ kind: "reopen", row })}
+                            >
+                              <LockOpen className="mr-2 h-4 w-4" />
+                              Reabrir
+                            </Button>
+                            {reopenBlocker(row, grid) ? (
+                              <span className="max-w-[18rem] text-right text-xs text-muted-foreground">
+                                {reopenBlocker(row, grid)}
+                              </span>
+                            ) : null}
+                          </div>
                         ) : (
-                          <Button
-                            size="sm"
-                            disabled={busy === key}
-                            onClick={() => setConfirm({ kind: "close", row })}
-                          >
-                            {busy === key ? (
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                              <Lock className="mr-2 h-4 w-4" />
-                            )}
-                            Fechar mês
-                          </Button>
+                          <div className="flex flex-col items-end gap-1">
+                            <Button
+                              size="sm"
+                              disabled={busy === key || Boolean(closeBlocker(row, grid))}
+                              title={closeBlocker(row, grid) ?? undefined}
+                              onClick={() => setConfirm({ kind: "close", row })}
+                            >
+                              {busy === key ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              ) : (
+                                <Lock className="mr-2 h-4 w-4" />
+                              )}
+                              Fechar mês
+                            </Button>
+                            {closeBlocker(row, grid) ? (
+                              <span className="max-w-[18rem] text-right text-xs text-muted-foreground">
+                                {closeBlocker(row, grid)}
+                              </span>
+                            ) : null}
+                          </div>
                         )}
+
                       </TableCell>
                     </TableRow>
                   );
