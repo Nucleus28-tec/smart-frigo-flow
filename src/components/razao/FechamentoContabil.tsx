@@ -126,6 +126,49 @@ function statusBadge(row: MonthRow) {
   return <Badge variant="outline">Aberto</Badge>;
 }
 
+function listMonths(months: number[]) {
+  const names = months.map((m) => MONTHS[m - 1]);
+  if (names.length === 1) return names[0]!;
+  return `${names.slice(0, -1).join(", ")} e ${names[names.length - 1]}`;
+}
+
+/** Motivo que impede fechar o mês, ou null quando o fechamento é permitido. */
+function closeBlocker(row: MonthRow, grid: Grid | undefined): string | null {
+  if (!grid) return null;
+  if (grid.annual)
+    return `O exercício ${grid.year} está fechado. Cancele o fechamento do exercício antes de movimentar os meses.`;
+  const pending = grid.months
+    .filter((m) => m.month < row.month && m.status !== "fechado" && m.status !== "inexistente")
+    .map((m) => m.month);
+  if (pending.length > 0)
+    return `Ordem obrigatória: feche antes ${listMonths(pending)} de ${grid.year}.`;
+  return null;
+}
+
+/** Motivo que impede cancelar o fechamento do mês, ou null quando é permitido. */
+function reopenBlocker(row: MonthRow, grid: Grid | undefined): string | null {
+  if (!grid) return null;
+  if (grid.annual)
+    return `Cancele primeiro o fechamento do exercício ${grid.year} para poder reabrir os meses.`;
+  const later = grid.months.filter((m) => m.month > row.month && m.status === "fechado").map((m) => m.month);
+  if (later.length > 0)
+    return `Ordem obrigatória: reabra antes ${listMonths(later)} de ${grid.year} (do mês mais recente para o mais antigo).`;
+  return null;
+}
+
+/** Motivo que impede fechar o exercício, ou null quando é permitido. */
+function yearBlocker(grid: Grid | undefined): string | null {
+  if (!grid) return null;
+  const missing = grid.months.filter((m) => m.status === "inexistente").map((m) => m.month);
+  if (missing.length > 0)
+    return `Falta cadastrar o período de ${listMonths(missing)} de ${grid.year}.`;
+  const open = grid.months.filter((m) => m.status !== "fechado").map((m) => m.month);
+  if (open.length > 0)
+    return `Ainda estão abertos ${listMonths(open)} de ${grid.year}. Feche os 12 meses, em ordem, antes do fechamento anual.`;
+  return null;
+}
+
+
 export function FechamentoContabil({ periodId, periodLabel, referenceMonth, isAdmin }: Props) {
   const currentYear = referenceMonth ? Number(referenceMonth.slice(0, 4)) : new Date().getFullYear();
   const [year, setYear] = useState<number>(currentYear);
