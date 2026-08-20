@@ -3,7 +3,7 @@
  * visualização em tela do Razão Contábil Analítico e do Balancete Analítico,
  * com exportação em PDF (multi página opcional) e Excel.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
