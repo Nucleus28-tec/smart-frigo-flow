@@ -31,6 +31,8 @@ import {
 import { EmptyState, ErrorState, LoadingRows, PageHeader } from "@/components/PageState";
 import { NATURE_LABEL, NATURE_OPTIONS, formatCurrency, parseCurrencyInput } from "@/lib/rotta";
 import { revertLedgerEntry, updateLedgerEntry } from "@/lib/ledger.functions";
+import { ConferenciaBalanco } from "@/components/ConferenciaBalanco";
+
 
 export const Route = createFileRoute("/_authenticated/balancete")({
   component: BalancetePage,
@@ -457,6 +459,9 @@ function BalancetePage() {
         title="Balancete"
         description={`Lançamentos de ${selectedPeriod?.label ?? ""}. O valor revisado prevalece sobre o valor bruto importado.`}
       />
+
+      <ConferenciaBalanco periodId={selectedPeriodId} />
+
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
         <Input

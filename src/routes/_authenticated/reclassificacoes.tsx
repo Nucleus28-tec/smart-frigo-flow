@@ -34,6 +34,7 @@ import {
   applyReclassificationDecision,
   suggestReclassifications,
 } from "@/lib/reclass.functions";
+import { PendenciasPlanoContas } from "@/components/PendenciasPlanoContas";
 
 export const Route = createFileRoute("/_authenticated/reclassificacoes")({
   component: ReclassificacoesPage,
@@ -212,6 +213,8 @@ function ReclassificacoesPage() {
         />
       ) : (
         <>
+          <PendenciasPlanoContas periodId={selectedPeriodId} />
+
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <Select value={status} onValueChange={setStatus}>
               <SelectTrigger className="w-[180px]">

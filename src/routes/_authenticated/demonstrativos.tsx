@@ -13,6 +13,7 @@ import { usePeriod } from "@/hooks/usePeriod";
 import { useProfile } from "@/hooks/useProfile";
 import { exportReport, generateStatements } from "@/lib/reports.functions";
 import { formatCurrency } from "@/lib/rotta";
+import { ConferenciaBalanco } from "@/components/ConferenciaBalanco";
 
 type Line = { label: string; value: number; kind?: string };
 type Statement = {
@@ -134,6 +135,8 @@ function DemonstrativosPage() {
         />
       ) : (
         <div className="space-y-6">
+          <ConferenciaBalanco periodId={periodId} />
+
           <div className="flex flex-wrap items-center gap-2">
             {isAdmin ? (
               <Button
