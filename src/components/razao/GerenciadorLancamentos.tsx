@@ -760,7 +760,7 @@ export function GerenciadorLancamentos({
   return (
     <div className="space-y-4">
       <Card>
-        <CardContent className="grid gap-3 pt-6 md:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
+        <CardContent className="grid gap-3 pt-6 md:grid-cols-[minmax(0,1fr)_minmax(240px,auto)_auto]">
           <div className="relative">
             <Search className="absolute left-2 top-2.5 size-4 text-muted-foreground" />
             <Input
@@ -771,24 +771,17 @@ export function GerenciadorLancamentos({
               aria-label="Pesquisar lançamentos"
             />
           </div>
-          <Input
-            type="date"
-            value={from}
-            onChange={(e) => {
-              setFrom(e.target.value);
+          <DateRangeField
+            value={{ from, to }}
+            referenceMonth={referenceMonth}
+            placeholder="Todas as datas"
+            onChange={(next) => {
+              setFrom(next.from);
+              setTo(next.to);
               setPage(0);
             }}
-            aria-label="Data inicial"
           />
-          <Input
-            type="date"
-            value={to}
-            onChange={(e) => {
-              setTo(e.target.value);
-              setPage(0);
-            }}
-            aria-label="Data final"
-          />
+
           <Button
             variant={includeCancelled ? "default" : "outline"}
             onClick={() => {
