@@ -144,6 +144,46 @@ export function AgentProposalCard({ threadId, periodId, payload, isAdmin }: Prop
             </div>
           ) : null}
         </div>
+      ) : kind === "ajuste_lancamento" ? (
+        <div className="mt-2 space-y-2 text-xs text-muted-foreground">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div className="rounded-md border border-border/60 p-2">
+              <p className="mb-1 font-medium text-foreground">Hoje</p>
+              <p>
+                Conta: {contaAtual} {contaAtualNome ? `· ${contaAtualNome}` : ""}
+              </p>
+              <p>Valor: {formatBRL(valorAtual)}</p>
+            </div>
+            <div className="rounded-md border border-brand/40 bg-brand/5 p-2">
+              <p className="mb-1 font-medium text-foreground">Proposto</p>
+              <p className={mudaConta ? "font-medium text-foreground" : undefined}>
+                Conta: {mudaConta ? novaConta : contaAtual}{" "}
+                {mudaConta ? (novaContaNome ? `· ${novaContaNome}` : "") : contaAtualNome ? `· ${contaAtualNome}` : ""}
+              </p>
+              <p className={mudaValor ? "font-medium text-foreground" : undefined}>
+                Valor: {formatBRL(mudaValor ? novoValor : valorAtual)}
+                {mudaValor ? ` (${novoValor > valorAtual ? "+" : "−"}${formatBRL(Math.abs(novoValor - valorAtual))})` : ""}
+              </p>
+            </div>
+          </div>
+          {payload["justificativa"] ? (
+            <p className="text-foreground">{String(payload["justificativa"])}</p>
+          ) : null}
+          {Array.isArray(payload["evidencias"]) && payload["evidencias"].length > 0 ? (
+            <div className="rounded-md bg-muted/50 p-2">
+              <p className="mb-1 font-medium text-foreground">Evidências</p>
+              <ul className="list-disc space-y-0.5 pl-4">
+                {(payload["evidencias"] as unknown[]).slice(0, 10).map((item, index) => (
+                  <li key={index}>{String(item)}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          <p className="text-[11px]">
+            Ao aplicar, o sistema gera um <strong>lançamento de ajuste</strong> rastreável e registra a trilha de
+            auditoria. O lançamento original importado não é alterado.
+          </p>
+        </div>
       ) : (
         <div className="mt-2 space-y-1 text-xs text-muted-foreground">
           <p className="text-foreground">{String(payload["descricao"] ?? "")}</p>
@@ -153,6 +193,7 @@ export function AgentProposalCard({ threadId, periodId, payload, isAdmin }: Prop
           <p>Severidade: {String(payload["severidade"] ?? "media")}</p>
         </div>
       )}
+
 
       <div className="mt-3 flex items-center gap-2">
         {applied ? (
