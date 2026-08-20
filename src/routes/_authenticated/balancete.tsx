@@ -458,6 +458,9 @@ function BalancetePage() {
         description={`Lançamentos de ${selectedPeriod?.label ?? ""}. O valor revisado prevalece sobre o valor bruto importado.`}
       />
 
+      <ConferenciaBalanco periodId={selectedPeriodId} />
+
+
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
         <Input
           placeholder="Buscar conta"
