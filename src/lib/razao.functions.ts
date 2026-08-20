@@ -475,6 +475,9 @@ export const exportLedgerReport = createServerFn({ method: "POST" })
         kind: z.enum(["razao", "balancete"]),
         format: z.enum(["pdf", "xlsx"]),
         multi_page: z.boolean().default(false),
+        mode: z.enum(["analitico", "sintetico"]).default("analitico"),
+        show_plan: z.boolean().default(true),
+
       })
       .parse(input),
   )
