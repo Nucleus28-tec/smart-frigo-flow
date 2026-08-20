@@ -593,27 +593,32 @@ export function buildTrialBalanceReportXlsx(options: {
   periodLabel: string;
   report: TrialBalanceReport;
   generatedAt: Date;
+  mode?: "analitico" | "sintetico";
+  showPlan?: boolean;
 }) {
+  const mode = options.mode ?? "analitico";
+  const showPlan = options.showPlan ?? true;
   const wb = XLSX.utils.book_new();
+  const header = [
+    "Código",
+    ...(showPlan ? ["Plano de contas"] : []),
+    "Descrição",
+    "Natureza",
+    "Saldo anterior",
+    "Débito",
+    "Crédito",
+    "Saldo atual",
+  ];
   const rows: (string | number)[][] = [
-    ["Rotta Financeiro — Balancete Analítico"],
+    [`Rotta Financeiro — Balancete ${mode === "sintetico" ? "Sintético" : "Analítico"}`],
     ["Período", options.periodLabel],
     ["Data mov.", periodText(options.report.from, options.report.to)],
     ["Gerado em", options.generatedAt.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })],
     [],
-    [
-      "Código",
-      "Plano de contas",
-      "Descrição",
-      "Natureza",
-      "Saldo anterior",
-      "Débito",
-      "Crédito",
-      "Saldo atual",
-    ],
+    header,
     ...options.report.rows.map((row) => [
       row.code,
-      row.hierarchical_code ?? "",
+      ...(showPlan ? [row.hierarchical_code ?? ""] : []),
       row.name,
       row.nature ?? "",
       row.saldo_anterior,
@@ -622,12 +627,21 @@ export function buildTrialBalanceReportXlsx(options: {
       row.saldo_atual,
     ]),
     [],
-    ["Totais", "", "", "", "", options.report.totals.debito, options.report.totals.credito, ""],
+    [
+      "Totais",
+      ...(showPlan ? [""] : []),
+      "",
+      "",
+      "",
+      options.report.totals.debito,
+      options.report.totals.credito,
+      "",
+    ],
   ];
   const sheet = XLSX.utils.aoa_to_sheet(rows);
   sheet["!cols"] = [
     { wch: 12 },
-    { wch: 24 },
+    ...(showPlan ? [{ wch: 24 }] : []),
     { wch: 48 },
     { wch: 18 },
     { wch: 18 },
@@ -638,3 +652,4 @@ export function buildTrialBalanceReportXlsx(options: {
   XLSX.utils.book_append_sheet(wb, sheet, "Balancete");
   return XLSX.write(wb, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
 }
+
