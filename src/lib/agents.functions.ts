@@ -159,6 +159,32 @@ export const applyAgentAction = createServerFn({ method: "POST" })
       return { ok: true, affected: data.account_ids.length };
     }
 
+    if (data.kind === "ajuste_lancamento") {
+      const { data: result, error } = await context.supabase.rpc("apply_journal_adjustment", {
+        _leg_id: data.leg_id,
+        _new_account: data.nova_conta,
+        _new_value: data.novo_valor,
+        _justificativa: data.justificativa,
+        _thread_id: data.thread_id,
+      });
+      if (error) throw new Error(error.message);
+
+      await context.supabase.rpc("log_activity", {
+        _action: "agent_action_applied",
+        _entity_type: "journal_legs",
+        _entity_id: data.leg_id,
+        _metadata: {
+          kind: "ajuste_lancamento",
+          thread_id: data.thread_id,
+          nova_conta: data.nova_conta,
+          novo_valor: data.novo_valor,
+        },
+      });
+      return { ok: true, adjustment: result as unknown };
+    }
+
+
+
     const { data: finding, error } = await context.supabase
       .from("audit_findings")
       .insert({
