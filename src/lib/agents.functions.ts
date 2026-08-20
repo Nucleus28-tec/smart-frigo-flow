@@ -162,8 +162,8 @@ export const applyAgentAction = createServerFn({ method: "POST" })
     if (data.kind === "ajuste_lancamento") {
       const { data: result, error } = await context.supabase.rpc("apply_journal_adjustment", {
         _leg_id: data.leg_id,
-        _new_account: data.nova_conta,
-        _new_value: data.novo_valor,
+        ...(data.nova_conta ? { _new_account: data.nova_conta } : {}),
+        ...(data.novo_valor !== null ? { _new_value: data.novo_valor } : {}),
         _justificativa: data.justificativa,
         _thread_id: data.thread_id,
       });
@@ -180,8 +180,21 @@ export const applyAgentAction = createServerFn({ method: "POST" })
           novo_valor: data.novo_valor,
         },
       });
-      return { ok: true, adjustment: result as unknown };
+
+      const parsed = (result ?? {}) as {
+        entry_group?: string;
+        legs_criadas?: number;
+        para?: { conta?: string; valor?: number };
+      };
+      return {
+        ok: true,
+        affected: Number(parsed.legs_criadas ?? 0),
+        entry_group: String(parsed.entry_group ?? ""),
+        conta_final: String(parsed.para?.conta ?? ""),
+        valor_final: Number(parsed.para?.valor ?? 0),
+      };
     }
+
 
 
 
