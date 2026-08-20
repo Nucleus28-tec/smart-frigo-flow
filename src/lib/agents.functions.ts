@@ -37,7 +37,16 @@ const applySchema = z.discriminatedUnion("kind", [
     correcao_sugerida: z.string().optional(),
     severidade: z.enum(["baixa", "media", "alta"]),
   }),
+  z.object({
+    kind: z.literal("ajuste_lancamento"),
+    thread_id: z.string().uuid(),
+    leg_id: z.string().uuid(),
+    nova_conta: z.string().trim().min(1).nullable(),
+    novo_valor: z.number().positive().nullable(),
+    justificativa: z.string().min(1),
+  }),
 ]);
+
 
 async function assertAdmin(supabase: {
   rpc: (name: "is_admin") => Promise<{ data: unknown; error: unknown }>;
