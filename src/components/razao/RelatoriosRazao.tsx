@@ -87,9 +87,11 @@ function monthRange(referenceMonth: string | null) {
 
 export function RelatoriosRazao({ periodId, periodLabel, referenceMonth }: Props) {
   const initial = monthRange(referenceMonth);
+  const { periods } = usePeriod();
   const [kind, setKind] = useState<ReportKind>("razao");
-  const [from, setFrom] = useState(initial.from);
-  const [to, setTo] = useState(initial.to);
+  const [range, setRange] = useState({ from: initial.from, to: initial.to });
+  const from = range.from;
+  const to = range.to;
   const [docNumber, setDocNumber] = useState("");
   const [multiPage, setMultiPage] = useState(false);
   const [onlyWithMovement, setOnlyWithMovement] = useState(true);
@@ -105,6 +107,25 @@ export function RelatoriosRazao({ periodId, periodLabel, referenceMonth }: Props
   const runLedger = useServerFn(getLedgerReport);
   const runTrial = useServerFn(getTrialBalanceReport);
   const runExport = useServerFn(exportLedgerReport);
+
+  /** Períodos contábeis cujo mês de referência intersecta o intervalo escolhido. */
+  const periodIds = useMemo(() => {
+    if (!from && !to) return [periodId];
+    const matches = periods
+      .filter((p) => {
+        const base = p.reference_month.slice(0, 10);
+        const [y, m] = base.split("-").map(Number);
+        if (!y || !m) return false;
+        const start = `${base.slice(0, 8)}01`;
+        const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+        const end = `${base.slice(0, 8)}${String(lastDay).padStart(2, "0")}`;
+        if (from && end < from) return false;
+        if (to && start > to) return false;
+        return true;
+      })
+      .map((p) => p.id);
+    return matches.length ? matches : [periodId];
+  }, [periods, periodId, from, to]);
 
   const accountsQuery = useQuery({
     queryKey: ["report_accounts", periodId, query, page],
@@ -135,10 +156,12 @@ export function RelatoriosRazao({ periodId, periodLabel, referenceMonth }: Props
 
   const filters = () => ({
     period_id: periodId,
+    period_ids: periodIds,
     codes: selected,
     from: from || null,
     to: to || null,
   });
+
 
   async function handleView() {
     setBusy("view");
