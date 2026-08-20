@@ -15,12 +15,12 @@ import { FechamentoContabil } from "@/components/razao/FechamentoContabil";
 
 
 type RazaoSearch = {
-  tab?: string;
-  codes?: string;
-  de?: string;
-  ate?: string;
-  kind?: string;
-  dl?: string;
+  tab?: string | undefined;
+  codes?: string | undefined;
+  de?: string | undefined;
+  ate?: string | undefined;
+  kind?: string | undefined;
+  dl?: string | undefined;
 };
 
 export const Route = createFileRoute("/_authenticated/razao")({

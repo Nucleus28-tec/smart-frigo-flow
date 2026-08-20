@@ -132,25 +132,20 @@ function DemonstrativosPage() {
     const codes = line.codes ?? [];
     if (codes.length === 0) return;
     const ref = selectedPeriod?.reference_month?.slice(0, 10) ?? null;
-    let de: string | undefined;
-    let ate: string | undefined;
+    const search: Record<string, string> = {
+      tab: "relatorios",
+      codes: codes.join(","),
+      kind: line.base === "saldo" ? "balancete" : "razao",
+      dl: `${Date.now()}`,
+    };
     if (ref) {
-      const [y, m] = ref.split("-").map(Number);
+      const y = Number(ref.slice(0, 4));
+      const m = Number(ref.slice(5, 7));
       const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
-      de = `${ref.slice(0, 8)}01`;
-      ate = `${ref.slice(0, 8)}${String(last).padStart(2, "0")}`;
+      search["de"] = `${ref.slice(0, 8)}01`;
+      search["ate"] = `${ref.slice(0, 8)}${String(last).padStart(2, "0")}`;
     }
-    void navigate({
-      to: "/razao",
-      search: {
-        tab: "relatorios",
-        codes: codes.join(","),
-        kind: line.base === "saldo" ? "balancete" : "razao",
-        de,
-        ate,
-        dl: `${Date.now()}`,
-      },
-    });
+    void navigate({ to: "/razao", search });
   }
 
   const generate = useServerFn(generateStatements);
