@@ -355,6 +355,81 @@ export type Database = {
           },
         ]
       }
+      chart_ai_suggestions: {
+        Row: {
+          account_id: string | null
+          account_name: string
+          confidence: number
+          created_at: string
+          current_value: string | null
+          decided_at: string | null
+          decided_by: string | null
+          id: string
+          kind: string
+          proposal_hash: string
+          reasoning: string
+          reduced_code: string
+          status: string
+          suggested_is_analytic: boolean | null
+          suggested_nature: string | null
+          suggested_parent: string | null
+          suggested_value: string
+        }
+        Insert: {
+          account_id?: string | null
+          account_name?: string
+          confidence?: number
+          created_at?: string
+          current_value?: string | null
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          kind: string
+          proposal_hash: string
+          reasoning?: string
+          reduced_code: string
+          status?: string
+          suggested_is_analytic?: boolean | null
+          suggested_nature?: string | null
+          suggested_parent?: string | null
+          suggested_value: string
+        }
+        Update: {
+          account_id?: string | null
+          account_name?: string
+          confidence?: number
+          created_at?: string
+          current_value?: string | null
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          kind?: string
+          proposal_hash?: string
+          reasoning?: string
+          reduced_code?: string
+          status?: string
+          suggested_is_analytic?: boolean | null
+          suggested_nature?: string | null
+          suggested_parent?: string | null
+          suggested_value?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chart_ai_suggestions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chart_ai_suggestions_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chart_of_accounts: {
         Row: {
           confidence_score: number | null
@@ -1131,6 +1206,7 @@ export type Database = {
         Args: { _leg_id: string; _motivo?: string }
         Returns: Json
       }
+      chart_accounts_audit: { Args: never; Returns: Json }
       chart_accounts_grid: {
         Args: {
           _limit?: number
@@ -1141,6 +1217,15 @@ export type Database = {
           _period_id?: string
           _query?: string
           _type?: string
+        }
+        Returns: Json
+      }
+      chart_accounts_tree: {
+        Args: {
+          _nature?: string
+          _only_pending?: boolean
+          _period_id?: string
+          _query?: string
         }
         Returns: Json
       }
@@ -1267,6 +1352,10 @@ export type Database = {
         Returns: Json
       }
       month_names_pt: { Args: { _months: number[] }; Returns: string }
+      move_ledger_accounts: {
+        Args: { _dry_run?: boolean; _ids: string[]; _new_parent_hier: string }
+        Returns: Json
+      }
       nature_from_code: { Args: { _code: string }; Returns: string }
       nature_from_hierarchical: { Args: { _hier: string }; Returns: string }
       nightly_refresh_periods: { Args: never; Returns: Json }
@@ -1288,6 +1377,10 @@ export type Database = {
           reduced_code: string
         }[]
       }
+      recalc_periods_for_accounts: {
+        Args: { _codes: string[] }
+        Returns: number
+      }
       recalculate_period_indicators: {
         Args: { _period_id: string }
         Returns: Json
@@ -1300,6 +1393,7 @@ export type Database = {
         Args: { _period_id: string }
         Returns: Json
       }
+      renumber_branch: { Args: { _parent_hier: string }; Returns: Json }
       reopen_fiscal_year: { Args: { _year: number }; Returns: Json }
       reopen_period: { Args: { _period_id: string }; Returns: Json }
       set_account_link: {
@@ -1312,6 +1406,10 @@ export type Database = {
       }
       set_ledger_account_active: {
         Args: { _active: boolean; _id: string }
+        Returns: Json
+      }
+      set_ledger_account_kind: {
+        Args: { _id: string; _is_analytic: boolean }
         Returns: Json
       }
       set_ledger_accounts_nature: {

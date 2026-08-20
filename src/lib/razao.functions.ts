@@ -760,3 +760,317 @@ export const ensurePeriodForMonth = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { id: created.id, created: true };
   });
+
+/* --------------------- ÁRVORE / AUDITORIA DO PLANO DE CONTAS --------------------- */
+
+export type ChartTreeRow = {
+  id: string;
+  reduced_code: string;
+  hierarchical_code: string | null;
+  name: string;
+  level: number | null;
+  parent_code: string | null;
+  is_analytic: boolean;
+  nature: string | null;
+  is_active: boolean;
+  matched: boolean;
+  children_count: number;
+  legs_count: number;
+  balance: number;
+};
+
+export type ChartMovePreview = {
+  id: string;
+  reduced_code: string;
+  name: string;
+  de: string;
+  para: string;
+  natureza_de: string | null;
+  natureza_para: string | null;
+  ramo: number;
+};
+
+export type ChartSuggestionRow = {
+  id: string;
+  account_id: string | null;
+  reduced_code: string;
+  account_name: string;
+  kind: "mover" | "natureza" | "tipo_conta";
+  current_value: string | null;
+  suggested_value: string;
+  suggested_parent: string | null;
+  suggested_nature: string | null;
+  suggested_is_analytic: boolean | null;
+  reasoning: string;
+  confidence: number;
+  status: string;
+  created_at: string;
+};
+
+/** Árvore do plano de contas com saldo agregado do período. */
+export const getChartTree = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        period_id: z.string().uuid().nullable().default(null),
+        query: z.string().nullable().default(null),
+        nature: z.string().nullable().default(null),
+        only_pending: z.boolean().default(false),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) =>
+    callRpc<{ rows: ChartTreeRow[] }>(context.supabase, "chart_accounts_tree", {
+      _period_id: data.period_id,
+      _query: data.query,
+      _nature: data.nature,
+      _only_pending: data.only_pending,
+    }),
+  );
+
+export type ChartAuditItem = {
+  id: string;
+  reduced_code: string;
+  name: string;
+  hierarchical_code: string | null;
+  nature?: string | null;
+  nature_esperada?: string | null;
+};
+
+/** Painel de inconsistências estruturais do plano de contas. */
+export const getChartAudit = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) =>
+    callRpc<Record<string, ChartAuditItem[]>>(context.supabase, "chart_accounts_audit"),
+  );
+
+/** Move contas (e todo o ramo abaixo delas) para outro grupo. Use dry_run para a prévia. */
+export const moveChartAccounts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        ids: z.array(z.string().uuid()).min(1).max(500),
+        parent_code: z.string().min(1).max(40),
+        dry_run: z.boolean().default(false),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) =>
+    callRpc<{
+      dry_run: boolean;
+      moved: number;
+      preview: ChartMovePreview[];
+      periods_recalculated?: number;
+    }>(context.supabase, "move_ledger_accounts", {
+      _ids: data.ids,
+      _new_parent_hier: data.parent_code,
+      _dry_run: data.dry_run,
+    }),
+  );
+
+/** Promove ou rebaixa uma conta entre sintética e analítica. */
+export const setChartAccountKind = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ id: z.string().uuid(), is_analytic: z.boolean() }).parse(input),
+  )
+  .handler(async ({ data, context }) =>
+    callRpc<{ id: string; is_analytic: boolean; changed: boolean }>(
+      context.supabase,
+      "set_ledger_account_kind",
+      { _id: data.id, _is_analytic: data.is_analytic },
+    ),
+  );
+
+/** Renumera as filhas diretas de um grupo, sem furos. */
+export const renumberChartBranch = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ parent_code: z.string().min(1).max(40) }).parse(input),
+  )
+  .handler(async ({ data, context }) =>
+    callRpc<{ renumbered: number }>(context.supabase, "renumber_branch", {
+      _parent_hier: data.parent_code,
+    }),
+  );
+
+/** Lista as sugestões da IA para o plano de contas. */
+export const listChartSuggestions = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ status: z.string().default("pendente") }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: rows, error } = await context.supabase
+      .from("chart_ai_suggestions")
+      .select("*")
+      .eq("status", data.status)
+      .order("confidence", { ascending: false })
+      .limit(500);
+    if (error) throw new Error(error.message);
+    return (rows ?? []) as unknown as ChartSuggestionRow[];
+  });
+
+/** Roda o analista de IA sobre as contas pendentes (ou as selecionadas) e grava as sugestões. */
+export const analyzeChartWithAi = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        ids: z.array(z.string().uuid()).max(300).default([]),
+        limit: z.number().int().min(1).max(150).default(60),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { analyzeChartAccounts, proposalHash } = await import("./chart-ai.server");
+
+    const tree = await callRpc<{ rows: ChartTreeRow[] }>(
+      context.supabase,
+      "chart_accounts_tree",
+      { _period_id: null, _query: null, _nature: null, _only_pending: false },
+    );
+    const rows = tree.rows ?? [];
+
+    const selected = new Set(data.ids);
+    const candidates = (
+      selected.size > 0
+        ? rows.filter((r) => selected.has(r.id))
+        : rows.filter(
+            (r) =>
+              r.is_analytic &&
+              (!r.hierarchical_code || !r.nature || !r.parent_code || r.legs_count === 0),
+          )
+    ).slice(0, data.limit);
+
+    if (candidates.length === 0) return { analyzed: 0, created: 0 };
+
+    const groups = rows
+      .filter((r) => !r.is_analytic && r.hierarchical_code)
+      .map((r) => ({
+        hierarchical_code: r.hierarchical_code as string,
+        name: r.name,
+        nature: r.nature,
+      }));
+
+    const suggestions = await analyzeChartAccounts(
+      candidates.map((c) => ({
+        id: c.id,
+        reduced_code: c.reduced_code,
+        name: c.name,
+        hierarchical_code: c.hierarchical_code,
+        nature: c.nature,
+        is_analytic: c.is_analytic,
+        legs_count: c.legs_count,
+      })),
+      groups,
+    );
+
+    if (suggestions.length === 0) return { analyzed: candidates.length, created: 0 };
+
+    const hashes = suggestions.map(proposalHash);
+    const { data: existing } = await context.supabase
+      .from("chart_ai_suggestions")
+      .select("proposal_hash")
+      .in("proposal_hash", hashes);
+    const known = new Set((existing ?? []).map((r) => (r as { proposal_hash: string }).proposal_hash));
+
+    const payload = suggestions
+      .filter((s) => !known.has(proposalHash(s)))
+      .map((s) => ({
+        account_id: s.account_id,
+        reduced_code: s.reduced_code,
+        account_name: s.account_name,
+        kind: s.kind,
+        current_value: s.current_value,
+        suggested_value: s.suggested_value,
+        suggested_parent: s.suggested_parent,
+        suggested_nature: s.suggested_nature,
+        suggested_is_analytic: s.suggested_is_analytic,
+        reasoning: s.reasoning,
+        confidence: s.confidence,
+        proposal_hash: proposalHash(s),
+        status: "pendente",
+      }));
+
+    if (payload.length > 0) {
+      const { error } = await context.supabase.from("chart_ai_suggestions").insert(payload as never);
+      if (error) throw new Error(error.message);
+    }
+
+    return { analyzed: candidates.length, created: payload.length };
+  });
+
+/** Aplica ou rejeita sugestões da IA. Aplicar move/reclassifica de verdade e registra auditoria. */
+export const decideChartSuggestions = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        ids: z.array(z.string().uuid()).min(1).max(200),
+        decision: z.enum(["aplicada", "rejeitada"]),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: rows, error } = await context.supabase
+      .from("chart_ai_suggestions")
+      .select("*")
+      .in("id", data.ids)
+      .eq("status", "pendente");
+    if (error) throw new Error(error.message);
+    const list = (rows ?? []) as unknown as ChartSuggestionRow[];
+
+    const applied: string[] = [];
+    const failures: Array<{ reduced_code: string; message: string }> = [];
+
+    if (data.decision === "aplicada") {
+      for (const s of list) {
+        if (!s.account_id) continue;
+        try {
+          if (s.kind === "mover" && s.suggested_parent) {
+            await callRpc(context.supabase, "move_ledger_accounts", {
+              _ids: [s.account_id],
+              _new_parent_hier: s.suggested_parent,
+              _dry_run: false,
+            });
+          } else if (s.kind === "natureza" && s.suggested_nature) {
+            await callRpc(context.supabase, "set_ledger_accounts_nature", {
+              _ids: [s.account_id],
+              _nature: s.suggested_nature,
+              _parent_code: null,
+            });
+          } else if (s.kind === "tipo_conta" && s.suggested_is_analytic !== null) {
+            await callRpc(context.supabase, "set_ledger_account_kind", {
+              _id: s.account_id,
+              _is_analytic: s.suggested_is_analytic,
+            });
+          } else {
+            continue;
+          }
+          applied.push(s.id);
+        } catch (err) {
+          failures.push({
+            reduced_code: s.reduced_code,
+            message: err instanceof Error ? err.message : "Falha ao aplicar",
+          });
+        }
+      }
+    }
+
+    const toUpdate = data.decision === "aplicada" ? applied : list.map((s) => s.id);
+    if (toUpdate.length > 0) {
+      const { error: upErr } = await context.supabase
+        .from("chart_ai_suggestions")
+        .update({
+          status: data.decision,
+          decided_at: new Date().toISOString(),
+        } as never)
+        .in("id", toUpdate);
+      if (upErr) throw new Error(upErr.message);
+    }
+
+    return { decided: toUpdate.length, failures };
+  });

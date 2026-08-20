@@ -715,3 +715,26 @@ create policy "messages_delete" on public.agent_messages for delete to authentic
 --     source='agente_contador', old_value → new_value, actor_id, created_at),
 --     tabela sem UPDATE/DELETE;
 --   • dispara recalculate_period_indicators_internal.
+
+-- ============================================================
+-- Plano de contas hierárquico (auditoria e reorganização)
+-- ------------------------------------------------------------
+-- Regras: conta sintética nunca recebe lançamento (trigger
+-- trg_journal_legs_analytic); conta analítica é a única lançável.
+-- Índice único em ledger_accounts.hierarchical_code.
+--
+-- Tabela: chart_ai_suggestions (propostas da IA para o plano;
+--   leitura para autenticados, escrita apenas Admin; proposal_hash
+--   único evita repetir proposta já decidida).
+--
+-- Funções:
+--   chart_accounts_tree(_period_id,_query,_nature,_only_pending)
+--     -> árvore com saldo agregado, nº de filhas e de lançamentos
+--   move_ledger_accounts(_ids,_new_parent_hier,_dry_run)
+--     -> move contas e ramo, renumera, herda natureza do grupo,
+--        grava ledger_account_audit e recalcula períodos afetados
+--   set_ledger_account_kind(_id,_is_analytic)
+--   renumber_branch(_parent_hier)
+--   chart_accounts_audit()
+--   recalc_periods_for_accounts(_codes)
+-- ============================================================

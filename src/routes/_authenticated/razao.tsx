@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState, ErrorState, LoadingRows, PageHeader } from "@/components/PageState";
 import { GerenciadorLancamentos } from "@/components/razao/GerenciadorLancamentos";
 import { PlanoDeContasRazao } from "@/components/razao/PlanoDeContasRazao";
+import { PlanoDeContasArvore } from "@/components/razao/PlanoDeContasArvore";
 import { RelatoriosRazao } from "@/components/razao/RelatoriosRazao";
 import { FechamentoContabil } from "@/components/razao/FechamentoContabil";
 
@@ -169,7 +170,18 @@ function RazaoPage() {
         </TabsContent>
 
         <TabsContent value="plano">
-          <PlanoDeContasRazao periodId={selectedPeriodId} isAdmin={isAdmin} />
+          <Tabs defaultValue="arvore" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="arvore">Árvore hierárquica</TabsTrigger>
+              <TabsTrigger value="grade">Cadastro em grade</TabsTrigger>
+            </TabsList>
+            <TabsContent value="arvore">
+              <PlanoDeContasArvore periodId={selectedPeriodId} isAdmin={isAdmin} />
+            </TabsContent>
+            <TabsContent value="grade">
+              <PlanoDeContasRazao periodId={selectedPeriodId} isAdmin={isAdmin} />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         <TabsContent value="relatorios">
