@@ -97,7 +97,9 @@ function RazaoPage() {
           <TabsTrigger value="lancamentos">Lançamentos</TabsTrigger>
           <TabsTrigger value="plano">Plano de contas</TabsTrigger>
           <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
+          <TabsTrigger value="fechamento">Fechamento</TabsTrigger>
         </TabsList>
+
 
         <TabsContent value="lancamentos" className="space-y-4">
           {accounts.isLoading ? (
