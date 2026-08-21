@@ -236,6 +236,26 @@ export function PlanoDeContasArvore({ periodId, isAdmin }: Props) {
 
   const visible = useMemo(() => flatten(roots, autoExpanded), [roots, autoExpanded]);
 
+  /** Abre o razão da conta clicada: analítica usa o próprio código, grupo usa o ramo. */
+  function openAccountPanel(node: TreeNode) {
+    const codes = analyticCodes(node);
+    setOpenAccount({
+      drill: {
+        label: `${node.hierarchical_code ?? node.reduced_code} — ${node.name}`,
+        codes,
+        from: null,
+        to: null,
+        kind: "razao",
+      },
+      account: {
+        reduced_code: node.is_analytic ? node.reduced_code : null,
+        name: node.name,
+        codes,
+      },
+    });
+  }
+
+
   const groups = useMemo(
     () =>
       rows
