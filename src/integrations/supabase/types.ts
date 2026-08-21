@@ -1242,6 +1242,7 @@ export type Database = {
       closing_result_codes: { Args: never; Returns: string[] }
       closing_summary: { Args: { _period_id: string }; Returns: Json }
       closing_year_grid: { Args: { _year: number }; Returns: Json }
+      finalize_journal_import: { Args: { _file_id: string }; Returns: Json }
       generate_period_statements: {
         Args: { _period_id: string }
         Returns: Json
@@ -1250,7 +1251,12 @@ export type Database = {
       hier_level: { Args: { _hier: string }; Returns: number }
       hier_parent: { Args: { _hier: string }; Returns: string }
       import_journal_legs: {
-        Args: { _file_id: string; _legs: Json; _reset?: boolean }
+        Args: {
+          _file_id: string
+          _legs: Json
+          _reset?: boolean
+          _skip_closing?: boolean
+        }
         Returns: Json
       }
       import_trial_balance_lines: {
@@ -1396,6 +1402,9 @@ export type Database = {
       renumber_branch: { Args: { _parent_hier: string }; Returns: Json }
       reopen_fiscal_year: { Args: { _year: number }; Returns: Json }
       reopen_period: { Args: { _period_id: string }; Returns: Json }
+      safe_date: { Args: { _t: string }; Returns: string }
+      safe_int: { Args: { _t: string }; Returns: number }
+      safe_numeric: { Args: { _t: string }; Returns: number }
       set_account_link: {
         Args: {
           _hierarchical_code: string
