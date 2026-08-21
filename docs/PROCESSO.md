@@ -86,3 +86,12 @@ A partir da inclusão do **Gerenciador do Razão**, o fluxo de apuração muda d
 - Regra: reimportar o razão do mesmo arquivo substitui o movimento daquele arquivo e registra o diff, no mesmo padrão da reimportação de balancete.
 - Regra: toda alteração de vínculo, natureza ou classificação aplicada é registrada em trilha de auditoria com usuário, data/hora, valor anterior, valor novo e origem (casamento automático, confirmação manual, proposta do agente aprovada). O histórico não pode ser editado nem excluído.
 - Regra: o agente nunca grava — propõe, e só o botão "Aplicar" do Admin efetiva.
+
+### Exclusão de movimento (procedimento padrão)
+
+- Excluir um arquivo em `/importar` é **tudo ou nada**: o arquivo só sai depois que todos os lançamentos gerados por ele saírem, na mesma transação (`delete_imported_file`). Se a exclusão dos lançamentos falhar, o arquivo permanece na lista com o motivo do erro — nunca fica movimento órfão.
+- Lançamentos **sem arquivo vinculado** (manuais, ajustes ou resíduo de exclusões antigas) não saem pela exclusão de arquivo. Para esses casos, `/importar` mostra um aviso com a contagem do período e o botão **Limpar movimento do período** (`purge_period_journal`), que remove pernas, legado, espelho e saldos de abertura e recalcula os indicadores.
+- Período com status **Fechado** ou com fechamento contábil ativo não aceita exclusão de arquivo nem limpeza: é preciso reabrir antes.
+- Toda exclusão e limpeza fica registrada em `activity_log` com as contagens removidas.
+- Excluir o movimento **não** altera o status do período: Aberto / Em revisão / Fechado continua sendo decisão manual em `/periodos`.
+
