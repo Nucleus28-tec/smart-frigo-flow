@@ -374,3 +374,11 @@
 ### Ferramentas dos agentes (somente leitura)
 
 `razao_extrato_conta`, `razao_lancamento`, `razao_contrapartidas`, `razao_conferencia`, `razao_pendencias`, além das ferramentas de balancete, plano de contas, indicadores e demonstrativos. O Agente CFO não recebe ferramentas de escrita; o Agente Contador propõe e só o Admin aplica.
+
+## Painel de lançamentos em /demonstrativos
+
+- `set_journal_leg_excluded(_leg_id uuid, _excluded boolean, _motivo text)` — Admin. Marca as duas pernas do lançamento com `status = 'oculto'` (ou volta para `'ativo'`), grava motivo/autor/data em `journal_legs.excluded_*`, registra em `ledger_account_audit` + `activity_log` e recalcula os indicadores. Como todo cálculo (balanços, DRE, balancete, fechamento) filtra `status = 'ativo'`, o lançamento oculto sai de todos os relatórios e continua visível no razão.
+- `journal_line_legs(_period_id, _codes text[], _from, _to, _query, _include_hidden, _limit, _offset)` — usuário logado. Lançamentos que compõem uma linha do demonstrativo, com nomes de conta, contagem de comentários e totais (`total`, `soma`, `ocultos`, `soma_oculta`).
+- `period_hidden_summary(_period_id)` — usuário logado. Quantidade e valor total oculto no período (aviso na tela de Demonstrativos).
+
+Server functions correspondentes em `src/lib/razao.functions.ts`: `listLineLegs`, `setLegExcluded`, `getHiddenSummary`, `listLegComments`, `addLegComment`.
