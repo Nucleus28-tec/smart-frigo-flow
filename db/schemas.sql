@@ -738,3 +738,26 @@ create policy "messages_delete" on public.agent_messages for delete to authentic
 --   chart_accounts_audit()
 --   recalc_periods_for_accounts(_codes)
 -- ============================================================
+
+-- ============================================================
+-- IMPORTADOR DO RAZÃO — contrato vigente (2026-08-21)
+-- ------------------------------------------------------------
+-- safe_numeric / safe_date / safe_int: casts defensivos; célula
+--   malformada vira NULL em vez de derrubar o bloco (22P02).
+-- enforce_analytic_posting(): lançamento com origin='importacao'
+--   em conta sintética NÃO é bloqueado — a conta é marcada como
+--   link_status='pendente' para revisão. A trava continua valendo
+--   para origin manual/ajuste e para conta desativada.
+-- import_journal_legs(_file_id, _legs, _reset default false,
+--                     _skip_closing default true):
+--   bloco atômico; dedup de saldos anteriores por conta (evita
+--   21000 no ON CONFLICT); descarta encerramentos do G2 quando
+--   _skip_closing; em falha desfaz tudo, grava o erro em
+--   imported_files.processing_error e devolve ok:false com
+--   sqlstate/detail/hint/context.
+-- finalize_journal_import(_file_id): confere débito × crédito,
+--   detecta truncamento contra o período anterior, sinaliza
+--   encerramentos na base e define processing_status
+--   (processado | erro + motivo). Chamada pelo front após o
+--   último bloco, dentro de finalizeJournalImport.
+-- ============================================================

@@ -44,6 +44,40 @@ async function callRpc<T>(
   return data as T;
 }
 
+/** Relatório devolvido por import_journal_legs. */
+export type ImportChunkReport = {
+  ok: boolean;
+  received?: number;
+  inserted?: number;
+  new_accounts?: number;
+  openings?: number;
+  skipped_closing?: number;
+  closing_detected?: number;
+  ignored_no_account?: number;
+  ignored_no_value?: number;
+  bad_numbers?: number;
+  bad_dates?: number;
+  sqlstate?: string;
+  error?: string;
+  detail?: string;
+  hint?: string;
+  context?: string;
+};
+
+export type FinalizeReport = {
+  ok: boolean;
+  legs: number;
+  accounts: number;
+  openings: number;
+  debit: number;
+  credit: number;
+  difference: number;
+  closing_legs: number;
+  accounts_prev: number | null;
+  openings_prev: number | null;
+  warnings: string[];
+};
+
 export const importJournalChunk = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
@@ -52,16 +86,28 @@ export const importJournalChunk = createServerFn({ method: "POST" })
         file_id: z.string().uuid(),
         legs: z.array(legSchema).max(4000),
         reset: z.boolean().default(false),
+        skip_closing: z.boolean().default(true),
       })
       .parse(input),
   )
-  .handler(async ({ data, context }) =>
-    callRpc<{ inserted: number; new_accounts: number }>(
-      context.supabase,
-      "import_journal_legs",
-      { _file_id: data.file_id, _legs: data.legs, _reset: data.reset },
-    ),
-  );
+  .handler(async ({ data, context }) => {
+    const report = await callRpc<ImportChunkReport>(context.supabase, "import_journal_legs", {
+      _file_id: data.file_id,
+      _legs: data.legs,
+      _reset: data.reset,
+      _skip_closing: data.skip_closing,
+    });
+    if (!report || report.ok === false) {
+      const parts = [
+        report?.error ?? "Falha ao gravar o bloco de lançamentos.",
+        report?.sqlstate ? `código ${report.sqlstate}` : null,
+        report?.detail ? `detalhe: ${report.detail}` : null,
+        report?.hint ? `dica: ${report.hint}` : null,
+      ].filter(Boolean);
+      throw new Error(parts.join(" | "));
+    }
+    return report;
+  });
 
 export const importTrialBalanceMirror = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -83,6 +129,14 @@ export const finalizeJournalImport = createServerFn({ method: "POST" })
     z.object({ period_id: z.string().uuid(), file_id: z.string().uuid().optional() }).parse(input),
   )
   .handler(async ({ data, context }) => {
+    // Validação e status do arquivo ficam a cargo da função de banco.
+    let validation: FinalizeReport | null = null;
+    if (data.file_id) {
+      validation = await callRpc<FinalizeReport>(context.supabase, "finalize_journal_import", {
+        _file_id: data.file_id,
+      });
+    }
+
     const link = await callRpc<{ by_name: number; by_value: number; pending: number }>(
       context.supabase,
       "link_reduced_accounts",
@@ -95,21 +149,15 @@ export const finalizeJournalImport = createServerFn({ method: "POST" })
     );
     await callRpc(context.supabase, "generate_period_statements", { _period_id: data.period_id });
 
-    if (data.file_id) {
-      await context.supabase
-        .from("imported_files")
-        .update({ processing_status: "processado", processing_error: null })
-        .eq("id", data.file_id);
-    }
-
     await context.supabase.rpc("log_activity", {
       _action: "importou razão contábil",
       _entity_type: "journal_legs",
-      _metadata: { period_id: data.period_id, ...link },
+      _metadata: { period_id: data.period_id, ...link, warnings: validation?.warnings ?? [] },
     });
 
-    return { ...link, source: indicators.source };
+    return { ...link, source: indicators.source, validation };
   });
+
 
 type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 type JsonObject = { [key: string]: JsonValue };

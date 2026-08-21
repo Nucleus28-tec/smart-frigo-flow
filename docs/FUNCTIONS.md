@@ -344,7 +344,9 @@
 
 | Função | Auth | Propósito |
 |---|---|---|
-| `import_journal_legs(_file_id, _legs, _reset)` | admin | Grava um bloco de pernas do razão, cria contas novas em `ledger_accounts` e registra saldos anteriores. `_reset` limpa o movimento do arquivo antes da carga. |
+| `import_journal_legs(_file_id, _legs, _reset, _skip_closing)` | admin | Grava um bloco de pernas do razão de forma atômica, cria contas novas em `ledger_accounts` e registra saldos anteriores (deduplicados). `_reset` limpa o movimento do arquivo antes da carga; `_skip_closing` (padrão `true`) descarta os lançamentos de encerramento do G2, pois o fechamento é feito no RotaBase. Usa `safe_numeric`/`safe_date`/`safe_int` (valor ruim vira nulo em vez de derrubar o bloco) e devolve relatório: `ok`, `received`, `inserted`, `new_accounts`, `openings`, `skipped_closing`, `closing_detected`, `ignored_no_account`, `ignored_no_value`, `bad_numbers`, `bad_dates`. Em falha, desfaz o bloco inteiro, grava o erro em `imported_files.processing_error` e retorna `ok:false` com `sqlstate`/`detail`/`hint`/`context`. |
+| `finalize_journal_import(_file_id)` | admin | Fecha a importação: confere débito × crédito, compara contas e saldos com o período anterior (possível truncamento) e sinaliza encerramentos que entraram na base. Define `imported_files.processing_status` como `processado` ou `erro` com o motivo. Retorna totais, `difference` e `warnings`. |
+
 | `import_trial_balance_lines(_file_id, _lines)` | admin | Grava/atualiza o espelho oficial do balancete (upsert por `period_id` + `code`). |
 | `link_reduced_accounts(_period_id)` | admin | Casamento razão × balancete em 5 rodadas: nome normalizado, nome sem sufixo de filial, confronto débito/crédito, saldo final e natureza pelo código. Cada vínculo gera registro em `ledger_account_audit`. Retorna contagens e `pending`. |
 | `reconcile_journal_vs_trial_balance(_period_id)` | usuário logado | Conferência conta a conta: `ok`, `divergente`, `so_razao`, `so_balancete`. |
