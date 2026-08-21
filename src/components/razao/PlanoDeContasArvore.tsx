@@ -12,6 +12,7 @@ import {
   ChevronDown,
   ChevronRight,
   Folder,
+  FolderPlus,
   FolderTree,
   Loader2,
   MoveRight,
