@@ -24,15 +24,26 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { AccountSelect } from "@/components/razao/AccountSelect";
 import { ComentariosLancamento } from "@/components/razao/ComentariosLancamento";
+import { ReclassificarContaDialog } from "@/components/demonstrativos/ReclassificarContaDialog";
 import { supabase } from "@/integrations/supabase/client";
 import {
   cancelJournalEntry,
   listLineLegs,
   saveManualJournalEntry,
+  setAccountExcluded,
   setLegExcluded,
 } from "@/lib/razao.functions";
+import { generateStatements } from "@/lib/reports.functions";
 import { formatCurrency, parseCurrencyInput } from "@/lib/rotta";
 
 export type LinhaDrill = {
