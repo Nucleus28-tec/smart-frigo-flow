@@ -88,7 +88,7 @@ function StatementCard({
             <LinhaHierarquica
               key={`${line.label}-${index}`}
               periodId={periodId}
-              line={{ ...line, base: line.base ?? base }}
+              line={{ ...line, ...(line.base ?? base ? { base: line.base ?? base } : {}) }}
               onOpen={onDrill}
             />
           ) : (
