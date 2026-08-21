@@ -220,6 +220,16 @@ export function PlanoDeContasArvore({ periodId, isAdmin }: Props) {
     [rows],
   );
 
+  const groupOptions = useMemo<GroupOption[]>(
+    () =>
+      groups.map((g) => ({
+        hierarchical_code: g.hierarchical_code as string,
+        name: g.name,
+        level: g.level,
+      })),
+    [groups],
+  );
+
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: ["chart_tree"] });
     void queryClient.invalidateQueries({ queryKey: ["chart_audit"] });
