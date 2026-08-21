@@ -288,6 +288,8 @@ export function LinhaHierarquica({
   function refresh() {
     void queryClient.invalidateQueries({ queryKey: ["statement_tree"] });
     void queryClient.invalidateQueries({ queryKey: ["hidden_summary"] });
+    void queryClient.invalidateQueries({ queryKey: ["hidden_accounts"] });
+
     void queryClient.invalidateQueries({ queryKey: ["financial_statements"] });
     void queryClient.invalidateQueries({ queryKey: ["period_summary"] });
   }
