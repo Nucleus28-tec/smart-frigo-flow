@@ -161,6 +161,7 @@ export function PlanoDeContasArvore({ periodId, isAdmin }: Props) {
   const [moveOpen, setMoveOpen] = useState(false);
   const [moveTarget, setMoveTarget] = useState("");
   const [preview, setPreview] = useState<ChartMovePreview[] | null>(null);
+  const [newGroupName, setNewGroupName] = useState("");
   const [auditOpen, setAuditOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [aiChosen, setAiChosen] = useState<Set<string>>(new Set());
