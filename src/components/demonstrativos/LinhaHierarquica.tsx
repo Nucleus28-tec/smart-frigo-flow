@@ -11,6 +11,16 @@ import { toast } from "sonner";
 import { ChevronDown, ChevronRight, Eye, EyeOff, ListTree, MoreVertical, Shuffle } from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,7 +28,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ReclassificarContaDialog } from "@/components/demonstrativos/ReclassificarContaDialog";
-import { getStatementTree, type StatementTreeNode } from "@/lib/reports.functions";
+import {
+  generateStatements,
+  getStatementTree,
+  type StatementTreeNode,
+} from "@/lib/reports.functions";
 import { setAccountExcluded } from "@/lib/razao.functions";
 import { formatCurrency } from "@/lib/rotta";
 
@@ -249,9 +263,12 @@ export function LinhaHierarquica({
   const queryClient = useQueryClient();
   const runTree = useServerFn(getStatementTree);
   const hideAccount = useServerFn(setAccountExcluded);
+  const regenerate = useServerFn(generateStatements);
   const codes = line.codes ?? [];
   const isTotal = line.kind === "total" || line.kind === "subtotal";
   const [reclass, setReclass] = useState<{ code: string; name: string } | null>(null);
+  const [hideAsk, setHideAsk] = useState<{ codes: string[]; nome: string } | null>(null);
+  const [motivo, setMotivo] = useState("");
 
   const treeQuery = useQuery({
     queryKey: ["statement_tree", periodId, codes.join(","), line.base ?? "movimento"],
@@ -276,19 +293,25 @@ export function LinhaHierarquica({
   }
 
   const hideMutation = useMutation({
-    mutationFn: (input: { codes: string[]; hide: boolean; motivo: string }) =>
-      hideAccount({
+    mutationFn: async (input: { codes: string[]; hide: boolean; motivo: string }) => {
+      const result = await hideAccount({
         data: {
           period_id: periodId,
           codes: input.codes,
           excluded: input.hide,
           motivo: input.motivo,
         },
-      }),
+      });
+      // Ocultar/reexibir precisa refletir no resultado: regera os demonstrativos.
+      await regenerate({ data: { period_id: periodId } });
+      return result;
+    },
     onSuccess: (result, input) => {
       toast.success(
-        `${result.updated} lançamento(s) ${input.hide ? "ocultos" : "reexibidos"}. Gere os demonstrativos para atualizar os totais.`,
+        `${result.updated} lançamento(s) ${input.hide ? "ocultos" : "reexibidos"}. Demonstrativos recalculados.`,
       );
+      setHideAsk(null);
+      setMotivo("");
       refresh();
     },
     onError: (error: Error) => toast.error(error.message),
@@ -299,11 +322,12 @@ export function LinhaHierarquica({
       toast.error("Nenhuma conta analítica nesta seleção.");
       return;
     }
-    const motivo = hide
-      ? (window.prompt(`Motivo para ocultar “${nome}” do resultado:`, "") ?? null)
-      : "";
-    if (hide && motivo === null) return;
-    hideMutation.mutate({ codes: nodeCodes, hide, motivo: motivo ?? "" });
+    if (!hide) {
+      hideMutation.mutate({ codes: nodeCodes, hide: false, motivo: "" });
+      return;
+    }
+    setMotivo("");
+    setHideAsk({ codes: nodeCodes, nome });
   }
 
   return (
@@ -375,6 +399,46 @@ export function LinhaHierarquica({
           onMoved={refresh}
         />
       ) : null}
+
+      <Dialog
+        open={!!hideAsk}
+        onOpenChange={(value) => {
+          if (!value && !hideMutation.isPending) setHideAsk(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Ocultar do resultado</DialogTitle>
+            <DialogDescription>
+              Todos os lançamentos de “{hideAsk?.nome}” no período serão ocultos e os
+              demonstrativos recalculados em seguida.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            autoFocus
+            value={motivo}
+            onChange={(event) => setMotivo(event.target.value)}
+            placeholder="Motivo (opcional)"
+          />
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setHideAsk(null)}
+              disabled={hideMutation.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() =>
+                hideAsk && hideMutation.mutate({ codes: hideAsk.codes, hide: true, motivo })
+              }
+              disabled={hideMutation.isPending}
+            >
+              {hideMutation.isPending ? "Ocultando…" : "Ocultar e recalcular"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
