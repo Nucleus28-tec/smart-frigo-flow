@@ -399,6 +399,46 @@ export function LinhaHierarquica({
           onMoved={refresh}
         />
       ) : null}
+
+      <Dialog
+        open={!!hideAsk}
+        onOpenChange={(value) => {
+          if (!value && !hideMutation.isPending) setHideAsk(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Ocultar do resultado</DialogTitle>
+            <DialogDescription>
+              Todos os lançamentos de “{hideAsk?.nome}” no período serão ocultos e os
+              demonstrativos recalculados em seguida.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            autoFocus
+            value={motivo}
+            onChange={(event) => setMotivo(event.target.value)}
+            placeholder="Motivo (opcional)"
+          />
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setHideAsk(null)}
+              disabled={hideMutation.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() =>
+                hideAsk && hideMutation.mutate({ codes: hideAsk.codes, hide: true, motivo })
+              }
+              disabled={hideMutation.isPending}
+            >
+              {hideMutation.isPending ? "Ocultando…" : "Ocultar e recalcular"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
