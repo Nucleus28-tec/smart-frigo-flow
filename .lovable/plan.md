@@ -16,7 +16,7 @@ Também não existe hoje nenhuma marca de "conta oculta no período": a ocultaç
 
 3. **Coerência com contas desativadas**: contas marcadas como inativas no plano hierárquico (`is_active = false`) também deixam de compor o resultado, seguindo a mesma regra.
 
-4. **Reexibir volta tudo**: desfazer a ocultação restaura abertura, movimento e saldo, e limpa o motivo registrado.
+4. **Desocultação (reexibir)**: ação explícita na tela para desfazer a ocultação, tanto de um lançamento quanto de uma conta inteira — inclusive contas ocultas que hoje somem da árvore, listadas num painel "Ocultos do período" com motivo, autor e data e botão "Reexibir". Ao reexibir, abertura, movimento e saldo voltam a compor o resultado, a marca de exclusão e o motivo são limpos, e a ação fica registrada na auditoria.
 
 5. **Recálculo automático**: ao ocultar/reexibir, os indicadores já são recalculados; a geração dos demonstrativos passa a ser disparada em seguida também no fluxo de conta (hoje ocorre apenas em parte dos caminhos da tela), para que os totais na tela reflitam a mudança sem clique extra.
 
