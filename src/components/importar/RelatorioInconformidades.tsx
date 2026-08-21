@@ -199,7 +199,7 @@ export function RelatorioInconformidades({ periodId }: { periodId: string }) {
                       </TableCell>
                       <TableCell className="text-right">
                         <Button asChild variant="ghost" size="sm">
-                          <Link to="/razao" search={{ tab: "lancamentos", q: d.doc_number } as never}>
+                          <Link to="/razao" search={{ tab: "lancamentos" }}>
                             Ver no razão
                           </Link>
                         </Button>

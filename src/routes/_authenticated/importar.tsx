@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Download, Loader2, RefreshCw, Trash2, UploadCloud } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
+import { RelatorioInconformidades } from "@/components/importar/RelatorioInconformidades";
 import { usePeriod } from "@/hooks/usePeriod";
 import { useProfile } from "@/hooks/useProfile";
 import { Button } from "@/components/ui/button";
