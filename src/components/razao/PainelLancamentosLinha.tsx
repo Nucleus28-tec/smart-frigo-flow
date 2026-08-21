@@ -623,6 +623,59 @@ export function PainelLancamentosLinha({
           })
         )}
       </div>
+
+      {account?.reduced_code ? (
+        <ReclassificarContaDialog
+          periodId={periodId}
+          open={reclassOpen}
+          reducedCode={account.reduced_code}
+          accountName={account.name}
+          onOpenChange={setReclassOpen}
+          onMoved={() => {
+            invalidate();
+            void queryClient.invalidateQueries({ queryKey: ["chart_tree"] });
+            onAccountChanged?.();
+          }}
+        />
+      ) : null}
+
+      <Dialog
+        open={hideAsk}
+        onOpenChange={(value) => {
+          if (!value && !hideAccount.isPending) setHideAsk(false);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Ocultar do resultado</DialogTitle>
+            <DialogDescription>
+              Todos os lançamentos de “{account?.name}” no período serão ocultos e os
+              demonstrativos recalculados em seguida.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            autoFocus
+            value={motivo}
+            onChange={(event) => setMotivo(event.target.value)}
+            placeholder="Motivo (opcional)"
+          />
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setHideAsk(false)}
+              disabled={hideAccount.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => hideAccount.mutate({ hide: true, motivo })}
+              disabled={hideAccount.isPending}
+            >
+              {hideAccount.isPending ? "Ocultando…" : "Ocultar e recalcular"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </aside>
   );
 }
