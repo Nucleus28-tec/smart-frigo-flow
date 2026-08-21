@@ -60,6 +60,12 @@ export function ReclassificarContaDialog({
 
   const rows = useMemo(() => tree.data?.rows ?? [], [tree.data]);
 
+  /** Saldo bruto do período por conta (débito positivo), para a prévia de sinal. */
+  const balanceByCode = useMemo(
+    () => new Map(rows.map((r) => [r.reduced_code, Number(r.balance) || 0])),
+    [rows],
+  );
+
   const account = useMemo(
     () => rows.find((r) => r.reduced_code === reducedCode) ?? null,
     [rows, reducedCode],
