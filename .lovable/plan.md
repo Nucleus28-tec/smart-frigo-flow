@@ -40,3 +40,15 @@ Se o grupo de destino ainda não existir, o Admin pode criar uma sintética filh
 ## Validação
 
 Mover Fornecedores Pecuaristas para `2.01.`, conferir na árvore que virou `2.01.08.` com as 145 filhas renumeradas, checar que os códigos reduzidos e os lançamentos do período seguem intactos, e ver o registro "movimentacao_hierarquia" na trilha de auditoria.
+
+Depois, reimportar o razão do mesmo mês e conferir que Fornecedores Pecuaristas continua em `2.01.08.` e que nenhuma conta ajustada voltou ao formato do G2.
+
+## Importação não desfaz os nossos ajustes
+
+A nossa árvore é a oficial; o G2 vai continuar com a hierarquia dele e isso não pode voltar por cima do que ajustamos.
+
+- Na importação, a conta é reconhecida pelo **código reduzido**. Conta já existente **nunca** tem código hierárquico, nível, pai, natureza ou tipo (sintética/analítica) sobrescritos pelo arquivo — o importador já grava com `on conflict do nothing`, e essa garantia passa a ser explícita e verificada.
+- Só o movimento (lançamentos e saldo de abertura) é atualizado a cada importação; o cadastro do plano fica sob controle do sistema.
+- **Conta nova** vinda do G2 entra sem hierarquia, marcada como *pendente de classificação*, e aparece no painel de auditoria e no filtro "Somente pendências" — nunca é encaixada num grupo por adivinhação de prefixo.
+- O casamento automático razão × balancete (`link_reduced_accounts`) passa a ignorar contas cuja hierarquia foi definida manualmente (`link_status = 'confirmado'` / registro de `movimentacao_hierarquia`), evitando que o balancete do G2 puxe a conta de volta ao grupo antigo.
+- Ao final de cada importação, o resumo informa quantas contas novas ficaram pendentes de classificação, para você encaixá-las na árvore pela tela.
