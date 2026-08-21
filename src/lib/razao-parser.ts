@@ -399,7 +399,12 @@ export function parseRazaoSheetMatrix(matrix: unknown[][]): { legs: RazaoLeg[]; 
 
     const docNumber = cells[docCandidateIdx]!;
     const entryDate = razaoDateFromCell(row[dateIdx]);
-    const counterpartIdx = cells.findIndex((c, i) => i > dateIdx && RAZAO_INT_RE.test(c));
+    // A contra-partida do G2 fica SEMPRE na coluna imediatamente à direita da
+    // data e antes da coluna de débito. Sem essa trava, um valor inteiro
+    // (ex.: 6168) era lido como contra-partida e a linha perdia débito/crédito.
+    const cpIdx = dateIdx + 1;
+    const counterpartIdx =
+      cpIdx < debCol && cpIdx < cells.length && RAZAO_INT_RE.test(cells[cpIdx]!) ? cpIdx : -1;
     const counterpart = counterpartIdx >= 0 ? cells[counterpartIdx]! : null;
 
     let saldoAtualStr: string | null = null;
