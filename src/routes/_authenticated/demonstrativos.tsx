@@ -152,7 +152,19 @@ function DemonstrativosPage() {
   const periodId = selectedPeriod?.id ?? null;
   const [busy, setBusy] = useState<"pdf" | "xlsx" | null>(null);
   const [drill, setDrill] = useState<LinhaDrill | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [openLines, setOpenLines] = useState<Set<string>>(() => new Set());
   const getHidden = useServerFn(getHiddenSummary);
+
+  /** Guarda quais linhas estão abertas para não perder a navegação ao expandir. */
+  function handleLineOpenChange(key: string, open: boolean) {
+    setOpenLines((current) => {
+      const next = new Set(current);
+      if (open) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+  }
 
 
   const hiddenQuery = useQuery({
