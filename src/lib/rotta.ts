@@ -96,3 +96,22 @@ export function parseCurrencyInput(input: string): number | null {
   if (!Number.isFinite(value)) return null;
   return negative ? -value : value;
 }
+
+/**
+ * Aplica a convenção contábil de apresentação a um saldo bruto (débito
+ * positivo, crédito negativo), conforme a natureza do grupo em que a conta
+ * está. Ativo mantém o saldo; passivo e PL invertem (credor vira positivo);
+ * receita inverte; custo e despesa mantêm o sinal devedor.
+ */
+export function valorApresentado(saldo: number, natureza: string | null | undefined): number {
+  const value = Number(saldo) || 0;
+  switch (natureza) {
+    case "passivo_circulante":
+    case "passivo_nao_circulante":
+    case "patrimonio_liquido":
+    case "receita":
+      return -value;
+    default:
+      return value;
+  }
+}
