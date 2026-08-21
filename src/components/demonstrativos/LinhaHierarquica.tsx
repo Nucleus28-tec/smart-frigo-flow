@@ -11,6 +11,16 @@ import { toast } from "sonner";
 import { ChevronDown, ChevronRight, Eye, EyeOff, ListTree, MoreVertical, Shuffle } from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,7 +28,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ReclassificarContaDialog } from "@/components/demonstrativos/ReclassificarContaDialog";
-import { getStatementTree, type StatementTreeNode } from "@/lib/reports.functions";
+import {
+  generateStatements,
+  getStatementTree,
+  type StatementTreeNode,
+} from "@/lib/reports.functions";
 import { setAccountExcluded } from "@/lib/razao.functions";
 import { formatCurrency } from "@/lib/rotta";
 
