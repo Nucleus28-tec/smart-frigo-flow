@@ -45,6 +45,11 @@ import {
 } from "@/components/ui/select";
 import { EmptyState, ErrorState, LoadingRows } from "@/components/PageState";
 import { GroupSelect, type GroupOption } from "@/components/razao/GroupSelect";
+import {
+  PainelLancamentosLinha,
+  type LinhaDrill,
+  type PanelAccount,
+} from "@/components/razao/PainelLancamentosLinha";
 import { NATURE_LABEL, NATURE_OPTIONS, formatCurrency } from "@/lib/rotta";
 import {
   analyzeChartWithAi,
@@ -53,6 +58,7 @@ import {
   getChartAudit,
   getChartTree,
   listChartSuggestions,
+  listHiddenAccounts,
   moveChartAccounts,
   renumberChartBranch,
   setChartAccountActive,
@@ -150,7 +156,22 @@ const KIND_LABEL: Record<string, string> = {
   tipo_conta: "Sintética / analítica",
 };
 
+/** Códigos reduzidos analíticos de um nó (o próprio, ou todas as folhas do ramo). */
+function analyticCodes(node: TreeNode): string[] {
+  if (node.is_analytic) return [node.reduced_code];
+  const out: string[] = [];
+  const walk = (list: TreeNode[]) => {
+    for (const child of list) {
+      if (child.is_analytic) out.push(child.reduced_code);
+      walk(child.children);
+    }
+  };
+  walk(node.children);
+  return out;
+}
+
 export function PlanoDeContasArvore({ periodId, isAdmin }: Props) {
+
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [applied, setApplied] = useState("");
@@ -165,16 +186,33 @@ export function PlanoDeContasArvore({ periodId, isAdmin }: Props) {
   const [auditOpen, setAuditOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [aiChosen, setAiChosen] = useState<Set<string>>(new Set());
+  /** Conta aberta no painel lateral de lançamentos. */
+  const [openAccount, setOpenAccount] = useState<
+    { drill: LinhaDrill; account: PanelAccount } | null
+  >(null);
 
   const fetchTree = useServerFn(getChartTree);
   const fetchAudit = useServerFn(getChartAudit);
   const fetchSuggestions = useServerFn(listChartSuggestions);
+  const fetchHidden = useServerFn(listHiddenAccounts);
   const move = useServerFn(moveChartAccounts);
   const setKind = useServerFn(setChartAccountKind);
   const renumber = useServerFn(renumberChartBranch);
   const analyze = useServerFn(analyzeChartWithAi);
   const decide = useServerFn(decideChartSuggestions);
   const createGroup = useServerFn(createChildAccount);
+
+  const hidden = useQuery({
+    queryKey: ["hidden_accounts", periodId],
+    enabled: Boolean(periodId),
+    queryFn: () => fetchHidden({ data: { period_id: periodId! } }),
+  });
+
+  const hiddenCodes = useMemo(
+    () => new Set((hidden.data ?? []).map((h) => h.reduced_code)),
+    [hidden.data],
+  );
+
 
   const tree = useQuery({
     queryKey: ["chart_tree", periodId, applied, nature, onlyPending],
@@ -212,6 +250,26 @@ export function PlanoDeContasArvore({ periodId, isAdmin }: Props) {
   }, [expanded, applied, onlyPending, rows]);
 
   const visible = useMemo(() => flatten(roots, autoExpanded), [roots, autoExpanded]);
+
+  /** Abre o razão da conta clicada: analítica usa o próprio código, grupo usa o ramo. */
+  function openAccountPanel(node: TreeNode) {
+    const codes = analyticCodes(node);
+    setOpenAccount({
+      drill: {
+        label: `${node.hierarchical_code ?? node.reduced_code} — ${node.name}`,
+        codes,
+        from: null,
+        to: null,
+        kind: "razao",
+      },
+      account: {
+        reduced_code: node.is_analytic ? node.reduced_code : null,
+        name: node.name,
+        codes,
+      },
+    });
+  }
+
 
   const groups = useMemo(
     () =>
@@ -525,14 +583,25 @@ export function PlanoDeContasArvore({ periodId, isAdmin }: Props) {
                     const isOpen = autoExpanded.has(key);
                     const pending =
                       !node.hierarchical_code || !node.nature || !node.parent_code;
+                    const isHidden = hiddenCodes.has(node.reduced_code);
                     return (
                       <tr
                         key={node.id}
-                        className={`border-t transition-colors hover:bg-accent/40 ${
+                        onClick={() => openAccountPanel(node)}
+                        title="Abrir os lançamentos desta conta"
+                        className={`cursor-pointer border-t transition-colors hover:bg-accent/40 ${
                           selected.has(node.id) ? "bg-accent/50" : ""
-                        }`}
+                        } ${
+                          openAccount?.drill.label.endsWith(`— ${node.name}`) &&
+                          openAccount?.account.codes.join(",") === analyticCodes(node).join(",")
+                            ? "bg-primary/10"
+                            : ""
+                        } ${isHidden ? "line-through opacity-60" : ""}`}
                       >
-                        <td className="px-2 py-1.5 align-middle">
+                        <td
+                          className="px-2 py-1.5 align-middle"
+                          onClick={(event) => event.stopPropagation()}
+                        >
                           <Checkbox
                             checked={selected.has(node.id)}
                             onCheckedChange={() => toggleSelect(node.id)}
@@ -547,7 +616,10 @@ export function PlanoDeContasArvore({ periodId, isAdmin }: Props) {
                             {node.children.length > 0 ? (
                               <button
                                 type="button"
-                                onClick={() => toggleExpand(key)}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  toggleExpand(key);
+                                }}
                                 className="rounded p-0.5 hover:bg-accent"
                                 aria-label={isOpen ? "Recolher" : "Expandir"}
                               >
@@ -847,6 +919,21 @@ export function PlanoDeContasArvore({ periodId, isAdmin }: Props) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {periodId && openAccount ? (
+        <PainelLancamentosLinha
+          periodId={periodId}
+          drill={openAccount.drill}
+          canEdit={isAdmin}
+          account={openAccount.account}
+          onClose={() => setOpenAccount(null)}
+          onOpenRazao={() => setOpenAccount(null)}
+          onAccountChanged={() => {
+            void queryClient.invalidateQueries({ queryKey: ["chart_tree"] });
+            void queryClient.invalidateQueries({ queryKey: ["hidden_accounts"] });
+          }}
+        />
+      ) : null}
     </div>
   );
 }

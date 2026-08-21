@@ -13,6 +13,7 @@ import {
   Eye,
   EyeOff,
   Loader2,
+  MoveRight,
   Pencil,
   Search,
   X,
@@ -24,15 +25,26 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { AccountSelect } from "@/components/razao/AccountSelect";
 import { ComentariosLancamento } from "@/components/razao/ComentariosLancamento";
+import { ReclassificarContaDialog } from "@/components/demonstrativos/ReclassificarContaDialog";
 import { supabase } from "@/integrations/supabase/client";
 import {
   cancelJournalEntry,
   listLineLegs,
   saveManualJournalEntry,
+  setAccountExcluded,
   setLegExcluded,
 } from "@/lib/razao.functions";
+import { generateStatements } from "@/lib/reports.functions";
 import { formatCurrency, parseCurrencyInput } from "@/lib/rotta";
 
 export type LinhaDrill = {
@@ -76,24 +88,41 @@ function formatDate(value: string | null) {
   return `${d}/${m}/${y}`;
 }
 
+export type PanelAccount = {
+  /** Código reduzido da conta analítica (null para grupos sintéticos). */
+  reduced_code: string | null;
+  name: string;
+  /** Códigos analíticos do ramo, usados para ocultar/reexibir em bloco. */
+  codes: string[];
+};
+
+
+
 export function PainelLancamentosLinha({
   periodId,
   drill,
   canEdit,
   onClose,
   onOpenRazao,
+  account = null,
+  onAccountChanged,
 }: {
   periodId: string;
   drill: LinhaDrill | null;
   canEdit: boolean;
   onClose: () => void;
   onOpenRazao: (drill: LinhaDrill) => void;
+  /** Conta do plano aberta no painel: habilita reclassificar e ocultar a conta. */
+  account?: PanelAccount | null;
+  onAccountChanged?: () => void;
 }) {
   const queryClient = useQueryClient();
   const runList = useServerFn(listLineLegs);
   const runSave = useServerFn(saveManualJournalEntry);
   const runHide = useServerFn(setLegExcluded);
   const runCancel = useServerFn(cancelJournalEntry);
+  const runHideAccount = useServerFn(setAccountExcluded);
+  const runRegenerate = useServerFn(generateStatements);
 
   const [width, setWidth] = useState(620);
   const [term, setTerm] = useState("");
@@ -101,6 +130,9 @@ export function PainelLancamentosLinha({
   const [showHidden, setShowHidden] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
+  const [reclassOpen, setReclassOpen] = useState(false);
+  const [hideAsk, setHideAsk] = useState(false);
+  const [motivo, setMotivo] = useState("");
   const dragging = useRef(false);
 
   useEffect(() => {
@@ -251,6 +283,39 @@ export function PainelLancamentosLinha({
     onError: (error: Error) => toast.error(error.message),
   });
 
+  /** Oculta ou reexibe todos os lançamentos da conta aberta e recalcula os demonstrativos. */
+  const hideAccount = useMutation({
+    mutationFn: async (input: { hide: boolean; motivo: string }) => {
+      if (!account || account.codes.length === 0)
+        throw new Error("Nenhuma conta analítica nesta seleção.");
+      const result = await runHideAccount({
+        data: {
+          period_id: periodId,
+          codes: account.codes,
+          excluded: input.hide,
+          motivo: input.motivo,
+        },
+      });
+      await runRegenerate({ data: { period_id: periodId } });
+      return result;
+    },
+    onSuccess: (result, input) => {
+      toast.success(
+        `${result.updated} lançamento(s) ${input.hide ? "ocultos" : "reexibidos"}. Demonstrativos recalculados.`,
+      );
+      setHideAsk(false);
+      setMotivo("");
+      invalidate();
+      void queryClient.invalidateQueries({ queryKey: ["chart_tree"] });
+      void queryClient.invalidateQueries({ queryKey: ["hidden_accounts"] });
+      onAccountChanged?.();
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const totalLegs = legsQuery.data?.total ?? 0;
+  const contaOculta = totalLegs > 0 && legsQuery.data?.ocultos === totalLegs;
+
   if (!drill) return null;
 
   return (
@@ -292,6 +357,54 @@ export function PainelLancamentosLinha({
             </Button>
           </div>
         </div>
+
+        {account && canEdit ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!account.reduced_code}
+              onClick={() => setReclassOpen(true)}
+              title={
+                account.reduced_code
+                  ? "Mover a conta para outro grupo"
+                  : "Disponível para contas com código reduzido"
+              }
+            >
+              <MoveRight className="mr-1 size-3.5" />
+              Reclassificar conta
+            </Button>
+            {contaOculta ? (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={hideAccount.isPending}
+                onClick={() => hideAccount.mutate({ hide: false, motivo: "" })}
+              >
+                <Eye className="mr-1 size-3.5" />
+                Reexibir no resultado
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={hideAccount.isPending || account.codes.length === 0}
+                onClick={() => {
+                  setMotivo("");
+                  setHideAsk(true);
+                }}
+              >
+                <EyeOff className="mr-1 size-3.5" />
+                Ocultar do resultado
+              </Button>
+            )}
+            {hideAccount.isPending ? (
+              <Loader2 className="size-4 animate-spin text-muted-foreground" />
+            ) : null}
+          </div>
+        ) : null}
+
+
 
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative min-w-52 flex-1">
@@ -510,6 +623,59 @@ export function PainelLancamentosLinha({
           })
         )}
       </div>
+
+      {account?.reduced_code ? (
+        <ReclassificarContaDialog
+          periodId={periodId}
+          open={reclassOpen}
+          reducedCode={account.reduced_code}
+          accountName={account.name}
+          onOpenChange={setReclassOpen}
+          onMoved={() => {
+            invalidate();
+            void queryClient.invalidateQueries({ queryKey: ["chart_tree"] });
+            onAccountChanged?.();
+          }}
+        />
+      ) : null}
+
+      <Dialog
+        open={hideAsk}
+        onOpenChange={(value) => {
+          if (!value && !hideAccount.isPending) setHideAsk(false);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Ocultar do resultado</DialogTitle>
+            <DialogDescription>
+              Todos os lançamentos de “{account?.name}” no período serão ocultos e os
+              demonstrativos recalculados em seguida.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            autoFocus
+            value={motivo}
+            onChange={(event) => setMotivo(event.target.value)}
+            placeholder="Motivo (opcional)"
+          />
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setHideAsk(false)}
+              disabled={hideAccount.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => hideAccount.mutate({ hide: true, motivo })}
+              disabled={hideAccount.isPending}
+            >
+              {hideAccount.isPending ? "Ocultando…" : "Ocultar e recalcular"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </aside>
   );
 }
