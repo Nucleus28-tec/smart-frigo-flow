@@ -196,22 +196,29 @@ function ImportarPage() {
   });
 
   const countsQuery = useQuery({
-    queryKey: ["ledger_counts", selectedPeriodId],
-    enabled: Boolean(selectedPeriodId),
+    queryKey: ["ledger_counts", selectedPeriodId, filesQuery.data?.map((f) => f.id).join(",")],
+    enabled: Boolean(selectedPeriodId) && Boolean(filesQuery.data?.length),
     queryFn: async (): Promise<Record<string, number>> => {
-      const { data, error } = await supabase
-        .from("ledger_entries")
-        .select("file_id")
-        .eq("period_id", selectedPeriodId!)
-        .limit(20000);
-      if (error) throw error;
       const counts: Record<string, number> = {};
-      for (const row of data ?? []) {
-        counts[row.file_id] = (counts[row.file_id] ?? 0) + 1;
+      for (const file of filesQuery.data ?? []) {
+        const legs = await supabase
+          .from("journal_legs")
+          .select("id", { count: "exact", head: true })
+          .eq("file_id", file.id);
+        if (legs.count && legs.count > 0) {
+          counts[file.id] = legs.count;
+          continue;
+        }
+        const entries = await supabase
+          .from("ledger_entries")
+          .select("id", { count: "exact", head: true })
+          .eq("file_id", file.id);
+        counts[file.id] = entries.count ?? 0;
       }
       return counts;
     },
   });
+
 
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: ["imported_files", selectedPeriodId] });
