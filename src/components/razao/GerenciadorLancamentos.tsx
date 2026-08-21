@@ -580,12 +580,13 @@ export function GerenciadorLancamentos({
               <label className="text-sm font-medium" htmlFor="conta-credito">
                 Conta crédito
               </label>
-              <Input
+              <AccountSelect
                 id="conta-credito"
-                list="contas-razao"
+                tone="credito"
                 value={form.credit_code}
-                onChange={(e) => set({ credit_code: e.target.value })}
-                placeholder="Código reduzido"
+                onChange={(code) => set({ credit_code: code })}
+                accounts={accounts}
+                placeholder="Selecionar conta crédito"
               />
               <div className="min-h-[1.75rem] rounded-md border bg-background px-2.5 py-1">
                 {form.credit_code ? (
