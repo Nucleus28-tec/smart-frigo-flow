@@ -7,6 +7,37 @@ const exportSchema = z.object({
   period_id: z.string().uuid(),
   format: z.enum(["pdf", "xlsx"]),
 });
+const treeSchema = z.object({
+  period_id: z.string().uuid(),
+  codes: z.array(z.string()).min(1),
+  basis: z.enum(["movimento", "saldo"]).default("movimento"),
+});
+
+export type StatementTreeNode = {
+  codigo: string;
+  nome: string;
+  nivel: number;
+  parent: string | null;
+  is_analytic: boolean;
+  reduced_code: string | null;
+  valor: number;
+};
+
+/** Árvore hierárquica das contas que compõem uma linha do demonstrativo. */
+export const getStatementTree = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => treeSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: result, error } = await context.supabase.rpc("statement_line_tree", {
+      _period_id: data.period_id,
+      _codes: data.codes,
+      _basis: data.basis,
+    });
+    if (error) throw new Error(error.message);
+    const payload = (result ?? {}) as { nodes?: StatementTreeNode[] };
+    return { nodes: payload.nodes ?? [] };
+  });
+
 
 function slug(text: string) {
   return text

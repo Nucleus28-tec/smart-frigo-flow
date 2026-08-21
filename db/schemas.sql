@@ -803,3 +803,5 @@ grant select, insert, update, delete on public.journal_leg_comments to authentic
 grant all on public.journal_leg_comments to service_role;
 alter table public.journal_leg_comments enable row level security;
 -- leitura: autenticados; escrita/edição: autor; exclusão: autor ou admin.
+
+-- Drill-down hierárquico dos demonstrativos: statement_line_tree(period, codes, basis).

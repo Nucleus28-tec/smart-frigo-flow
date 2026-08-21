@@ -382,3 +382,4 @@
 - `period_hidden_summary(_period_id)` — usuário logado. Quantidade e valor total oculto no período (aviso na tela de Demonstrativos).
 
 Server functions correspondentes em `src/lib/razao.functions.ts`: `listLineLegs`, `setLegExcluded`, `getHiddenSummary`, `listLegComments`, `addLegComment`.
+- `statement_line_tree(_period_id uuid, _codes text[], _basis text)` — usuário logado. Devolve a árvore hierárquica (`codigo`, `nome`, `nivel`, `parent`, `is_analytic`, `reduced_code`, `valor`) das contas que compõem uma linha do demonstrativo, montada a partir de `ledger_accounts.hierarchical_code` sobre `period_account_balances`. `_basis = 'movimento'` (resultado) ou `'saldo'` (patrimoniais). Server function: `getStatementTree` em `src/lib/reports.functions.ts`.

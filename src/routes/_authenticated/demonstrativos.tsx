@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ChevronRight, Download, EyeOff, FileSpreadsheet, FileText, RefreshCw } from "lucide-react";
+import { Download, EyeOff, FileSpreadsheet, FileText, RefreshCw } from "lucide-react";
 import { EmptyState, ErrorState, PageHeader } from "@/components/PageState";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,10 +16,12 @@ import { exportReport, generateStatements } from "@/lib/reports.functions";
 import { getHiddenSummary } from "@/lib/razao.functions";
 import { formatCurrency } from "@/lib/rotta";
 import { ConferenciaBalanco } from "@/components/ConferenciaBalanco";
+import { LinhaHierarquica } from "@/components/demonstrativos/LinhaHierarquica";
 import {
   PainelLancamentosLinha,
   type LinhaDrill,
 } from "@/components/razao/PainelLancamentosLinha";
+
 
 
 type Line = {
@@ -51,10 +53,12 @@ const ORDER = ["dre", "balanco_patrimonial", "fluxo_de_caixa"];
 
 function StatementCard({
   statement,
+  periodId,
   onDrill,
 }: {
   statement: Statement;
-  onDrill: (line: Line) => void;
+  periodId: string;
+  onDrill: (codes: string[], label: string, base?: string) => void;
 }) {
   const lines = statement.content?.linhas ?? [];
   const fonte = statement.content?.fonte;
@@ -80,14 +84,21 @@ function StatementCard({
         {lines.map((line, index) => {
           const isTotal = line.kind === "total" || line.kind === "subtotal";
           const canDrill = (line.codes?.length ?? 0) > 0;
-          const content = (
-            <>
-              <span className="flex items-center gap-1 text-left">
-                {line.label}
-                {canDrill ? (
-                  <ChevronRight className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-70" />
-                ) : null}
-              </span>
+          return canDrill ? (
+            <LinhaHierarquica
+              key={`${line.label}-${index}`}
+              periodId={periodId}
+              line={{ ...line, ...(line.base ?? base ? { base: line.base ?? base } : {}) }}
+              onOpen={onDrill}
+            />
+          ) : (
+            <div
+              key={`${line.label}-${index}`}
+              className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm ${
+                isTotal ? "bg-muted font-semibold" : "text-muted-foreground"
+              }`}
+            >
+              <span className="text-left">{line.label}</span>
               <span
                 className={
                   Number(line.value) < 0 ? "text-destructive tabular-nums" : "tabular-nums"
@@ -95,24 +106,6 @@ function StatementCard({
               >
                 {formatCurrency(line.value)}
               </span>
-            </>
-          );
-          const className = `flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm ${
-            isTotal ? "bg-muted font-semibold" : "text-muted-foreground"
-          }`;
-          return canDrill ? (
-            <button
-              key={`${line.label}-${index}`}
-              type="button"
-              onClick={() => onDrill(line)}
-              title={`Ver os lançamentos que compõem “${line.label}” no razão`}
-              className={`${className} group cursor-pointer transition-colors hover:bg-accent hover:text-accent-foreground`}
-            >
-              {content}
-            </button>
-          ) : (
-            <div key={`${line.label}-${index}`} className={className}>
-              {content}
             </div>
           );
         })}
@@ -123,6 +116,7 @@ function StatementCard({
     </Card>
   );
 }
+
 
 function DemonstrativosPage() {
   const { selectedPeriod } = usePeriod();
@@ -154,19 +148,19 @@ function DemonstrativosPage() {
     };
   }
 
-  /** Abre o painel lateral com os lançamentos que compõem a linha clicada. */
-  function handleDrill(line: Line) {
-    const codes = line.codes ?? [];
+  /** Abre o painel lateral com os lançamentos das contas clicadas. */
+  function handleDrill(codes: string[], label: string, base?: string) {
     if (codes.length === 0) return;
     const { from, to } = periodRange();
     setDrill({
-      label: line.label,
+      label,
       codes,
       from,
       to,
-      kind: line.base === "saldo" ? "balancete" : "razao",
+      kind: base === "saldo" ? "balancete" : "razao",
     });
   }
+
 
   /** Abre a mesma seleção no razão, em outra aba. */
   function openRazao(current: LinhaDrill) {
@@ -313,8 +307,10 @@ function DemonstrativosPage() {
                 <StatementCard
                   key={statement.statement_type}
                   statement={statement}
+                  periodId={periodId}
                   onDrill={handleDrill}
                 />
+
               ))}
             </div>
           )}
