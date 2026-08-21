@@ -87,6 +87,16 @@ function formatDate(value: string | null) {
   return `${d}/${m}/${y}`;
 }
 
+export type PanelAccount = {
+  /** Código reduzido da conta analítica (null para grupos sintéticos). */
+  reduced_code: string | null;
+  name: string;
+  /** Códigos analíticos do ramo, usados para ocultar/reexibir em bloco. */
+  codes: string[];
+};
+
+
+
 export function PainelLancamentosLinha({
   periodId,
   drill,
