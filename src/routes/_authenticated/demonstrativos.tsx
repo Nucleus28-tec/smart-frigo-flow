@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ChevronRight, Download, FileSpreadsheet, FileText, RefreshCw } from "lucide-react";
+import { ChevronRight, Download, EyeOff, FileSpreadsheet, FileText, RefreshCw } from "lucide-react";
 import { EmptyState, ErrorState, PageHeader } from "@/components/PageState";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,8 +13,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { usePeriod } from "@/hooks/usePeriod";
 import { useProfile } from "@/hooks/useProfile";
 import { exportReport, generateStatements } from "@/lib/reports.functions";
+import { getHiddenSummary } from "@/lib/razao.functions";
 import { formatCurrency } from "@/lib/rotta";
 import { ConferenciaBalanco } from "@/components/ConferenciaBalanco";
+import {
+  PainelLancamentosLinha,
+  type LinhaDrill,
+} from "@/components/razao/PainelLancamentosLinha";
+
 
 type Line = {
   label: string;
