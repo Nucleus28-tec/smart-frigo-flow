@@ -616,7 +616,10 @@ export function PlanoDeContasArvore({ periodId, isAdmin }: Props) {
                             {node.children.length > 0 ? (
                               <button
                                 type="button"
-                                onClick={() => toggleExpand(key)}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  toggleExpand(key);
+                                }}
                                 className="rounded p-0.5 hover:bg-accent"
                                 aria-label={isOpen ? "Recolher" : "Expandir"}
                               >
