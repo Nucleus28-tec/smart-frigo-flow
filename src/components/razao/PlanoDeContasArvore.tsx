@@ -919,6 +919,21 @@ export function PlanoDeContasArvore({ periodId, isAdmin }: Props) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {periodId && openAccount ? (
+        <PainelLancamentosLinha
+          periodId={periodId}
+          drill={openAccount.drill}
+          canEdit={isAdmin}
+          account={openAccount.account}
+          onClose={() => setOpenAccount(null)}
+          onOpenRazao={() => setOpenAccount(null)}
+          onAccountChanged={() => {
+            void queryClient.invalidateQueries({ queryKey: ["chart_tree"] });
+            void queryClient.invalidateQueries({ queryKey: ["hidden_accounts"] });
+          }}
+        />
+      ) : null}
     </div>
   );
 }
