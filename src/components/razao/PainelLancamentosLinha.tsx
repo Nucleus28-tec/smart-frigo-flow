@@ -282,6 +282,39 @@ export function PainelLancamentosLinha({
     onError: (error: Error) => toast.error(error.message),
   });
 
+  /** Oculta ou reexibe todos os lançamentos da conta aberta e recalcula os demonstrativos. */
+  const hideAccount = useMutation({
+    mutationFn: async (input: { hide: boolean; motivo: string }) => {
+      if (!account || account.codes.length === 0)
+        throw new Error("Nenhuma conta analítica nesta seleção.");
+      const result = await runHideAccount({
+        data: {
+          period_id: periodId,
+          codes: account.codes,
+          excluded: input.hide,
+          motivo: input.motivo,
+        },
+      });
+      await runRegenerate({ data: { period_id: periodId } });
+      return result;
+    },
+    onSuccess: (result, input) => {
+      toast.success(
+        `${result.updated} lançamento(s) ${input.hide ? "ocultos" : "reexibidos"}. Demonstrativos recalculados.`,
+      );
+      setHideAsk(false);
+      setMotivo("");
+      invalidate();
+      void queryClient.invalidateQueries({ queryKey: ["chart_tree"] });
+      void queryClient.invalidateQueries({ queryKey: ["hidden_accounts"] });
+      onAccountChanged?.();
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const totalLegs = legsQuery.data?.total ?? 0;
+  const contaOculta = totalLegs > 0 && legsQuery.data?.ocultos === totalLegs;
+
   if (!drill) return null;
 
   return (
