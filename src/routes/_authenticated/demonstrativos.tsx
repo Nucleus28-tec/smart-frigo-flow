@@ -51,10 +51,12 @@ const ORDER = ["dre", "balanco_patrimonial", "fluxo_de_caixa"];
 
 function StatementCard({
   statement,
+  periodId,
   onDrill,
 }: {
   statement: Statement;
-  onDrill: (line: Line) => void;
+  periodId: string;
+  onDrill: (codes: string[], label: string, base?: string) => void;
 }) {
   const lines = statement.content?.linhas ?? [];
   const fonte = statement.content?.fonte;
@@ -80,14 +82,21 @@ function StatementCard({
         {lines.map((line, index) => {
           const isTotal = line.kind === "total" || line.kind === "subtotal";
           const canDrill = (line.codes?.length ?? 0) > 0;
-          const content = (
-            <>
-              <span className="flex items-center gap-1 text-left">
-                {line.label}
-                {canDrill ? (
-                  <ChevronRight className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-70" />
-                ) : null}
-              </span>
+          return canDrill ? (
+            <LinhaHierarquica
+              key={`${line.label}-${index}`}
+              periodId={periodId}
+              line={{ ...line, base: line.base ?? base }}
+              onOpen={onDrill}
+            />
+          ) : (
+            <div
+              key={`${line.label}-${index}`}
+              className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm ${
+                isTotal ? "bg-muted font-semibold" : "text-muted-foreground"
+              }`}
+            >
+              <span className="text-left">{line.label}</span>
               <span
                 className={
                   Number(line.value) < 0 ? "text-destructive tabular-nums" : "tabular-nums"
@@ -95,24 +104,6 @@ function StatementCard({
               >
                 {formatCurrency(line.value)}
               </span>
-            </>
-          );
-          const className = `flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm ${
-            isTotal ? "bg-muted font-semibold" : "text-muted-foreground"
-          }`;
-          return canDrill ? (
-            <button
-              key={`${line.label}-${index}`}
-              type="button"
-              onClick={() => onDrill(line)}
-              title={`Ver os lançamentos que compõem “${line.label}” no razão`}
-              className={`${className} group cursor-pointer transition-colors hover:bg-accent hover:text-accent-foreground`}
-            >
-              {content}
-            </button>
-          ) : (
-            <div key={`${line.label}-${index}`} className={className}>
-              {content}
             </div>
           );
         })}
@@ -123,6 +114,7 @@ function StatementCard({
     </Card>
   );
 }
+
 
 function DemonstrativosPage() {
   const { selectedPeriod } = usePeriod();
