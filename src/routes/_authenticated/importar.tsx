@@ -166,6 +166,9 @@ function ImportarPage() {
   const createUrl = useServerFn(createUploadUrl);
   const parseFile = useServerFn(parseImportedFile);
   const removeFile = useServerFn(deleteImportedFile);
+  const countMovement = useServerFn(getPeriodMovementCount);
+  const purgeMovement = useServerFn(purgePeriodJournal);
+
   const downloadUrl = useServerFn(getFileDownloadUrl);
   const registerFile = useServerFn(registerImportedFile);
   const sendJournalChunk = useServerFn(importJournalChunk);
