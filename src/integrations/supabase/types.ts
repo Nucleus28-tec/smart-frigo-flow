@@ -1495,6 +1495,15 @@ export type Database = {
       safe_date: { Args: { _t: string }; Returns: string }
       safe_int: { Args: { _t: string }; Returns: number }
       safe_numeric: { Args: { _t: string }; Returns: number }
+      set_account_excluded: {
+        Args: {
+          _excluded: boolean
+          _motivo?: string
+          _period_id: string
+          _reduced_codes: string[]
+        }
+        Returns: Json
+      }
       set_account_link: {
         Args: {
           _hierarchical_code: string
