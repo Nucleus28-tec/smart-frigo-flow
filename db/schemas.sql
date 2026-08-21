@@ -784,3 +784,22 @@ create policy "messages_delete" on public.agent_messages for delete to authentic
 --   fechamento contábil ativo.
 -- ============================================================
 
+
+-- Lançamentos ocultos dos relatórios (status 'oculto') e comentários por lançamento.
+alter table public.journal_legs
+  add column if not exists excluded_reason text,
+  add column if not exists excluded_by uuid references public.profiles(id),
+  add column if not exists excluded_at timestamptz;
+
+create table if not exists public.journal_leg_comments (
+  id uuid primary key default gen_random_uuid(),
+  leg_id uuid not null references public.journal_legs(id) on delete cascade,
+  period_id uuid references public.accounting_periods(id) on delete cascade,
+  author_id uuid not null references public.profiles(id),
+  body text not null,
+  created_at timestamptz not null default now()
+);
+grant select, insert, update, delete on public.journal_leg_comments to authenticated;
+grant all on public.journal_leg_comments to service_role;
+alter table public.journal_leg_comments enable row level security;
+-- leitura: autenticados; escrita/edição: autor; exclusão: autor ou admin.

@@ -1145,3 +1145,118 @@ export const decideChartSuggestions = createServerFn({ method: "POST" })
 
     return { decided: toUpdate.length, failures };
   });
+
+/* ============ Painel de lançamentos por linha do demonstrativo ============ */
+
+/** Lançamentos que compõem uma linha do demonstrativo (inclui ocultos). */
+export const listLineLegs = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        period_id: z.string().uuid(),
+        codes: z.array(z.string().min(1)).max(500).default([]),
+        from: z.string().nullable().default(null),
+        to: z.string().nullable().default(null),
+        query: z.string().max(120).default(""),
+        include_hidden: z.boolean().default(true),
+        limit: z.number().int().min(1).max(500).default(200),
+        offset: z.number().int().min(0).default(0),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) =>
+    callRpc<JsonObject>(context.supabase, "journal_line_legs", {
+      _period_id: data.period_id,
+      _codes: data.codes.length > 0 ? data.codes : null,
+      _from: data.from,
+      _to: data.to,
+      _query: data.query,
+      _include_hidden: data.include_hidden,
+      _limit: data.limit,
+      _offset: data.offset,
+    }),
+  );
+
+/** Oculta (ou reexibe) um lançamento em todos os relatórios. */
+export const setLegExcluded = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        leg_id: z.string().uuid(),
+        excluded: z.boolean(),
+        motivo: z.string().max(200).default(""),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) =>
+    callRpc<{ updated: number; status: string }>(context.supabase, "set_journal_leg_excluded", {
+      _leg_id: data.leg_id,
+      _excluded: data.excluded,
+      _motivo: data.motivo,
+    }),
+  );
+
+/** Resumo dos lançamentos ocultos do período. */
+export const getHiddenSummary = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ period_id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) =>
+    callRpc<{ count: number; total: number }>(context.supabase, "period_hidden_summary", {
+      _period_id: data.period_id,
+    }),
+  );
+
+export type LegComment = {
+  id: string;
+  body: string;
+  created_at: string;
+  author_id: string;
+  author_name: string;
+};
+
+/** Histórico de comentários de um lançamento. */
+export const listLegComments = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ leg_id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }): Promise<LegComment[]> => {
+    const { data: rows, error } = await context.supabase
+      .from("journal_leg_comments")
+      .select("id, body, created_at, author_id, profiles:author_id (full_name)")
+      .eq("leg_id", data.leg_id)
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) throw new Error(error.message);
+    return ((rows ?? []) as unknown as Array<Record<string, unknown>>).map((row) => ({
+      id: String(row["id"]),
+      body: String(row["body"]),
+      created_at: String(row["created_at"]),
+      author_id: String(row["author_id"]),
+      author_name:
+        ((row["profiles"] as { full_name?: string } | null)?.full_name ?? "Usuário") as string,
+    }));
+  });
+
+/** Registra um comentário no lançamento (autor = usuário logado). */
+export const addLegComment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        leg_id: z.string().uuid(),
+        period_id: z.string().uuid().nullable().default(null),
+        body: z.string().min(1).max(2000),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.from("journal_leg_comments").insert({
+      leg_id: data.leg_id,
+      period_id: data.period_id,
+      author_id: context.userId,
+      body: data.body.trim(),
+    } as never);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });

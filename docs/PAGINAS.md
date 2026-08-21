@@ -236,3 +236,7 @@ Ao escolher o tipo "Razão contábil" e enviar `.csv`, `.xlsx` ou `.xls`, aparec
 - **Propósito:** Conversar com o **Agente Contador** (operacional, classificação e conferência) e o **Agente CFO** (leitura executiva, somente leitura).
 - **Seções:** lista de conversas na lateral, chat com streaming e markdown, blocos indicando qual ferramenta foi consultada, atalhos rápidos e cartões de proposta com evidência de contrapartida e botão "Aplicar" visível apenas para Admin.
 - **Permissões:** todos conversam; apenas Admin aplica propostas, e toda aplicação é registrada em `activity_log` e na trilha de auditoria.
+
+## /demonstrativos — painel lateral de lançamentos
+
+Clicar em uma linha da DRE, do Balanço ou do Fluxo abre um painel lateral redimensionável na própria tela (largura salva no navegador, fecha com Esc), listando os lançamentos que compõem a linha. No painel: busca livre, alternar "Mostrar ocultos", editar (data, documento, valor, histórico), reclassificar trocando as contas de débito/crédito, ocultar/reexibir o lançamento em todos os relatórios (com motivo), cancelar o lançamento e comentar (histórico com autor e data). O ícone de link externo abre o razão filtrado em uma nova aba. Um aviso no topo mostra quantos lançamentos estão ocultos no período e o valor total.

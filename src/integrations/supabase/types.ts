@@ -643,6 +643,55 @@ export type Database = {
           },
         ]
       }
+      journal_leg_comments: {
+        Row: {
+          author_id: string
+          body: string
+          created_at: string
+          id: string
+          leg_id: string
+          period_id: string | null
+        }
+        Insert: {
+          author_id: string
+          body: string
+          created_at?: string
+          id?: string
+          leg_id: string
+          period_id?: string | null
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          created_at?: string
+          id?: string
+          leg_id?: string
+          period_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_leg_comments_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_leg_comments_leg_id_fkey"
+            columns: ["leg_id"]
+            isOneToOne: false
+            referencedRelation: "journal_legs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_leg_comments_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       journal_legs: {
         Row: {
           account_id: string | null
@@ -657,6 +706,9 @@ export type Database = {
           doc_number: string | null
           entry_date: string | null
           entry_group: string | null
+          excluded_at: string | null
+          excluded_by: string | null
+          excluded_reason: string | null
           file_id: string | null
           historico: string | null
           id: string
@@ -682,6 +734,9 @@ export type Database = {
           doc_number?: string | null
           entry_date?: string | null
           entry_group?: string | null
+          excluded_at?: string | null
+          excluded_by?: string | null
+          excluded_reason?: string | null
           file_id?: string | null
           historico?: string | null
           id?: string
@@ -707,6 +762,9 @@ export type Database = {
           doc_number?: string | null
           entry_date?: string | null
           entry_group?: string | null
+          excluded_at?: string | null
+          excluded_by?: string | null
+          excluded_reason?: string | null
           file_id?: string | null
           historico?: string | null
           id?: string
@@ -737,6 +795,13 @@ export type Database = {
           {
             foreignKeyName: "journal_legs_created_by_fkey"
             columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_legs_excluded_by_fkey"
+            columns: ["excluded_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -1318,6 +1383,19 @@ export type Database = {
         Returns: Json
       }
       journal_leg_detail: { Args: { _leg_id: string }; Returns: Json }
+      journal_line_legs: {
+        Args: {
+          _codes?: string[]
+          _from?: string
+          _include_hidden?: boolean
+          _limit?: number
+          _offset?: number
+          _period_id: string
+          _query?: string
+          _to?: string
+        }
+        Returns: Json
+      }
       journal_pending_report: { Args: { _period_id: string }; Returns: Json }
       journal_report_analytic: {
         Args: {
@@ -1393,6 +1471,7 @@ export type Database = {
           reduced_code: string
         }[]
       }
+      period_hidden_summary: { Args: { _period_id: string }; Returns: Json }
       purge_period_journal: { Args: { _period_id: string }; Returns: Json }
       recalc_periods_for_accounts: {
         Args: { _codes: string[] }
@@ -1422,6 +1501,10 @@ export type Database = {
           _nature: string
           _reduced_code: string
         }
+        Returns: Json
+      }
+      set_journal_leg_excluded: {
+        Args: { _excluded: boolean; _leg_id: string; _motivo?: string }
         Returns: Json
       }
       set_ledger_account_active: {

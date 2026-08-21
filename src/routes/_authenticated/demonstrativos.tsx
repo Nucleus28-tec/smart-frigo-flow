@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ChevronRight, Download, FileSpreadsheet, FileText, RefreshCw } from "lucide-react";
+import { ChevronRight, Download, EyeOff, FileSpreadsheet, FileText, RefreshCw } from "lucide-react";
 import { EmptyState, ErrorState, PageHeader } from "@/components/PageState";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,8 +13,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { usePeriod } from "@/hooks/usePeriod";
 import { useProfile } from "@/hooks/useProfile";
 import { exportReport, generateStatements } from "@/lib/reports.functions";
+import { getHiddenSummary } from "@/lib/razao.functions";
 import { formatCurrency } from "@/lib/rotta";
 import { ConferenciaBalanco } from "@/components/ConferenciaBalanco";
+import {
+  PainelLancamentosLinha,
+  type LinhaDrill,
+} from "@/components/razao/PainelLancamentosLinha";
+
 
 type Line = {
   label: string;
@@ -125,28 +131,56 @@ function DemonstrativosPage() {
   const queryClient = useQueryClient();
   const periodId = selectedPeriod?.id ?? null;
   const [busy, setBusy] = useState<"pdf" | "xlsx" | null>(null);
-  const navigate = useNavigate();
+  const [drill, setDrill] = useState<LinhaDrill | null>(null);
+  const getHidden = useServerFn(getHiddenSummary);
 
-  /** Abre no /razao os lançamentos que compõem a linha clicada. */
+
+  const hiddenQuery = useQuery({
+    queryKey: ["hidden_summary", periodId],
+    enabled: !!periodId,
+    queryFn: async () => getHidden({ data: { period_id: periodId! } }),
+  });
+
+  /** Intervalo do período selecionado (primeiro ao último dia). */
+  function periodRange() {
+    const ref = selectedPeriod?.reference_month?.slice(0, 10) ?? null;
+    if (!ref) return { from: null as string | null, to: null as string | null };
+    const y = Number(ref.slice(0, 4));
+    const m = Number(ref.slice(5, 7));
+    const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    return {
+      from: `${ref.slice(0, 8)}01`,
+      to: `${ref.slice(0, 8)}${String(last).padStart(2, "0")}`,
+    };
+  }
+
+  /** Abre o painel lateral com os lançamentos que compõem a linha clicada. */
   function handleDrill(line: Line) {
     const codes = line.codes ?? [];
     if (codes.length === 0) return;
-    const ref = selectedPeriod?.reference_month?.slice(0, 10) ?? null;
-    const search: Record<string, string> = {
-      tab: "relatorios",
-      codes: codes.join(","),
+    const { from, to } = periodRange();
+    setDrill({
+      label: line.label,
+      codes,
+      from,
+      to,
       kind: line.base === "saldo" ? "balancete" : "razao",
-      dl: `${Date.now()}`,
-    };
-    if (ref) {
-      const y = Number(ref.slice(0, 4));
-      const m = Number(ref.slice(5, 7));
-      const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
-      search["de"] = `${ref.slice(0, 8)}01`;
-      search["ate"] = `${ref.slice(0, 8)}${String(last).padStart(2, "0")}`;
-    }
-    void navigate({ to: "/razao", search });
+    });
   }
+
+  /** Abre a mesma seleção no razão, em outra aba. */
+  function openRazao(current: LinhaDrill) {
+    const params = new URLSearchParams({
+      tab: "relatorios",
+      codes: current.codes.join(","),
+      kind: current.kind,
+      dl: `${Date.now()}`,
+    });
+    if (current.from) params.set("de", current.from);
+    if (current.to) params.set("ate", current.to);
+    window.open(`/razao?${params.toString()}`, "_blank", "noopener");
+  }
+
 
   const generate = useServerFn(generateStatements);
   const doExport = useServerFn(exportReport);
@@ -210,6 +244,21 @@ function DemonstrativosPage() {
         <div className="space-y-6">
           <ConferenciaBalanco periodId={periodId} />
 
+          {(hiddenQuery.data?.count ?? 0) > 0 ? (
+            <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-500/60 bg-amber-500/10 px-3 py-2 text-sm">
+              <EyeOff className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              <span>
+                {hiddenQuery.data?.count} lançamento(s) ocultos deste período — total de{" "}
+                <strong className="tabular-nums">
+                  {formatCurrency(hiddenQuery.data?.total ?? 0)}
+                </strong>{" "}
+                fora de DRE, Balanço, Fluxo e indicadores.
+              </span>
+            </div>
+          ) : null}
+
+
+
           <div className="flex flex-wrap items-center gap-2">
             {isAdmin ? (
               <Button
@@ -271,7 +320,18 @@ function DemonstrativosPage() {
           )}
         </div>
       )}
+
+      {periodId ? (
+        <PainelLancamentosLinha
+          periodId={periodId}
+          drill={drill}
+          canEdit={isAdmin}
+          onClose={() => setDrill(null)}
+          onOpenRazao={openRazao}
+        />
+      ) : null}
     </>
+
   );
 }
 
