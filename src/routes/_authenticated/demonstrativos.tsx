@@ -131,28 +131,54 @@ function DemonstrativosPage() {
   const queryClient = useQueryClient();
   const periodId = selectedPeriod?.id ?? null;
   const [busy, setBusy] = useState<"pdf" | "xlsx" | null>(null);
-  const navigate = useNavigate();
+  const [drill, setDrill] = useState<LinhaDrill | null>(null);
 
-  /** Abre no /razao os lançamentos que compõem a linha clicada. */
+  const hiddenQuery = useQuery({
+    queryKey: ["hidden_summary", periodId],
+    enabled: !!periodId,
+    queryFn: async () => getHidden({ data: { period_id: periodId! } }),
+  });
+
+  /** Intervalo do período selecionado (primeiro ao último dia). */
+  function periodRange() {
+    const ref = selectedPeriod?.reference_month?.slice(0, 10) ?? null;
+    if (!ref) return { from: null as string | null, to: null as string | null };
+    const y = Number(ref.slice(0, 4));
+    const m = Number(ref.slice(5, 7));
+    const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    return {
+      from: `${ref.slice(0, 8)}01`,
+      to: `${ref.slice(0, 8)}${String(last).padStart(2, "0")}`,
+    };
+  }
+
+  /** Abre o painel lateral com os lançamentos que compõem a linha clicada. */
   function handleDrill(line: Line) {
     const codes = line.codes ?? [];
     if (codes.length === 0) return;
-    const ref = selectedPeriod?.reference_month?.slice(0, 10) ?? null;
-    const search: Record<string, string> = {
-      tab: "relatorios",
-      codes: codes.join(","),
+    const { from, to } = periodRange();
+    setDrill({
+      label: line.label,
+      codes,
+      from,
+      to,
       kind: line.base === "saldo" ? "balancete" : "razao",
-      dl: `${Date.now()}`,
-    };
-    if (ref) {
-      const y = Number(ref.slice(0, 4));
-      const m = Number(ref.slice(5, 7));
-      const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
-      search["de"] = `${ref.slice(0, 8)}01`;
-      search["ate"] = `${ref.slice(0, 8)}${String(last).padStart(2, "0")}`;
-    }
-    void navigate({ to: "/razao", search });
+    });
   }
+
+  /** Abre a mesma seleção no razão, em outra aba. */
+  function openRazao(current: LinhaDrill) {
+    const params = new URLSearchParams({
+      tab: "relatorios",
+      codes: current.codes.join(","),
+      kind: current.kind,
+      dl: `${Date.now()}`,
+    });
+    if (current.from) params.set("de", current.from);
+    if (current.to) params.set("ate", current.to);
+    window.open(`/razao?${params.toString()}`, "_blank", "noopener");
+  }
+
 
   const generate = useServerFn(generateStatements);
   const doExport = useServerFn(exportReport);
