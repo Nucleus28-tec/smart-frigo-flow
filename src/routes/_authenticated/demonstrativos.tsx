@@ -16,10 +16,12 @@ import { exportReport, generateStatements } from "@/lib/reports.functions";
 import { getHiddenSummary } from "@/lib/razao.functions";
 import { formatCurrency } from "@/lib/rotta";
 import { ConferenciaBalanco } from "@/components/ConferenciaBalanco";
+import { LinhaHierarquica } from "@/components/demonstrativos/LinhaHierarquica";
 import {
   PainelLancamentosLinha,
   type LinhaDrill,
 } from "@/components/razao/PainelLancamentosLinha";
+
 
 
 type Line = {
