@@ -146,19 +146,19 @@ function DemonstrativosPage() {
     };
   }
 
-  /** Abre o painel lateral com os lançamentos que compõem a linha clicada. */
-  function handleDrill(line: Line) {
-    const codes = line.codes ?? [];
+  /** Abre o painel lateral com os lançamentos das contas clicadas. */
+  function handleDrill(codes: string[], label: string, base?: string) {
     if (codes.length === 0) return;
     const { from, to } = periodRange();
     setDrill({
-      label: line.label,
+      label,
       codes,
       from,
       to,
-      kind: line.base === "saldo" ? "balancete" : "razao",
+      kind: base === "saldo" ? "balancete" : "razao",
     });
   }
+
 
   /** Abre a mesma seleção no razão, em outra aba. */
   function openRazao(current: LinhaDrill) {
