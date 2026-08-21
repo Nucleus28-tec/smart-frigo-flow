@@ -558,12 +558,13 @@ export function GerenciadorLancamentos({
               <label className="text-sm font-medium" htmlFor="conta-debito">
                 Conta débito
               </label>
-              <Input
+              <AccountSelect
                 id="conta-debito"
-                list="contas-razao"
+                tone="debito"
                 value={form.debit_code}
-                onChange={(e) => set({ debit_code: e.target.value })}
-                placeholder="Código reduzido"
+                onChange={(code) => set({ debit_code: code })}
+                accounts={accounts}
+                placeholder="Selecionar conta débito"
               />
               <div className="min-h-[1.75rem] rounded-md border bg-background px-2.5 py-1">
                 {form.debit_code ? (
