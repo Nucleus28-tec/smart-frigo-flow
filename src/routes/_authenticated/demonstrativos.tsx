@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { ChevronRight, Download, EyeOff, FileSpreadsheet, FileText, RefreshCw } from "lucide-react";
+import { Download, EyeOff, FileSpreadsheet, FileText, RefreshCw } from "lucide-react";
 import { EmptyState, ErrorState, PageHeader } from "@/components/PageState";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
