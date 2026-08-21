@@ -261,6 +261,19 @@ export function PlanoDeContasArvore({ periodId, isAdmin }: Props) {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const createGroupMutation = useMutation({
+    mutationFn: (vars: { parent_code: string; name: string }) =>
+      createGroup({ data: vars }),
+    onSuccess: (result) => {
+      invalidate();
+      setNewGroupName("");
+      setPreview(null);
+      setMoveTarget(result.hierarchical_code);
+      toast.success(`Grupo ${result.hierarchical_code} — ${result.name} criado.`);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   const kindMutation = useMutation({
     mutationFn: (vars: { id: string; is_analytic: boolean }) => setKind({ data: vars }),
     onSuccess: () => {
