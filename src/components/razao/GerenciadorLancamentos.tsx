@@ -38,6 +38,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EmptyState, ErrorState, LoadingRows } from "@/components/PageState";
+import { AccountSelect } from "@/components/razao/AccountSelect";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/rotta";
 import { exportCsv, exportPdf, type ExportTable } from "@/lib/razao-export";
@@ -552,25 +553,18 @@ export function GerenciadorLancamentos({
             </Badge>
           </div>
 
-          <datalist id="contas-razao">
-            {accounts.map((account) => (
-              <option key={account.reduced_code} value={account.reduced_code}>
-                {account.name}
-              </option>
-            ))}
-          </datalist>
-
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <label className="text-sm font-medium" htmlFor="conta-debito">
                 Conta débito
               </label>
-              <Input
+              <AccountSelect
                 id="conta-debito"
-                list="contas-razao"
+                tone="debito"
                 value={form.debit_code}
-                onChange={(e) => set({ debit_code: e.target.value })}
-                placeholder="Código reduzido"
+                onChange={(code) => set({ debit_code: code })}
+                accounts={accounts}
+                placeholder="Selecionar conta débito"
               />
               <div className="min-h-[1.75rem] rounded-md border bg-background px-2.5 py-1">
                 {form.debit_code ? (
@@ -586,12 +580,13 @@ export function GerenciadorLancamentos({
               <label className="text-sm font-medium" htmlFor="conta-credito">
                 Conta crédito
               </label>
-              <Input
+              <AccountSelect
                 id="conta-credito"
-                list="contas-razao"
+                tone="credito"
                 value={form.credit_code}
-                onChange={(e) => set({ credit_code: e.target.value })}
-                placeholder="Código reduzido"
+                onChange={(code) => set({ credit_code: code })}
+                accounts={accounts}
+                placeholder="Selecionar conta crédito"
               />
               <div className="min-h-[1.75rem] rounded-md border bg-background px-2.5 py-1">
                 {form.credit_code ? (
