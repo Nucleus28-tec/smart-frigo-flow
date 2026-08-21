@@ -45,6 +45,11 @@ import {
 } from "@/components/ui/select";
 import { EmptyState, ErrorState, LoadingRows } from "@/components/PageState";
 import { GroupSelect, type GroupOption } from "@/components/razao/GroupSelect";
+import {
+  PainelLancamentosLinha,
+  type LinhaDrill,
+  type PanelAccount,
+} from "@/components/razao/PainelLancamentosLinha";
 import { NATURE_LABEL, NATURE_OPTIONS, formatCurrency } from "@/lib/rotta";
 import {
   analyzeChartWithAi,
@@ -53,6 +58,7 @@ import {
   getChartAudit,
   getChartTree,
   listChartSuggestions,
+  listHiddenAccounts,
   moveChartAccounts,
   renumberChartBranch,
   setChartAccountActive,
