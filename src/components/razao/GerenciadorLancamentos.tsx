@@ -572,9 +572,15 @@ export function GerenciadorLancamentos({
                 onChange={(e) => set({ debit_code: e.target.value })}
                 placeholder="Código reduzido"
               />
-              <p className="text-xs text-muted-foreground">
-                {accountName(form.debit_code) || "Informe o código reduzido da conta."}
-              </p>
+              <div className="min-h-[1.75rem] rounded-md border bg-background px-2.5 py-1">
+                {form.debit_code ? (
+                  <AccountChip tone="debito" code={form.debit_code} name={accountName(form.debit_code)} />
+                ) : (
+                  <span className="text-sm text-muted-foreground">
+                    Informe o código reduzido da conta.
+                  </span>
+                )}
+              </div>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium" htmlFor="conta-credito">
@@ -587,9 +593,15 @@ export function GerenciadorLancamentos({
                 onChange={(e) => set({ credit_code: e.target.value })}
                 placeholder="Código reduzido"
               />
-              <p className="text-xs text-muted-foreground">
-                {accountName(form.credit_code) || "Informe o código reduzido da conta."}
-              </p>
+              <div className="min-h-[1.75rem] rounded-md border bg-background px-2.5 py-1">
+                {form.credit_code ? (
+                  <AccountChip tone="credito" code={form.credit_code} name={accountName(form.credit_code)} />
+                ) : (
+                  <span className="text-sm text-muted-foreground">
+                    Informe o código reduzido da conta.
+                  </span>
+                )}
+              </div>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium" htmlFor="data-lcto">
