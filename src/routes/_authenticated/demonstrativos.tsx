@@ -3,7 +3,15 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Download, EyeOff, FileSpreadsheet, FileText, RefreshCw } from "lucide-react";
+import {
+  Download,
+  EyeOff,
+  FileSpreadsheet,
+  FileText,
+  Maximize2,
+  Minimize2,
+  RefreshCw,
+} from "lucide-react";
 import { EmptyState, ErrorState, PageHeader } from "@/components/PageState";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -55,10 +63,20 @@ function StatementCard({
   statement,
   periodId,
   onDrill,
+  canEdit,
+  expanded,
+  onToggleExpand,
+  openLines,
+  onLineOpenChange,
 }: {
   statement: Statement;
   periodId: string;
   onDrill: (codes: string[], label: string, base?: string) => void;
+  canEdit: boolean;
+  expanded: boolean;
+  onToggleExpand: () => void;
+  openLines: Set<string>;
+  onLineOpenChange: (key: string, open: boolean) => void;
 }) {
   const lines = statement.content?.linhas ?? [];
   const fonte = statement.content?.fonte;
@@ -70,11 +88,22 @@ function StatementCard({
           <CardTitle className="text-base">
             {TITLES[statement.statement_type] ?? statement.statement_type}
           </CardTitle>
-          {fonte ? (
-            <Badge variant={fonte === "razao" ? "default" : "secondary"} className="shrink-0">
-              Fonte: {fonte === "razao" ? "razão" : "balancete"}
-            </Badge>
-          ) : null}
+          <div className="flex shrink-0 items-center gap-2">
+            {fonte ? (
+              <Badge variant={fonte === "razao" ? "default" : "secondary"}>
+                Fonte: {fonte === "razao" ? "razão" : "balancete"}
+              </Badge>
+            ) : null}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              title={expanded ? "Voltar à visão em três colunas" : "Expandir em tela cheia"}
+              onClick={onToggleExpand}
+            >
+              {expanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+            </Button>
+          </div>
         </div>
         {base ? (
           <p className="text-xs text-muted-foreground">Base de cálculo: {BASE_LABEL[base] ?? base}.</p>
@@ -84,12 +113,17 @@ function StatementCard({
         {lines.map((line, index) => {
           const isTotal = line.kind === "total" || line.kind === "subtotal";
           const canDrill = (line.codes?.length ?? 0) > 0;
+          const lineKey = `${statement.statement_type}-${index}`;
           return canDrill ? (
             <LinhaHierarquica
               key={`${line.label}-${index}`}
               periodId={periodId}
               line={{ ...line, ...(line.base ?? base ? { base: line.base ?? base } : {}) }}
               onOpen={onDrill}
+              canEdit={canEdit}
+              large={expanded}
+              open={openLines.has(lineKey)}
+              onOpenChange={(value) => onLineOpenChange(lineKey, value)}
             />
           ) : (
             <div
@@ -126,7 +160,19 @@ function DemonstrativosPage() {
   const periodId = selectedPeriod?.id ?? null;
   const [busy, setBusy] = useState<"pdf" | "xlsx" | null>(null);
   const [drill, setDrill] = useState<LinhaDrill | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [openLines, setOpenLines] = useState<Set<string>>(() => new Set());
   const getHidden = useServerFn(getHiddenSummary);
+
+  /** Guarda quais linhas estão abertas para não perder a navegação ao expandir. */
+  function handleLineOpenChange(key: string, open: boolean) {
+    setOpenLines((current) => {
+      const next = new Set(current);
+      if (open) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+  }
 
 
   const hiddenQuery = useQuery({
@@ -302,16 +348,26 @@ function DemonstrativosPage() {
               }
             />
           ) : (
-            <div className="grid gap-4 lg:grid-cols-3">
-              {(statementsQuery.data ?? []).map((statement) => (
-                <StatementCard
-                  key={statement.statement_type}
-                  statement={statement}
-                  periodId={periodId}
-                  onDrill={handleDrill}
-                />
-
-              ))}
+            <div className={expanded ? "space-y-4" : "grid gap-4 lg:grid-cols-3"}>
+              {(statementsQuery.data ?? [])
+                .filter((statement) => !expanded || statement.statement_type === expanded)
+                .map((statement) => (
+                  <StatementCard
+                    key={statement.statement_type}
+                    statement={statement}
+                    periodId={periodId}
+                    onDrill={handleDrill}
+                    canEdit={isAdmin}
+                    expanded={expanded === statement.statement_type}
+                    onToggleExpand={() =>
+                      setExpanded((current) =>
+                        current === statement.statement_type ? null : statement.statement_type,
+                      )
+                    }
+                    openLines={openLines}
+                    onLineOpenChange={handleLineOpenChange}
+                  />
+                ))}
             </div>
           )}
         </div>

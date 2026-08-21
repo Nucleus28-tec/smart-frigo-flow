@@ -1198,6 +1198,28 @@ export const setLegExcluded = createServerFn({ method: "POST" })
     }),
   );
 
+/** Oculta (ou reexibe) todos os lançamentos de uma ou mais contas no período. */
+export const setAccountExcluded = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        period_id: z.string().uuid(),
+        codes: z.array(z.string().min(1)).min(1).max(500),
+        excluded: z.boolean(),
+        motivo: z.string().max(200).default(""),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) =>
+    callRpc<{ updated: number; status: string }>(context.supabase, "set_account_excluded", {
+      _period_id: data.period_id,
+      _reduced_codes: data.codes,
+      _excluded: data.excluded,
+      _motivo: data.motivo,
+    }),
+  );
+
 /** Resumo dos lançamentos ocultos do período. */
 export const getHiddenSummary = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

@@ -18,6 +18,8 @@ export type StatementTreeNode = {
   nome: string;
   nivel: number;
   parent: string | null;
+  hidden_count?: number;
+  total_count?: number;
   is_analytic: boolean;
   reduced_code: string | null;
   valor: number;
