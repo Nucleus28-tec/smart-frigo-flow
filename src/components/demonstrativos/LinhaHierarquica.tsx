@@ -293,19 +293,25 @@ export function LinhaHierarquica({
   }
 
   const hideMutation = useMutation({
-    mutationFn: (input: { codes: string[]; hide: boolean; motivo: string }) =>
-      hideAccount({
+    mutationFn: async (input: { codes: string[]; hide: boolean; motivo: string }) => {
+      const result = await hideAccount({
         data: {
           period_id: periodId,
           codes: input.codes,
           excluded: input.hide,
           motivo: input.motivo,
         },
-      }),
+      });
+      // Ocultar/reexibir precisa refletir no resultado: regera os demonstrativos.
+      await regenerate({ data: { period_id: periodId } });
+      return result;
+    },
     onSuccess: (result, input) => {
       toast.success(
-        `${result.updated} lançamento(s) ${input.hide ? "ocultos" : "reexibidos"}. Gere os demonstrativos para atualizar os totais.`,
+        `${result.updated} lançamento(s) ${input.hide ? "ocultos" : "reexibidos"}. Demonstrativos recalculados.`,
       );
+      setHideAsk(null);
+      setMotivo("");
       refresh();
     },
     onError: (error: Error) => toast.error(error.message),
@@ -316,11 +322,12 @@ export function LinhaHierarquica({
       toast.error("Nenhuma conta analítica nesta seleção.");
       return;
     }
-    const motivo = hide
-      ? (window.prompt(`Motivo para ocultar “${nome}” do resultado:`, "") ?? null)
-      : "";
-    if (hide && motivo === null) return;
-    hideMutation.mutate({ codes: nodeCodes, hide, motivo: motivo ?? "" });
+    if (!hide) {
+      hideMutation.mutate({ codes: nodeCodes, hide: false, motivo: "" });
+      return;
+    }
+    setMotivo("");
+    setHideAsk({ codes: nodeCodes, nome });
   }
 
   return (
