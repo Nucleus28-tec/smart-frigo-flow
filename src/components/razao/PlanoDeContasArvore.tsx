@@ -156,7 +156,22 @@ const KIND_LABEL: Record<string, string> = {
   tipo_conta: "Sintética / analítica",
 };
 
+/** Códigos reduzidos analíticos de um nó (o próprio, ou todas as folhas do ramo). */
+function analyticCodes(node: TreeNode): string[] {
+  if (node.is_analytic) return [node.reduced_code];
+  const out: string[] = [];
+  const walk = (list: TreeNode[]) => {
+    for (const child of list) {
+      if (child.is_analytic) out.push(child.reduced_code);
+      walk(child.children);
+    }
+  };
+  walk(node.children);
+  return out;
+}
+
 export function PlanoDeContasArvore({ periodId, isAdmin }: Props) {
+
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [applied, setApplied] = useState("");
