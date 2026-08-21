@@ -583,14 +583,25 @@ export function PlanoDeContasArvore({ periodId, isAdmin }: Props) {
                     const isOpen = autoExpanded.has(key);
                     const pending =
                       !node.hierarchical_code || !node.nature || !node.parent_code;
+                    const isHidden = hiddenCodes.has(node.reduced_code);
                     return (
                       <tr
                         key={node.id}
-                        className={`border-t transition-colors hover:bg-accent/40 ${
+                        onClick={() => openAccountPanel(node)}
+                        title="Abrir os lançamentos desta conta"
+                        className={`cursor-pointer border-t transition-colors hover:bg-accent/40 ${
                           selected.has(node.id) ? "bg-accent/50" : ""
-                        }`}
+                        } ${
+                          openAccount?.drill.label.endsWith(`— ${node.name}`) &&
+                          openAccount?.account.codes.join(",") === analyticCodes(node).join(",")
+                            ? "bg-primary/10"
+                            : ""
+                        } ${isHidden ? "line-through opacity-60" : ""}`}
                       >
-                        <td className="px-2 py-1.5 align-middle">
+                        <td
+                          className="px-2 py-1.5 align-middle"
+                          onClick={(event) => event.stopPropagation()}
+                        >
                           <Checkbox
                             checked={selected.has(node.id)}
                             onCheckedChange={() => toggleSelect(node.id)}
