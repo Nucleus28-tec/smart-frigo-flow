@@ -508,6 +508,7 @@ function LedgerView({ report, periodLabel }: { report: LedgerReport; periodLabel
             {formatDay(report.to_actual ?? report.to) || "fim"} ·{" "}
             {report.total_lines ?? report.accounts.reduce((s, a) => s + a.line_count, 0)}{" "}
             lançamentos
+          </p>
         </div>
 
         {report.accounts.map((account) => (
