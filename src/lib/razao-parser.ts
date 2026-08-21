@@ -414,7 +414,16 @@ export function parseRazaoSheetMatrix(matrix: unknown[][]): { legs: RazaoLeg[]; 
         break;
       }
     }
-    const saldoAtual = saldoAtualStr ? razaoSignedMoney(saldoAtualStr) : null;
+    let saldoAtual = saldoAtualStr ? razaoSignedMoney(saldoAtualStr) : null;
+    if (saldoAtual == null) {
+      // saldo zerado sai como número puro (ex.: 0) na última coluna do relatório
+      for (let i = cells.length - 1; i >= debCol + 4; i -= 1) {
+        if (RAZAO_PLAIN_NUM_RE.test(cells[i]!)) {
+          saldoAtual = Number(cells[i]!);
+          break;
+        }
+      }
+    }
 
     // Leitura posicional: o valor "cru" (sem formatação BR) mais próximo da
     // coluna de débito ou crédito aprendida no cabeçalho da página.
