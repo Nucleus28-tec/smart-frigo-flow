@@ -504,9 +504,10 @@ function LedgerView({ report, periodLabel }: { report: LedgerReport; periodLabel
             Relatório Razão Contábil Analítico
           </h3>
           <p className="text-xs text-muted-foreground">
-            {periodLabel} · Data mov.: {formatDay(report.from) || "início"} a{" "}
-            {formatDay(report.to) || "fim"}
-          </p>
+            {periodLabel} · Data mov.: {formatDay(report.from_actual ?? report.from) || "início"} a{" "}
+            {formatDay(report.to_actual ?? report.to) || "fim"} ·{" "}
+            {report.total_lines ?? report.accounts.reduce((s, a) => s + a.line_count, 0)}{" "}
+            lançamentos
         </div>
 
         {report.accounts.map((account) => (
