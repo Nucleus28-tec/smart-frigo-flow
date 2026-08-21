@@ -802,6 +802,31 @@ function ImportarPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={pendingPurge} onOpenChange={setPendingPurge}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Limpar o movimento de {selectedPeriod?.label}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Serão removidos {movementQuery.data?.legs.toLocaleString("pt-BR") ?? 0} lançamentos do
+              razão (inclusive manuais e cancelados), o balancete importado e os saldos de abertura
+              deste período. Os indicadores serão recalculados. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                purgeMutation.mutate();
+                setPendingPurge(false);
+              }}
+            >
+              Limpar movimento
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </>
   );
 }
