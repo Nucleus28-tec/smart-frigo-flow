@@ -252,7 +252,7 @@ function ImportarPage() {
     onError: (error: Error) => toast.error(error.message),
   });
 
-  /** Envia as pernas em blocos e finaliza (casamento + recálculo do período). */
+  /** Envia as pernas em blocos e finaliza (validação + casamento + recálculo). */
   async function enviarPernas(
     fileId: string,
     periodId: string,
@@ -260,13 +260,29 @@ function ImportarPage() {
     base = 45,
   ): Promise<void> {
     const CHUNK = 1500;
-    let inserted = 0;
+    const total = {
+      inserted: 0,
+      new_accounts: 0,
+      openings: 0,
+      skipped_closing: 0,
+      ignored_no_account: 0,
+      ignored_no_value: 0,
+      bad_numbers: 0,
+      bad_dates: 0,
+    };
     for (let i = 0; i < legs.length; i += CHUNK) {
       const chunk = legs.slice(i, i + CHUNK);
       const result = await sendJournalChunk({
-        data: { file_id: fileId, legs: chunk as never, reset: i === 0 },
+        data: {
+          file_id: fileId,
+          legs: chunk as never,
+          reset: i === 0,
+          skip_closing: skipClosing,
+        },
       });
-      inserted += result.inserted ?? 0;
+      for (const key of Object.keys(total) as (keyof typeof total)[]) {
+        total[key] += (result as Record<string, number | undefined>)[key] ?? 0;
+      }
       const done = Math.min(i + CHUNK, legs.length);
       setProgress({
         label: `Gravando lançamentos (${done} de ${legs.length})...`,
@@ -274,19 +290,42 @@ function ImportarPage() {
       });
     }
 
-    setProgress({ label: "Casando contas e recalculando o período...", pct: 96 });
+    setProgress({ label: "Validando e recalculando o período...", pct: 96 });
     const done = await finalizeJournal({ data: { period_id: periodId, file_id: fileId } });
     setProgress(null);
-    toast.success(
-      `Razão importado: ${inserted} lançamentos, ${done.by_name + done.by_value} contas vinculadas.`,
-      {
-        description:
-          done.pending > 0
-            ? `${done.pending} conta(s) aguardam confirmação em Razão › Pendências.`
-            : "Todas as contas foram vinculadas.",
-      },
-    );
+
+    const detalhes = [
+      `${total.inserted} lançamentos gravados`,
+      `${total.new_accounts} conta(s) nova(s)`,
+      `${total.openings} saldo(s) anterior(es)`,
+      skipClosing ? `${total.skipped_closing} encerramento(s) descartado(s)` : null,
+      total.ignored_no_account ? `${total.ignored_no_account} sem conta` : null,
+      total.ignored_no_value ? `${total.ignored_no_value} sem valor` : null,
+      total.bad_numbers ? `${total.bad_numbers} valor(es) inválido(s)` : null,
+      total.bad_dates ? `${total.bad_dates} data(s) inválida(s)` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+
+    const alertas = done.validation?.warnings ?? [];
+    const vinculadas = `${done.by_name + done.by_value} contas vinculadas`;
+    if (alertas.length > 0) {
+      toast.warning("Razão importado com alertas.", {
+        description: `${alertas.join(" ")} — ${detalhes} · ${vinculadas}.`,
+        duration: 12000,
+      });
+      return;
+    }
+    toast.success(`Razão importado: ${vinculadas}.`, {
+      description:
+        detalhes +
+        (done.pending > 0
+          ? ` · ${done.pending} conta(s) aguardam confirmação em Razão › Pendências.`
+          : ""),
+      duration: 10000,
+    });
   }
+
 
   /** Lê o razão em PDF no navegador e envia as pernas em blocos. */
   async function importRazaoNoNavegador(fileId: string, periodId: string, source: File) {
