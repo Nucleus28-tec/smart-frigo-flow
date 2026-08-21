@@ -150,6 +150,7 @@ function ImportarPage() {
   const [sheet, setSheet] = useState<SheetData | null>(null);
   const [sheetFile, setSheetFile] = useState<File | null>(null);
   const [mapping, setMapping] = useState<Mapping>({});
+  const [skipClosing, setSkipClosing] = useState(true);
 
   const buildResult = useMemo(
     () => (sheet ? buildLegs(sheet.rows, mapping) : null),
@@ -281,7 +282,7 @@ function ImportarPage() {
         },
       });
       for (const key of Object.keys(total) as (keyof typeof total)[]) {
-        total[key] += (result as Record<string, number | undefined>)[key] ?? 0;
+        total[key] += ((result as unknown as Record<string, number | undefined>)[key] ?? 0);
       }
       const done = Math.min(i + CHUNK, legs.length);
       setProgress({
