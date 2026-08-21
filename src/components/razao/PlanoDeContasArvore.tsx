@@ -44,9 +44,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { EmptyState, ErrorState, LoadingRows } from "@/components/PageState";
+import { GroupSelect, type GroupOption } from "@/components/razao/GroupSelect";
 import { NATURE_LABEL, NATURE_OPTIONS, formatCurrency } from "@/lib/rotta";
 import {
   analyzeChartWithAi,
+  createChildAccount,
   decideChartSuggestions,
   getChartAudit,
   getChartTree,
