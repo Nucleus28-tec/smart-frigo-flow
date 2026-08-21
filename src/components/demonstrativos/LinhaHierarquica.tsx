@@ -263,9 +263,12 @@ export function LinhaHierarquica({
   const queryClient = useQueryClient();
   const runTree = useServerFn(getStatementTree);
   const hideAccount = useServerFn(setAccountExcluded);
+  const regenerate = useServerFn(generateStatements);
   const codes = line.codes ?? [];
   const isTotal = line.kind === "total" || line.kind === "subtotal";
   const [reclass, setReclass] = useState<{ code: string; name: string } | null>(null);
+  const [hideAsk, setHideAsk] = useState<{ codes: string[]; nome: string } | null>(null);
+  const [motivo, setMotivo] = useState("");
 
   const treeQuery = useQuery({
     queryKey: ["statement_tree", periodId, codes.join(","), line.base ?? "movimento"],
