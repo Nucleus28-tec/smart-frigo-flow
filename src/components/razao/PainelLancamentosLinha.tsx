@@ -93,18 +93,25 @@ export function PainelLancamentosLinha({
   canEdit,
   onClose,
   onOpenRazao,
+  account = null,
+  onAccountChanged,
 }: {
   periodId: string;
   drill: LinhaDrill | null;
   canEdit: boolean;
   onClose: () => void;
   onOpenRazao: (drill: LinhaDrill) => void;
+  /** Conta do plano aberta no painel: habilita reclassificar e ocultar a conta. */
+  account?: PanelAccount | null;
+  onAccountChanged?: () => void;
 }) {
   const queryClient = useQueryClient();
   const runList = useServerFn(listLineLegs);
   const runSave = useServerFn(saveManualJournalEntry);
   const runHide = useServerFn(setLegExcluded);
   const runCancel = useServerFn(cancelJournalEntry);
+  const runHideAccount = useServerFn(setAccountExcluded);
+  const runRegenerate = useServerFn(generateStatements);
 
   const [width, setWidth] = useState(620);
   const [term, setTerm] = useState("");
@@ -112,6 +119,9 @@ export function PainelLancamentosLinha({
   const [showHidden, setShowHidden] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
+  const [reclassOpen, setReclassOpen] = useState(false);
+  const [hideAsk, setHideAsk] = useState(false);
+  const [motivo, setMotivo] = useState("");
   const dragging = useRef(false);
 
   useEffect(() => {
