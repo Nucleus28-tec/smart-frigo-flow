@@ -535,7 +535,24 @@ function ImportarPage() {
                 importação serve apenas como espelho de conferência.
               </p>
             ) : null}
+            {fileType === "razao" ? (
+              <label className="flex items-start gap-2 rounded-md border border-border/60 p-2 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 size-3.5 accent-primary"
+                  checked={skipClosing}
+                  onChange={(e) => setSkipClosing(e.target.checked)}
+                />
+                <span>
+                  Descartar lançamentos de encerramento do G2.
+                  <span className="block">
+                    O fechamento contábil passa a ser executado no RotaBase.
+                  </span>
+                </span>
+              </label>
+            ) : null}
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="arquivo">Arquivo (PDF, Excel ou CSV)</Label>
             <Input
