@@ -1291,9 +1291,56 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_ledger_import_gaps: {
+        Row: {
+          account_reduced_code: string | null
+          conta: string | null
+          lado: string | null
+          linhas_perdidas: number | null
+          period_id: string | null
+          periodo: string | null
+          primeiro_doc_apos_lacuna: string | null
+          ultimo_doc_apos_lacuna: string | null
+          valor_perdido: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_legs_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_ledger_reconciliation: {
+        Row: {
+          account_reduced_code: string | null
+          conta: string | null
+          lado: string | null
+          period_id: string | null
+          periodo: string | null
+          qtd_lancamentos: number | null
+          saldo_anterior_assinado: number | null
+          saldo_anterior_magnitude: number | null
+          saldo_esperado: number | null
+          saldo_gravado: number | null
+          total_credito: number | null
+          total_debito: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_legs_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
+      account_side: { Args: { p_nature: string }; Returns: string }
       apply_journal_adjustment: {
         Args: {
           _justificativa?: string
