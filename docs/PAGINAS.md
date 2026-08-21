@@ -240,3 +240,5 @@ Ao escolher o tipo "Razão contábil" e enviar `.csv`, `.xlsx` ou `.xls`, aparec
 ## /demonstrativos — painel lateral de lançamentos
 
 Clicar em uma linha da DRE, do Balanço ou do Fluxo abre um painel lateral redimensionável na própria tela (largura salva no navegador, fecha com Esc), listando os lançamentos que compõem a linha. No painel: busca livre, alternar "Mostrar ocultos", editar (data, documento, valor, histórico), reclassificar trocando as contas de débito/crédito, ocultar/reexibir o lançamento em todos os relatórios (com motivo), cancelar o lançamento e comentar (histórico com autor e data). O ícone de link externo abre o razão filtrado em uma nova aba. Um aviso no topo mostra quantos lançamentos estão ocultos no período e o valor total.
+
+Cada linha da DRE, do Balanço e do Fluxo com contas vinculadas é expansível: abre a hierarquia do plano de contas (4 → 4.01 → 4.01.01 → conta analítica) com o valor de cada nível. Clicar na conta analítica abre o painel de lançamentos filtrado nela; o ícone de árvore ao lado de um grupo abre o painel com todas as contas do grupo somadas.
