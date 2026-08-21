@@ -1220,15 +1220,40 @@ export const setAccountExcluded = createServerFn({ method: "POST" })
     }),
   );
 
-/** Resumo dos lançamentos ocultos do período. */
+/** Resumo dos lançamentos e contas ocultas do período. */
 export const getHiddenSummary = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ period_id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) =>
-    callRpc<{ count: number; total: number }>(context.supabase, "period_hidden_summary", {
+    callRpc<{ count: number; total: number; accounts: number; opening_total: number }>(
+      context.supabase,
+      "period_hidden_summary",
+      { _period_id: data.period_id },
+    ),
+  );
+
+export type HiddenAccount = {
+  reduced_code: string;
+  account_name: string;
+  hierarchical_code: string | null;
+  nature: string | null;
+  motivo: string | null;
+  excluded_at: string;
+  excluded_by_name: string;
+  opening_balance: number;
+  hidden_legs: number;
+};
+
+/** Contas ocultas do período, com motivo, autor e valor retirado do resultado. */
+export const listHiddenAccounts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ period_id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) =>
+    callRpc<HiddenAccount[]>(context.supabase, "period_hidden_accounts", {
       _period_id: data.period_id,
     }),
   );
+
 
 export type LegComment = {
   id: string;

@@ -25,6 +25,8 @@ import { getHiddenSummary } from "@/lib/razao.functions";
 import { formatCurrency } from "@/lib/rotta";
 import { ConferenciaBalanco } from "@/components/ConferenciaBalanco";
 import { LinhaHierarquica } from "@/components/demonstrativos/LinhaHierarquica";
+import { ContasOcultasPainel } from "@/components/demonstrativos/ContasOcultasPainel";
+
 import {
   PainelLancamentosLinha,
   type LinhaDrill,
@@ -284,18 +286,23 @@ function DemonstrativosPage() {
         <div className="space-y-6">
           <ConferenciaBalanco periodId={periodId} />
 
-          {(hiddenQuery.data?.count ?? 0) > 0 ? (
+          {(hiddenQuery.data?.count ?? 0) > 0 || (hiddenQuery.data?.accounts ?? 0) > 0 ? (
             <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-500/60 bg-amber-500/10 px-3 py-2 text-sm">
               <EyeOff className="h-4 w-4 text-amber-600 dark:text-amber-400" />
               <span>
-                {hiddenQuery.data?.count} lançamento(s) ocultos deste período — total de{" "}
+                {hiddenQuery.data?.count ?? 0} lançamento(s) ocultos (
+                {formatCurrency(hiddenQuery.data?.total ?? 0)}) e{" "}
+                {hiddenQuery.data?.accounts ?? 0} conta(s) oculta(s) com abertura de{" "}
                 <strong className="tabular-nums">
-                  {formatCurrency(hiddenQuery.data?.total ?? 0)}
+                  {formatCurrency(hiddenQuery.data?.opening_total ?? 0)}
                 </strong>{" "}
                 fora de DRE, Balanço, Fluxo e indicadores.
               </span>
             </div>
           ) : null}
+
+          <ContasOcultasPainel periodId={periodId} canEdit={isAdmin} />
+
 
 
 

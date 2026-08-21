@@ -1022,6 +1022,48 @@ export type Database = {
           },
         ]
       }
+      period_excluded_accounts: {
+        Row: {
+          excluded_at: string
+          excluded_by: string | null
+          id: string
+          motivo: string | null
+          period_id: string
+          reduced_code: string
+        }
+        Insert: {
+          excluded_at?: string
+          excluded_by?: string | null
+          id?: string
+          motivo?: string | null
+          period_id: string
+          reduced_code: string
+        }
+        Update: {
+          excluded_at?: string
+          excluded_by?: string | null
+          id?: string
+          motivo?: string | null
+          period_id?: string
+          reduced_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "period_excluded_accounts_excluded_by_fkey"
+            columns: ["excluded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "period_excluded_accounts_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -1471,6 +1513,7 @@ export type Database = {
           reduced_code: string
         }[]
       }
+      period_hidden_accounts: { Args: { _period_id: string }; Returns: Json }
       period_hidden_summary: { Args: { _period_id: string }; Returns: Json }
       purge_period_journal: { Args: { _period_id: string }; Returns: Json }
       recalc_periods_for_accounts: {
