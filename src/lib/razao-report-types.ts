@@ -11,6 +11,7 @@ export type LedgerReportLine = {
   credit: number;
   counterpart_reduced_code: string | null;
   counterpart_name: string | null;
+  partida_multipla?: boolean;
   running_balance: number;
 };
 
@@ -23,6 +24,7 @@ export type LedgerReportAccount = {
   total_credit: number;
   closing_balance: number;
   line_count: number;
+  partidas_multiplas?: number;
   lines: LedgerReportLine[];
 };
 
@@ -30,6 +32,9 @@ export type LedgerReport = {
   period_id: string;
   from: string | null;
   to: string | null;
+  from_actual?: string | null;
+  to_actual?: string | null;
+  total_lines?: number;
   doc_number: string | null;
   truncated: boolean;
   accounts: LedgerReportAccount[];
