@@ -420,7 +420,7 @@ export function parseRazaoSheetMatrix(matrix: unknown[][]): { legs: RazaoLeg[]; 
     // coluna de débito ou crédito aprendida no cabeçalho da página.
     let debit = 0;
     let credit = 0;
-    const start = Math.max(dateIdx, counterpartIdx) + 1;
+    const start = (counterpartIdx >= 0 ? counterpartIdx : dateIdx) + 1;
     for (let i = start; i < cells.length; i += 1) {
       const c = cells[i]!;
       if (!RAZAO_PLAIN_NUM_RE.test(c)) continue;
