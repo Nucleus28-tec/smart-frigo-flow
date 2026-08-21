@@ -542,6 +542,35 @@ function ImportarPage() {
         description={`Arquivos do período ${selectedPeriod?.label ?? ""}. Balancetes em PDF são lidos por IA; planilhas via parser.`}
       />
 
+      {isAdmin && (movementQuery.data?.legs ?? 0) > 0 ? (
+        <Card className="mb-6 border-amber-500/40 bg-amber-500/5">
+          <CardContent className="flex flex-col gap-3 pt-6 md:flex-row md:items-center md:justify-between">
+            <div className="text-sm">
+              <p className="font-medium">
+                {movementQuery.data!.legs.toLocaleString("pt-BR")} lançamentos no razão de{" "}
+                {selectedPeriod?.label}
+                {(movementQuery.data?.orphans ?? 0) > 0
+                  ? ` — ${movementQuery.data!.orphans.toLocaleString("pt-BR")} sem arquivo vinculado`
+                  : ""}
+                .
+              </p>
+              <p className="text-muted-foreground">
+                Excluir o arquivo remove os lançamentos dele. Lançamentos sem arquivo (importações
+                antigas ou manuais) só saem com a limpeza do período.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              disabled={isClosed || purgeMutation.isPending}
+              onClick={() => setPendingPurge(true)}
+            >
+              {purgeMutation.isPending ? "Limpando…" : "Limpar movimento do período"}
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+
+
       <Card className="mb-6">
         <CardContent className="grid gap-4 pt-6 md:grid-cols-[minmax(0,220px)_minmax(0,1fr)_auto] md:items-end">
           <div className="space-y-2">
