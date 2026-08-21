@@ -517,7 +517,12 @@ function LedgerView({ report, periodLabel }: { report: LedgerReport; periodLabel
               <span className="text-sm font-semibold">
                 CONTA: {account.code} — {account.name}
               </span>
-              <span className="text-xs text-muted-foreground">
+              <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                {account.partidas_multiplas ? (
+                  <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
+                    {account.partidas_multiplas} partida(s) múltipla(s)
+                  </span>
+                ) : null}
                 Saldo anterior: {balanceLabel(account.opening_balance)}
               </span>
             </div>
