@@ -320,7 +320,18 @@ function DemonstrativosPage() {
           )}
         </div>
       )}
+
+      {periodId ? (
+        <PainelLancamentosLinha
+          periodId={periodId}
+          drill={drill}
+          canEdit={isAdmin}
+          onClose={() => setDrill(null)}
+          onOpenRazao={openRazao}
+        />
+      ) : null}
     </>
+
   );
 }
 
