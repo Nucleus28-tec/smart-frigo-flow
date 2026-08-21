@@ -590,18 +590,47 @@ export function PlanoDeContasArvore({ periodId, isAdmin }: Props) {
           </DialogHeader>
 
           <div className="space-y-3">
-            <Select value={moveTarget} onValueChange={setMoveTarget}>
-              <SelectTrigger>
-                <SelectValue placeholder="Grupo de destino (conta sintética)" />
-              </SelectTrigger>
-              <SelectContent className="max-h-72">
-                {groups.map((g) => (
-                  <SelectItem key={g.id} value={g.hierarchical_code!}>
-                    {g.hierarchical_code} — {g.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <GroupSelect
+              value={moveTarget}
+              onChange={(v) => {
+                setMoveTarget(v);
+                setPreview(null);
+              }}
+              groups={groupOptions}
+            />
+
+            <div className="rounded-md border p-3">
+              <p className="text-xs text-muted-foreground">
+                O grupo certo ainda não existe? Crie uma sintética filha do destino selecionado — o
+                sistema sugere o próximo código livre do ramo.
+              </p>
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                <Input
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  placeholder="Nome do novo grupo (ex.: FORNECEDORES PECUARISTAS)"
+                />
+                <Button
+                  variant="outline"
+                  disabled={
+                    !moveTarget || newGroupName.trim().length < 2 || createGroupMutation.isPending
+                  }
+                  onClick={() =>
+                    createGroupMutation.mutate({
+                      parent_code: moveTarget,
+                      name: newGroupName.trim(),
+                    })
+                  }
+                >
+                  {createGroupMutation.isPending ? (
+                    <Loader2 className="mr-1 size-4 animate-spin" />
+                  ) : (
+                    <FolderPlus className="mr-1 size-4" />
+                  )}
+                  Criar grupo aqui
+                </Button>
+              </div>
+            </div>
 
             <Button
               variant="secondary"
