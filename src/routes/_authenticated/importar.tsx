@@ -246,12 +246,35 @@ function ImportarPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (fileId: string) => removeFile({ data: { file_id: fileId } }),
-    onSuccess: () => {
+    onSuccess: (result) => {
       invalidate();
-      toast.success("Arquivo excluído.");
+      void queryClient.invalidateQueries({ queryKey: ["period_movement", selectedPeriodId] });
+      toast.success(
+        `Arquivo excluído — ${result.journalLegs} lançamentos do razão removidos.` +
+          (result.storageRemoved ? "" : " O arquivo físico não pôde ser apagado do armazenamento."),
+      );
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error("Nada foi excluído", { description: error.message }),
   });
+
+  const movementQuery = useQuery({
+    queryKey: ["period_movement", selectedPeriodId],
+    enabled: Boolean(selectedPeriodId),
+    queryFn: () => countMovement({ data: { period_id: selectedPeriodId! } }),
+  });
+
+  const purgeMutation = useMutation({
+    mutationFn: () => purgeMovement({ data: { period_id: selectedPeriodId! } }),
+    onSuccess: (result) => {
+      invalidate();
+      void queryClient.invalidateQueries({ queryKey: ["period_movement", selectedPeriodId] });
+      toast.success(
+        `Movimento de ${result.label} limpo: ${result.journalLegs} lançamentos removidos.`,
+      );
+    },
+    onError: (error: Error) => toast.error("Não foi possível limpar", { description: error.message }),
+  });
+
 
   /** Envia as pernas em blocos e finaliza (validação + casamento + recálculo). */
   async function enviarPernas(
