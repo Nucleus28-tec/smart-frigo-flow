@@ -71,10 +71,6 @@ export function AccountSelect({
       ? "bg-warning/15 text-warning-foreground ring-warning/30"
       : "bg-brand-soft text-brand-soft-foreground ring-brand/30";
 
-  const displayValue = selected
-    ? `${selected.reduced_code} — ${selected.name}`
-    : placeholder;
-
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
