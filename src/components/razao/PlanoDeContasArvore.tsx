@@ -171,16 +171,33 @@ export function PlanoDeContasArvore({ periodId, isAdmin }: Props) {
   const [auditOpen, setAuditOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [aiChosen, setAiChosen] = useState<Set<string>>(new Set());
+  /** Conta aberta no painel lateral de lançamentos. */
+  const [openAccount, setOpenAccount] = useState<
+    { drill: LinhaDrill; account: PanelAccount } | null
+  >(null);
 
   const fetchTree = useServerFn(getChartTree);
   const fetchAudit = useServerFn(getChartAudit);
   const fetchSuggestions = useServerFn(listChartSuggestions);
+  const fetchHidden = useServerFn(listHiddenAccounts);
   const move = useServerFn(moveChartAccounts);
   const setKind = useServerFn(setChartAccountKind);
   const renumber = useServerFn(renumberChartBranch);
   const analyze = useServerFn(analyzeChartWithAi);
   const decide = useServerFn(decideChartSuggestions);
   const createGroup = useServerFn(createChildAccount);
+
+  const hidden = useQuery({
+    queryKey: ["hidden_accounts", periodId],
+    enabled: Boolean(periodId),
+    queryFn: () => fetchHidden({ data: { period_id: periodId! } }),
+  });
+
+  const hiddenCodes = useMemo(
+    () => new Set((hidden.data ?? []).map((h) => h.reduced_code)),
+    [hidden.data],
+  );
+
 
   const tree = useQuery({
     queryKey: ["chart_tree", periodId, applied, nature, onlyPending],
