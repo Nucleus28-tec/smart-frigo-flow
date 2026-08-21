@@ -399,7 +399,12 @@ export function parseRazaoSheetMatrix(matrix: unknown[][]): { legs: RazaoLeg[]; 
 
     const docNumber = cells[docCandidateIdx]!;
     const entryDate = razaoDateFromCell(row[dateIdx]);
-    const counterpartIdx = cells.findIndex((c, i) => i > dateIdx && RAZAO_INT_RE.test(c));
+    // A contra-partida do G2 fica SEMPRE na coluna imediatamente à direita da
+    // data e antes da coluna de débito. Sem essa trava, um valor inteiro
+    // (ex.: 6168) era lido como contra-partida e a linha perdia débito/crédito.
+    const cpIdx = dateIdx + 1;
+    const counterpartIdx =
+      cpIdx < debCol && cpIdx < cells.length && RAZAO_INT_RE.test(cells[cpIdx]!) ? cpIdx : -1;
     const counterpart = counterpartIdx >= 0 ? cells[counterpartIdx]! : null;
 
     let saldoAtualStr: string | null = null;
@@ -409,14 +414,24 @@ export function parseRazaoSheetMatrix(matrix: unknown[][]): { legs: RazaoLeg[]; 
         break;
       }
     }
-    const saldoAtual = saldoAtualStr ? razaoSignedMoney(saldoAtualStr) : null;
+    let saldoAtual = saldoAtualStr ? razaoSignedMoney(saldoAtualStr) : null;
+    if (saldoAtual == null) {
+      // saldo zerado sai como número puro (ex.: 0) na última coluna do relatório
+      for (let i = cells.length - 1; i >= debCol + 4; i -= 1) {
+        if (RAZAO_PLAIN_NUM_RE.test(cells[i]!)) {
+          saldoAtual = Number(cells[i]!);
+          break;
+        }
+      }
+    }
 
     // Leitura posicional: o valor "cru" (sem formatação BR) mais próximo da
     // coluna de débito ou crédito aprendida no cabeçalho da página.
     let debit = 0;
     let credit = 0;
-    const start = Math.max(dateIdx, counterpartIdx) + 1;
-    for (let i = start; i < cells.length; i += 1) {
+    const start = (counterpartIdx >= 0 ? counterpartIdx : dateIdx) + 1;
+    const valueLimit = Math.min(cells.length, (credCol ?? debCol + 1) + 3);
+    for (let i = start; i < valueLimit; i += 1) {
       const c = cells[i]!;
       if (!RAZAO_PLAIN_NUM_RE.test(c)) continue;
       const distDeb = Math.abs(i - debCol);
@@ -449,7 +464,32 @@ export function parseRazaoSheetMatrix(matrix: unknown[][]): { legs: RazaoLeg[]; 
     });
   }
 
+  fixOpeningSigns(legs);
   return { legs, accounts: openingEmitted.size };
+}
+
+/**
+ * O G2 às vezes exporta o "SALDO ANTERIOR" como número puro (sem o sufixo D/C),
+ * o que gravava saldo credor com sinal positivo. Aqui o sinal é deduzido do
+ * primeiro lançamento da conta: saldo_anterior = saldo_atual − (débito − crédito).
+ */
+function fixOpeningSigns(legs: RazaoLeg[]) {
+  const firstMove = new Map<string, RazaoLeg>();
+  for (const leg of legs) {
+    if (leg.line_no === 0 || leg.running_balance == null) continue;
+    if (!firstMove.has(leg.account_reduced_code)) firstMove.set(leg.account_reduced_code, leg);
+  }
+  for (const leg of legs) {
+    if (leg.line_no !== 0) continue;
+    const move = firstMove.get(leg.account_reduced_code);
+    if (!move || move.running_balance == null) continue;
+    const derived = move.running_balance - (move.debit - move.credit);
+    const current = leg.opening_balance ?? 0;
+    if (Math.abs(Math.abs(derived) - Math.abs(current)) <= 0.01 && derived !== current) {
+      leg.opening_balance = derived;
+      leg.running_balance = derived;
+    }
+  }
 }
 
 // ========================== BALANCETE ==========================

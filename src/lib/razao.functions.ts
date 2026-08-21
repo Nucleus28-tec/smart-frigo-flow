@@ -137,6 +137,33 @@ export const finalizeJournalImport = createServerFn({ method: "POST" })
       });
     }
 
+    // Trava de integridade: o saldo acumulado do G2 tem que fechar linha a linha.
+    // Qualquer lacuna significa lançamento perdido na importação.
+    const { data: gapRows } = await context.supabase
+      .from("v_ledger_import_gaps")
+      .select("account_reduced_code, conta, linhas_perdidas, valor_perdido")
+      .eq("period_id", data.period_id)
+      .order("valor_perdido", { ascending: false })
+      .limit(50);
+    const gaps = (gapRows ?? []) as Array<{
+      account_reduced_code: string;
+      conta: string | null;
+      linhas_perdidas: number;
+      valor_perdido: number;
+    }>;
+    const gapLines = gaps.reduce((sum, g) => sum + Number(g.linhas_perdidas ?? 0), 0);
+    const gapValue = gaps.reduce((sum, g) => sum + Number(g.valor_perdido ?? 0), 0);
+
+    if (data.file_id && gaps.length > 0) {
+      await context.supabase
+        .from("imported_files")
+        .update({
+          processing_status: "processado_com_alertas",
+          processing_error: `Importação incompleta: ${gapLines} lançamento(s) perdido(s) em ${gaps.length} conta(s), R$ ${gapValue.toFixed(2)} sem explicação no saldo acumulado do G2.`,
+        })
+        .eq("id", data.file_id);
+    }
+
     const link = await callRpc<{ by_name: number; by_value: number; pending: number }>(
       context.supabase,
       "link_reduced_accounts",
@@ -152,10 +179,21 @@ export const finalizeJournalImport = createServerFn({ method: "POST" })
     await context.supabase.rpc("log_activity", {
       _action: "importou razão contábil",
       _entity_type: "journal_legs",
-      _metadata: { period_id: data.period_id, ...link, warnings: validation?.warnings ?? [] },
+      _metadata: {
+        period_id: data.period_id,
+        ...link,
+        warnings: validation?.warnings ?? [],
+        gaps: gaps.length,
+        gap_lines: gapLines,
+      },
     });
 
-    return { ...link, source: indicators.source, validation };
+    return {
+      ...link,
+      source: indicators.source,
+      validation,
+      gaps: { accounts: gaps.length, lines: gapLines, value: gapValue, detail: gaps.slice(0, 10) },
+    };
   });
 
 

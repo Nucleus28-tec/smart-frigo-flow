@@ -504,8 +504,10 @@ function LedgerView({ report, periodLabel }: { report: LedgerReport; periodLabel
             Relatório Razão Contábil Analítico
           </h3>
           <p className="text-xs text-muted-foreground">
-            {periodLabel} · Data mov.: {formatDay(report.from) || "início"} a{" "}
-            {formatDay(report.to) || "fim"}
+            {periodLabel} · Data mov.: {formatDay(report.from_actual ?? report.from) || "início"} a{" "}
+            {formatDay(report.to_actual ?? report.to) || "fim"} ·{" "}
+            {report.total_lines ?? report.accounts.reduce((s, a) => s + a.line_count, 0)}{" "}
+            lançamentos
           </p>
         </div>
 
@@ -515,7 +517,12 @@ function LedgerView({ report, periodLabel }: { report: LedgerReport; periodLabel
               <span className="text-sm font-semibold">
                 CONTA: {account.code} — {account.name}
               </span>
-              <span className="text-xs text-muted-foreground">
+              <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                {account.partidas_multiplas ? (
+                  <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
+                    {account.partidas_multiplas} partida(s) múltipla(s)
+                  </span>
+                ) : null}
                 Saldo anterior: {balanceLabel(account.opening_balance)}
               </span>
             </div>
@@ -537,7 +544,9 @@ function LedgerView({ report, periodLabel }: { report: LedgerReport; periodLabel
                     <TableCell className="py-1 font-mono text-xs">{line.doc_number ?? ""}</TableCell>
                     <TableCell className="py-1 text-xs">{formatDay(line.entry_date)}</TableCell>
                     <TableCell className="py-1 font-mono text-xs">
-                      {line.counterpart_reduced_code ?? ""}
+                      {line.counterpart_reduced_code ?? (
+                        <span className="text-amber-600 dark:text-amber-400">múltipla</span>
+                      )}
                     </TableCell>
                     <TableCell className="py-1 text-xs">{line.historico ?? ""}</TableCell>
                     <TableCell className="py-1 text-right text-xs tabular-nums">

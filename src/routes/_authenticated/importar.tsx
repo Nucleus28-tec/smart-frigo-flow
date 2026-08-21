@@ -355,7 +355,12 @@ function ImportarPage() {
       .filter(Boolean)
       .join(" · ");
 
-    const alertas = done.validation?.warnings ?? [];
+    const alertas = [...(done.validation?.warnings ?? [])];
+    if (done.gaps && done.gaps.lines > 0) {
+      alertas.unshift(
+        `Importação incompleta: ${done.gaps.lines} lançamento(s) perdido(s) em ${done.gaps.accounts} conta(s) (R$ ${done.gaps.value.toFixed(2)}). Reimporte o arquivo.`,
+      );
+    }
     const vinculadas = `${done.by_name + done.by_value} contas vinculadas`;
     if (alertas.length > 0) {
       toast.warning("Razão importado com alertas.", {
