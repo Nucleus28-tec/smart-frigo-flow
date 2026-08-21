@@ -15,6 +15,7 @@ import {
   FolderTree,
   Loader2,
   MoveRight,
+  Power,
   Search,
   ShieldAlert,
   Sparkles,
@@ -51,6 +52,7 @@ import {
   listChartSuggestions,
   moveChartAccounts,
   renumberChartBranch,
+  setChartAccountActive,
   setChartAccountKind,
   type ChartAuditItem,
   type ChartMovePreview,
@@ -263,6 +265,16 @@ export function PlanoDeContasArvore({ periodId, isAdmin }: Props) {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const activeMutation = useMutation({
+    mutationFn: (vars: { id: string; active: boolean }) =>
+      setChartAccountActive({ data: { id: vars.id, active: vars.active } }),
+    onSuccess: (result) => {
+      invalidate();
+      toast.success(result.is_active ? "Conta reativada." : "Conta desativada.");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   const analyzeMutation = useMutation({
     mutationFn: () => analyze({ data: { ids: [...selected], limit: 60 } }),
     onSuccess: (result) => {
@@ -432,6 +444,22 @@ export function PlanoDeContasArvore({ periodId, isAdmin }: Props) {
                 }
               >
                 Renumerar ramo
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!singleSelected || activeMutation.isPending}
+                onClick={() =>
+                  singleSelected &&
+                  activeMutation.mutate({ id: singleSelected.id, active: !singleSelected.is_active })
+                }
+              >
+                {activeMutation.isPending ? (
+                  <Loader2 className="mr-1 size-4 animate-spin" />
+                ) : (
+                  <Power className="mr-1 size-4" />
+                )}
+                {singleSelected?.is_active ? "Desativar" : "Reativar"}
               </Button>
             </>
           ) : null}
