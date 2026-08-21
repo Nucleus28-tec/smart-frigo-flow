@@ -328,16 +328,26 @@ function DemonstrativosPage() {
               }
             />
           ) : (
-            <div className="grid gap-4 lg:grid-cols-3">
-              {(statementsQuery.data ?? []).map((statement) => (
-                <StatementCard
-                  key={statement.statement_type}
-                  statement={statement}
-                  periodId={periodId}
-                  onDrill={handleDrill}
-                />
-
-              ))}
+            <div className={expanded ? "space-y-4" : "grid gap-4 lg:grid-cols-3"}>
+              {(statementsQuery.data ?? [])
+                .filter((statement) => !expanded || statement.statement_type === expanded)
+                .map((statement) => (
+                  <StatementCard
+                    key={statement.statement_type}
+                    statement={statement}
+                    periodId={periodId}
+                    onDrill={handleDrill}
+                    canEdit={isAdmin}
+                    expanded={expanded === statement.statement_type}
+                    onToggleExpand={() =>
+                      setExpanded((current) =>
+                        current === statement.statement_type ? null : statement.statement_type,
+                      )
+                    }
+                    openLines={openLines}
+                    onLineOpenChange={handleLineOpenChange}
+                  />
+                ))}
             </div>
           )}
         </div>
