@@ -25,6 +25,8 @@ import { getHiddenSummary } from "@/lib/razao.functions";
 import { formatCurrency } from "@/lib/rotta";
 import { ConferenciaBalanco } from "@/components/ConferenciaBalanco";
 import { LinhaHierarquica } from "@/components/demonstrativos/LinhaHierarquica";
+import { ContasOcultasPainel } from "@/components/demonstrativos/ContasOcultasPainel";
+
 import {
   PainelLancamentosLinha,
   type LinhaDrill,
