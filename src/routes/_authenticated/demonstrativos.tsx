@@ -132,6 +132,8 @@ function DemonstrativosPage() {
   const periodId = selectedPeriod?.id ?? null;
   const [busy, setBusy] = useState<"pdf" | "xlsx" | null>(null);
   const [drill, setDrill] = useState<LinhaDrill | null>(null);
+  const getHidden = useServerFn(getHiddenSummary);
+
 
   const hiddenQuery = useQuery({
     queryKey: ["hidden_summary", periodId],
