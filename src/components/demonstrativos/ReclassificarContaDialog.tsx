@@ -140,30 +140,68 @@ export function ReclassificarContaDialog({
             </Button>
 
             {preview ? (
-              <div className="max-h-56 overflow-auto rounded-md border">
-                <table className="w-full text-xs">
-                  <thead className="bg-muted/60">
-                    <tr className="text-left">
-                      <th className="px-2 py-1.5">Conta</th>
-                      <th className="px-2 py-1.5">De</th>
-                      <th className="px-2 py-1.5">Para</th>
-                      <th className="px-2 py-1.5 text-right">Filhas</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {preview.map((item) => (
-                      <tr key={item.id} className="border-t">
-                        <td className="px-2 py-1.5">
-                          <span className="font-mono">{item.reduced_code}</span> {item.name}
-                        </td>
-                        <td className="px-2 py-1.5 font-mono">{item.de}</td>
-                        <td className="px-2 py-1.5 font-mono text-primary">{item.para}</td>
-                        <td className="px-2 py-1.5 text-right tabular-nums">{item.ramo}</td>
+              <>
+                <div className="max-h-64 overflow-auto rounded-md border">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted/60">
+                      <tr className="text-left">
+                        <th className="px-2 py-1.5">Conta</th>
+                        <th className="px-2 py-1.5">De</th>
+                        <th className="px-2 py-1.5">Para</th>
+                        <th className="px-2 py-1.5 text-right">Hoje aparece</th>
+                        <th className="px-2 py-1.5 text-right">Vai aparecer</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {preview.map((item) => {
+                        const saldo = balanceByCode.get(item.reduced_code) ?? 0;
+                        const antes = valorApresentado(saldo, item.natureza_de);
+                        const depois = valorApresentado(saldo, item.natureza_para);
+                        const virou = antes < 0 && depois > 0;
+                        const invertido = depois < 0;
+                        return (
+                          <tr key={item.id} className="border-t align-top">
+                            <td className="px-2 py-1.5">
+                              <span className="font-mono">{item.reduced_code}</span> {item.name}
+                              {item.ramo > 0 ? (
+                                <span className="ml-1 text-muted-foreground">
+                                  (+{item.ramo} filha{item.ramo > 1 ? "s" : ""})
+                                </span>
+                              ) : null}
+                            </td>
+                            <td className="px-2 py-1.5 font-mono">{item.de}</td>
+                            <td className="px-2 py-1.5 font-mono text-primary">{item.para}</td>
+                            <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">
+                              {formatCurrency(antes)}
+                            </td>
+                            <td className="px-2 py-1.5 text-right tabular-nums">
+                              <span className={invertido ? "text-destructive" : "font-medium"}>
+                                {formatCurrency(depois)}
+                              </span>
+                              {invertido ? (
+                                <span className="mt-0.5 flex items-center justify-end gap-1 text-[11px] text-amber-600 dark:text-amber-400">
+                                  <AlertTriangle className="size-3" /> saldo invertido — confira a
+                                  escrituração
+                                </span>
+                              ) : virou ? (
+                                <span className="mt-0.5 flex items-center justify-end gap-1 text-[11px] text-muted-foreground">
+                                  <ArrowUpDown className="size-3" /> sinal invertido
+                                </span>
+                              ) : null}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  O sinal muda apenas pela convenção do grupo de destino (passivo e PL mostram o
+                  saldo credor como positivo); débito e crédito dos lançamentos não são alterados.
+                  Os totais de DRE, Balanço e Fluxo só refletem a mudança após “Gerar
+                  demonstrativos”.
+                </p>
+              </>
             ) : null}
           </div>
         )}
