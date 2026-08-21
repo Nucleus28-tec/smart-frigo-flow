@@ -12,6 +12,7 @@ import {
   ChevronDown,
   ChevronRight,
   Folder,
+  FolderPlus,
   FolderTree,
   Loader2,
   MoveRight,
@@ -43,9 +44,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { EmptyState, ErrorState, LoadingRows } from "@/components/PageState";
+import { GroupSelect, type GroupOption } from "@/components/razao/GroupSelect";
 import { NATURE_LABEL, NATURE_OPTIONS, formatCurrency } from "@/lib/rotta";
 import {
   analyzeChartWithAi,
+  createChildAccount,
   decideChartSuggestions,
   getChartAudit,
   getChartTree,
@@ -158,6 +161,7 @@ export function PlanoDeContasArvore({ periodId, isAdmin }: Props) {
   const [moveOpen, setMoveOpen] = useState(false);
   const [moveTarget, setMoveTarget] = useState("");
   const [preview, setPreview] = useState<ChartMovePreview[] | null>(null);
+  const [newGroupName, setNewGroupName] = useState("");
   const [auditOpen, setAuditOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [aiChosen, setAiChosen] = useState<Set<string>>(new Set());
@@ -170,6 +174,7 @@ export function PlanoDeContasArvore({ periodId, isAdmin }: Props) {
   const renumber = useServerFn(renumberChartBranch);
   const analyze = useServerFn(analyzeChartWithAi);
   const decide = useServerFn(decideChartSuggestions);
+  const createGroup = useServerFn(createChildAccount);
 
   const tree = useQuery({
     queryKey: ["chart_tree", periodId, applied, nature, onlyPending],
@@ -216,6 +221,16 @@ export function PlanoDeContasArvore({ periodId, isAdmin }: Props) {
     [rows],
   );
 
+  const groupOptions = useMemo<GroupOption[]>(
+    () =>
+      groups.map((g) => ({
+        hierarchical_code: g.hierarchical_code as string,
+        name: g.name,
+        level: g.level,
+      })),
+    [groups],
+  );
+
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: ["chart_tree"] });
     void queryClient.invalidateQueries({ queryKey: ["chart_audit"] });
@@ -243,6 +258,19 @@ export function PlanoDeContasArvore({ periodId, isAdmin }: Props) {
       toast.success(
         `${result.moved} conta(s) movida(s). ${result.periods_recalculated ?? 0} período(s) recalculado(s).`,
       );
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const createGroupMutation = useMutation({
+    mutationFn: (vars: { parent_code: string; name: string }) =>
+      createGroup({ data: vars }),
+    onSuccess: (result) => {
+      invalidate();
+      setNewGroupName("");
+      setPreview(null);
+      setMoveTarget(result.hierarchical_code);
+      toast.success(`Grupo ${result.hierarchical_code} — ${result.name} criado.`);
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -590,18 +618,47 @@ export function PlanoDeContasArvore({ periodId, isAdmin }: Props) {
           </DialogHeader>
 
           <div className="space-y-3">
-            <Select value={moveTarget} onValueChange={setMoveTarget}>
-              <SelectTrigger>
-                <SelectValue placeholder="Grupo de destino (conta sintética)" />
-              </SelectTrigger>
-              <SelectContent className="max-h-72">
-                {groups.map((g) => (
-                  <SelectItem key={g.id} value={g.hierarchical_code!}>
-                    {g.hierarchical_code} — {g.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <GroupSelect
+              value={moveTarget}
+              onChange={(v) => {
+                setMoveTarget(v);
+                setPreview(null);
+              }}
+              groups={groupOptions}
+            />
+
+            <div className="rounded-md border p-3">
+              <p className="text-xs text-muted-foreground">
+                O grupo certo ainda não existe? Crie uma sintética filha do destino selecionado — o
+                sistema sugere o próximo código livre do ramo.
+              </p>
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                <Input
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  placeholder="Nome do novo grupo (ex.: FORNECEDORES PECUARISTAS)"
+                />
+                <Button
+                  variant="outline"
+                  disabled={
+                    !moveTarget || newGroupName.trim().length < 2 || createGroupMutation.isPending
+                  }
+                  onClick={() =>
+                    createGroupMutation.mutate({
+                      parent_code: moveTarget,
+                      name: newGroupName.trim(),
+                    })
+                  }
+                >
+                  {createGroupMutation.isPending ? (
+                    <Loader2 className="mr-1 size-4 animate-spin" />
+                  ) : (
+                    <FolderPlus className="mr-1 size-4" />
+                  )}
+                  Criar grupo aqui
+                </Button>
+              </div>
+            </div>
 
             <Button
               variant="secondary"

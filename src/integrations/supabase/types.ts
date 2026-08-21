@@ -1242,6 +1242,10 @@ export type Database = {
       closing_result_codes: { Args: never; Returns: string[] }
       closing_summary: { Args: { _period_id: string }; Returns: Json }
       closing_year_grid: { Args: { _year: number }; Returns: Json }
+      create_child_account: {
+        Args: { _name: string; _parent_hier: string }
+        Returns: Json
+      }
       delete_imported_file: { Args: { _file_id: string }; Returns: Json }
       finalize_journal_import: { Args: { _file_id: string }; Returns: Json }
       generate_period_statements: {
@@ -1251,6 +1255,7 @@ export type Database = {
       get_period_summary: { Args: { _period_id: string }; Returns: Json }
       hier_level: { Args: { _hier: string }; Returns: number }
       hier_parent: { Args: { _hier: string }; Returns: string }
+      hier_seg_width: { Args: { _level: number }; Returns: number }
       import_journal_legs: {
         Args: {
           _file_id: string

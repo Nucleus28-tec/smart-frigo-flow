@@ -730,13 +730,26 @@ create policy "messages_delete" on public.agent_messages for delete to authentic
 -- Funções:
 --   chart_accounts_tree(_period_id,_query,_nature,_only_pending)
 --     -> árvore com saldo agregado, nº de filhas e de lançamentos
+--   hier_seg_width(_level) -> largura do segmento por nível:
+--     nível 3 = 2 dígitos (2.01.08.), nível 4 = 3 (2.01.08.001.),
+--     nível 5+ = 5 (2.01.08.001.00001.)
 --   move_ledger_accounts(_ids,_new_parent_hier,_dry_run)
---     -> move contas e ramo, renumera, herda natureza do grupo,
+--     -> move contas e ramo, renumera usando hier_seg_width, herda
+--        natureza do grupo, marca link_status='confirmado_manual',
 --        grava ledger_account_audit e recalcula períodos afetados
+--   create_child_account(_parent_hier,_name)
+--     -> cria conta sintética filha com o próximo código livre do
+--        ramo (mesma regra de largura) e reduzido sequencial 'S…'
 --   set_ledger_account_kind(_id,_is_analytic)
 --   renumber_branch(_parent_hier)
 --   chart_accounts_audit()
 --   recalc_periods_for_accounts(_codes)
+--
+-- Proteção contra reimportação do G2:
+--   link_reduced_accounts ignora contas com link_status
+--   'confirmado_manual' ou com auditoria manual de hierarquia
+--   (source 'plano_de_contas'/'manual'), devolvendo 'protegidas'.
+--   Assim o casamento automático nunca desfaz a nossa árvore.
 -- ============================================================
 
 -- ============================================================

@@ -352,7 +352,10 @@
 
 
 | `import_trial_balance_lines(_file_id, _lines)` | admin | Grava/atualiza o espelho oficial do balancete (upsert por `period_id` + `code`). |
-| `link_reduced_accounts(_period_id)` | admin | Casamento razão × balancete em 5 rodadas: nome normalizado, nome sem sufixo de filial, confronto débito/crédito, saldo final e natureza pelo código. Cada vínculo gera registro em `ledger_account_audit`. Retorna contagens e `pending`. |
+| `link_reduced_accounts(_period_id)` | admin | Casamento razão × balancete em 5 rodadas: nome normalizado, nome sem sufixo de filial, confronto débito/crédito, saldo final e natureza pelo código. **Nunca** altera contas com `link_status = 'confirmado_manual'` ou com auditoria manual de hierarquia (`source` `plano_de_contas`/`manual`) — a nossa árvore prevalece sobre a hierarquia do G2 em toda reimportação. Cada vínculo gera registro em `ledger_account_audit`. Retorna contagens, `pendentes` e `protegidas`. |
+| `hier_seg_width(_level)` | pública (imutável) | Largura do segmento do código hierárquico conforme o nível: 2 dígitos no nível 3, 3 no nível 4, 5 do nível 5 em diante. |
+| `create_child_account(_parent_hier, _name)` | admin | Cria uma conta sintética filha do grupo informado, com o próximo código livre do ramo (usando `hier_seg_width`), natureza herdada do código, `link_status = 'confirmado_manual'` e código reduzido sequencial `S…`. Registra em `ledger_account_audit`. Usada pelo atalho "Criar grupo aqui" do diálogo de movimentação. |
+| `move_ledger_accounts(_ids, _new_parent_hier, _dry_run)` | admin | Move contas (e todo o ramo abaixo) para outro grupo. O novo segmento respeita `hier_seg_width` (ex.: mover para `2.01.` gera `2.01.08.`), o código reduzido não muda, a natureza é herdada do destino e as contas passam a `confirmado_manual`. Com `_dry_run` devolve a prévia "de → para"; senão grava a auditoria e recalcula os períodos afetados. |
 | `reconcile_journal_vs_trial_balance(_period_id)` | usuário logado | Conferência conta a conta: `ok`, `divergente`, `so_razao`, `so_balancete`. |
 | `journal_pending_report(_period_id)` | usuário logado | Relatório de pendências com causa provável, detalhe, ação sugerida e delta. |
 | `journal_account_statement(_period_id, _reduced_code, _limit, _offset)` | usuário logado | Extrato paginado da conta: saldo anterior, totais e pernas com contrapartida nomeada. |
