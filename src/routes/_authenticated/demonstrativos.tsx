@@ -307,8 +307,10 @@ function DemonstrativosPage() {
                 <StatementCard
                   key={statement.statement_type}
                   statement={statement}
+                  periodId={periodId}
                   onDrill={handleDrill}
                 />
+
               ))}
             </div>
           )}
