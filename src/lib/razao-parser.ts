@@ -454,7 +454,32 @@ export function parseRazaoSheetMatrix(matrix: unknown[][]): { legs: RazaoLeg[]; 
     });
   }
 
+  fixOpeningSigns(legs);
   return { legs, accounts: openingEmitted.size };
+}
+
+/**
+ * O G2 às vezes exporta o "SALDO ANTERIOR" como número puro (sem o sufixo D/C),
+ * o que gravava saldo credor com sinal positivo. Aqui o sinal é deduzido do
+ * primeiro lançamento da conta: saldo_anterior = saldo_atual − (débito − crédito).
+ */
+function fixOpeningSigns(legs: RazaoLeg[]) {
+  const firstMove = new Map<string, RazaoLeg>();
+  for (const leg of legs) {
+    if (leg.line_no === 0 || leg.running_balance == null) continue;
+    if (!firstMove.has(leg.account_reduced_code)) firstMove.set(leg.account_reduced_code, leg);
+  }
+  for (const leg of legs) {
+    if (leg.line_no !== 0) continue;
+    const move = firstMove.get(leg.account_reduced_code);
+    if (!move || move.running_balance == null) continue;
+    const derived = move.running_balance - (move.debit - move.credit);
+    const current = leg.opening_balance ?? 0;
+    if (Math.abs(Math.abs(derived) - Math.abs(current)) <= 0.01 && derived !== current) {
+      leg.opening_balance = derived;
+      leg.running_balance = derived;
+    }
+  }
 }
 
 // ========================== BALANCETE ==========================
