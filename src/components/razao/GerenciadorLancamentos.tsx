@@ -38,6 +38,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EmptyState, ErrorState, LoadingRows } from "@/components/PageState";
+import { AccountSelect } from "@/components/razao/AccountSelect";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/rotta";
 import { exportCsv, exportPdf, type ExportTable } from "@/lib/razao-export";
