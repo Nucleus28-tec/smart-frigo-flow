@@ -544,7 +544,9 @@ function LedgerView({ report, periodLabel }: { report: LedgerReport; periodLabel
                     <TableCell className="py-1 font-mono text-xs">{line.doc_number ?? ""}</TableCell>
                     <TableCell className="py-1 text-xs">{formatDay(line.entry_date)}</TableCell>
                     <TableCell className="py-1 font-mono text-xs">
-                      {line.counterpart_reduced_code ?? ""}
+                      {line.counterpart_reduced_code ?? (
+                        <span className="text-amber-600 dark:text-amber-400">múltipla</span>
+                      )}
                     </TableCell>
                     <TableCell className="py-1 text-xs">{line.historico ?? ""}</TableCell>
                     <TableCell className="py-1 text-right text-xs tabular-nums">
