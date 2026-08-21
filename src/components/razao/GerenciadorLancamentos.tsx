@@ -553,14 +553,6 @@ export function GerenciadorLancamentos({
             </Badge>
           </div>
 
-          <datalist id="contas-razao">
-            {accounts.map((account) => (
-              <option key={account.reduced_code} value={account.reduced_code}>
-                {account.name}
-              </option>
-            ))}
-          </datalist>
-
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <label className="text-sm font-medium" htmlFor="conta-debito">
