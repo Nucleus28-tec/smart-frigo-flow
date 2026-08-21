@@ -113,6 +113,7 @@ const STATUS_LABEL: Record<string, string> = {
   pendente: "Pendente",
   processando: "Processando",
   processado: "Processado",
+  processado_com_alertas: "Importado com alertas",
   erro: "Erro",
 };
 
@@ -128,6 +129,13 @@ type ImportedFile = {
 };
 
 function StatusBadge({ status }: { status: string }) {
+  if (status === "processado_com_alertas") {
+    return (
+      <Badge variant="outline" className="border-amber-500/60 text-amber-700 dark:text-amber-400">
+        {STATUS_LABEL[status]}
+      </Badge>
+    );
+  }
   const variant =
     status === "processado"
       ? "default"
@@ -339,7 +347,7 @@ function ImportarPage() {
       `${total.openings} saldo(s) anterior(es)`,
       skipClosing ? `${total.skipped_closing} encerramento(s) descartado(s)` : null,
       total.ignored_no_account ? `${total.ignored_no_account} sem conta` : null,
-      total.ignored_no_value ? `${total.ignored_no_value} sem valor` : null,
+      total.ignored_no_value ? `${total.ignored_no_value} cabeçalho(s) de conta` : null,
       total.bad_numbers ? `${total.bad_numbers} valor(es) inválido(s)` : null,
       total.bad_dates ? `${total.bad_dates} data(s) inválida(s)` : null,
     ]
@@ -579,6 +587,7 @@ function ImportarPage() {
         </Card>
       ) : null}
 
+      {selectedPeriodId ? <RelatorioInconformidades periodId={selectedPeriodId} /> : null}
 
       <Card className="mb-6">
         <CardContent className="grid gap-4 pt-6 md:grid-cols-[minmax(0,220px)_minmax(0,1fr)_auto] md:items-end">
