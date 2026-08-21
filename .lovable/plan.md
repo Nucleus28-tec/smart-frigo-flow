@@ -1,36 +1,31 @@
-# Painel de lançamentos: visão agrupada por conta
+# DRE hierárquica com drill-down até a conta
 
-Hoje o painel lateral lista os lançamentos um a um (a linha "Receita bruta" de abril tem 1.701 deles). Vamos acrescentar uma visão **Agrupado por conta**, com os totais por conta e a possibilidade de abrir cada grupo para editar os lançamentos ali dentro.
+Em vez de criar uma visão nova dentro do painel, a própria DRE passa a ser navegável: cada grupo abre em sua hierarquia do plano de contas até a conta analítica, e clicar na conta abre o painel de lançamentos do razão já filtrado nela.
 
 ## Como fica
 
-No topo do painel, ao lado da busca, um seletor com duas visões:
-
-- **Lista** — exatamente o que existe hoje.
-- **Por conta** — uma linha por conta, com: código, nome, quantidade de lançamentos e valor total (mais o total oculto, quando houver). Ordenado do maior valor para o menor.
-
-Na visão "Por conta" há ainda um segundo seletor de qual conta usar no agrupamento:
-
-- **Conta da linha** (padrão) — a conta do demonstrativo que originou o clique (útil quando a linha soma várias contas, ex.: 7 contas de receita).
-- **Contrapartida** — a conta do outro lado do lançamento (mostra, por exemplo, quais clientes/fornecedores compõem o valor).
-
-Clicar em um grupo expande e carrega os lançamentos daquela conta dentro do próprio painel, com os mesmos recursos já existentes: editar, reclassificar, ocultar/reexibir, cancelar e comentar. Editar dentro do grupo atualiza os totais na hora.
-
-Os filtros de busca, período e "Mostrar ocultos" valem para as duas visões, e a visão escolhida fica salva no navegador.
+A DRE continua com as linhas de resultado (Receita bruta, Custos, Lucro bruto, Despesas, Resultado), mas as linhas de grupo passam a ser expansíveis:
 
 ```text
-Por conta ▾   contrapartida ▾        [buscar]  [x] mostrar ocultos
-─────────────────────────────────────────────────────────────────
-▸ 041121 VENDAS DE CARNES              1.204 lçtos   R$ 12.980.114,20
-▾ 041133 VENDAS DE MIUDOS                312 lçtos    R$ 1.102.440,07
-     30/04 doc 101074  D 011203 ... × C 041133 ...   R$ 244,73  [editar]
-     ...
-▸ 041140 VENDAS DE SEBO                  185 lçtos    R$   250.999,80
+▾ Receita bruta                                    R$ 14.332.554,07
+   ▾ 4.01  RECEITA OPERACIONAL BRUTA               R$ 14.332.554,07
+        ▸ 4.01.01  VENDAS DE PRODUTOS              R$ 13.980.114,20
+             041121  VENDAS DE CARNES              R$ 12.980.114,20  →
+             041133  VENDAS DE MIUDOS              R$  1.000.000,00  →
+        ▸ 4.01.02  OUTRAS RECEITAS                 R$    352.439,87
+▸ (−) Custos                                       R$  9.104.220,10
 ```
+
+- Cada nível vem do código hierárquico do plano de contas (o mesmo da árvore em /razao), somando os filhos até chegar na conta analítica.
+- Clicar em uma **conta analítica** abre o painel lateral de lançamentos daquela conta (edição, reclassificação, ocultar do resultado, cancelar e comentários — como já funciona hoje).
+- Clicar em um **grupo sintético** apenas expande/recolhe; o botão de seta ao lado abre o painel com todas as contas do grupo somadas.
+- O estado de expansão é lembrado enquanto a tela estiver aberta e os totais respeitam os lançamentos ocultos (saem do resultado, aparecem no aviso do topo).
+
+O mesmo comportamento vale para o Balanço Patrimonial, que já usa a mesma estrutura de linhas com códigos.
 
 ## Detalhes técnicos
 
-- **Banco**: nova RPC `journal_line_accounts(_period_id, _codes text[], _from, _to, _query, _include_hidden, _side text)` — agrega `journal_legs` sobre **todos** os lançamentos que compõem a linha (não só os 300 carregados na lista), retornando por conta: `reduced_code`, `name`, `qtd`, `total`, `qtd_oculta`, `total_oculto`. `_side = 'linha' | 'contrapartida'`. Mesmos filtros e mesma regra de status da `journal_line_legs`, `security definer`, leitura para autenticados.
-- **Backend**: server function `listLineAccounts` em `src/lib/razao.functions.ts`, no mesmo padrão de `listLineLegs`.
-- **Frontend**: `src/components/razao/PainelLancamentosLinha.tsx` ganha o estado de visão/lado (persistido em `localStorage`) e um bloco de grupos com expansão. Ao expandir, reaproveita `listLineLegs` passando a conta do grupo como filtro adicional; a lista de linhas de um grupo usa exatamente o mesmo componente de linha da visão em lista, sem duplicar a lógica de edição.
-- **Documentação**: `docs/FUNCTIONS.md`, `docs/PAGINAS.md` e `db/schemas.sql` atualizados com a nova RPC e a visão agrupada.
+- **Banco**: nova RPC `statement_line_tree(_period_id, _codes text[], _basis text)` — recebe as contas de uma linha do demonstrativo e devolve a árvore montada a partir de `ledger_accounts.hierarchical_code`, com `codigo`, `nome`, `nivel`, `parent`, `is_analytic` e `valor` por nó (soma dos filhos), usando `period_account_balances` conforme a base (`movimento` ou `saldo`). `security definer`, leitura para autenticados.
+- **Backend**: server function `getStatementTree` em `src/lib/reports.functions.ts`, no padrão das demais.
+- **Frontend**: `src/routes/_authenticated/demonstrativos.tsx` passa a renderizar cada linha com `codes` como nó expansível (componente `LinhaHierarquica`), carregando a árvore sob demanda ao expandir. O clique em conta analítica reaproveita o `PainelLancamentosLinha` existente, passando apenas aquela conta em `codes`. Nada muda na exportação PDF/Excel nem no cálculo dos demonstrativos.
+- **Documentação**: `docs/FUNCTIONS.md`, `docs/PAGINAS.md` e `db/schemas.sql` atualizados com a nova RPC e a navegação hierárquica.
