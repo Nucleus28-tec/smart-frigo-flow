@@ -357,6 +357,54 @@ export function PainelLancamentosLinha({
           </div>
         </div>
 
+        {account && canEdit ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!account.reduced_code}
+              onClick={() => setReclassOpen(true)}
+              title={
+                account.reduced_code
+                  ? "Mover a conta para outro grupo"
+                  : "Disponível para contas com código reduzido"
+              }
+            >
+              <MoveRight className="mr-1 size-3.5" />
+              Reclassificar conta
+            </Button>
+            {contaOculta ? (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={hideAccount.isPending}
+                onClick={() => hideAccount.mutate({ hide: false, motivo: "" })}
+              >
+                <Eye className="mr-1 size-3.5" />
+                Reexibir no resultado
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={hideAccount.isPending || account.codes.length === 0}
+                onClick={() => {
+                  setMotivo("");
+                  setHideAsk(true);
+                }}
+              >
+                <EyeOff className="mr-1 size-3.5" />
+                Ocultar do resultado
+              </Button>
+            )}
+            {hideAccount.isPending ? (
+              <Loader2 className="size-4 animate-spin text-muted-foreground" />
+            ) : null}
+          </div>
+        ) : null}
+
+
+
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative min-w-52 flex-1">
             <Search className="absolute left-2 top-2.5 size-3.5 text-muted-foreground" />
