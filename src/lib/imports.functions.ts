@@ -184,6 +184,55 @@ export const getPeriodMovementCount = createServerFn({ method: "POST" })
     return { legs: legs.count ?? 0, orphans: orphans.count ?? 0 };
   });
 
+export type ImportDiagnostics = {
+  period_id: string;
+  period_label: string;
+  previous_label: string | null;
+  accounts: number;
+  accounts_prev: number | null;
+  debit: number;
+  credit: number;
+  difference: number;
+  unbalanced_docs: {
+    doc_number: string;
+    entry_date: string | null;
+    legs: number;
+    debito: number;
+    credito: number;
+    diferenca: number;
+    conta: string | null;
+    contrapartida: string | null;
+    historico: string | null;
+  }[];
+  missing_counterparts: {
+    codigo: string;
+    nome: string | null;
+    ocorrencias: number;
+    valor: number;
+    primeiro_doc: string | null;
+    primeira_data: string | null;
+  }[];
+};
+
+/** Relatório de inconformidades do razão importado no período. */
+export const getImportDiagnostics = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => periodIdSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: result, error } = await (
+      context.supabase as unknown as {
+        rpc: (
+          name: string,
+          args: Record<string, unknown>,
+        ) => Promise<{ data: unknown; error: { message: string } | null }>;
+      }
+    ).rpc("journal_import_diagnostics", { _period_id: data.period_id });
+    if (error) throw new Error(friendly(error.message));
+    return result as ImportDiagnostics;
+  });
+
+
+
 /** Limpa todo o movimento do período (usado quando sobram lançamentos sem arquivo). */
 export const purgePeriodJournal = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

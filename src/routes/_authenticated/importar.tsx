@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Download, Loader2, RefreshCw, Trash2, UploadCloud } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
+import { RelatorioInconformidades } from "@/components/importar/RelatorioInconformidades";
 import { usePeriod } from "@/hooks/usePeriod";
 import { useProfile } from "@/hooks/useProfile";
 import { Button } from "@/components/ui/button";
@@ -113,6 +114,7 @@ const STATUS_LABEL: Record<string, string> = {
   pendente: "Pendente",
   processando: "Processando",
   processado: "Processado",
+  processado_com_alertas: "Importado com alertas",
   erro: "Erro",
 };
 
@@ -128,6 +130,13 @@ type ImportedFile = {
 };
 
 function StatusBadge({ status }: { status: string }) {
+  if (status === "processado_com_alertas") {
+    return (
+      <Badge variant="outline" className="border-amber-500/60 text-amber-700 dark:text-amber-400">
+        {STATUS_LABEL[status]}
+      </Badge>
+    );
+  }
   const variant =
     status === "processado"
       ? "default"
@@ -196,22 +205,29 @@ function ImportarPage() {
   });
 
   const countsQuery = useQuery({
-    queryKey: ["ledger_counts", selectedPeriodId],
-    enabled: Boolean(selectedPeriodId),
+    queryKey: ["ledger_counts", selectedPeriodId, filesQuery.data?.map((f) => f.id).join(",")],
+    enabled: Boolean(selectedPeriodId) && Boolean(filesQuery.data?.length),
     queryFn: async (): Promise<Record<string, number>> => {
-      const { data, error } = await supabase
-        .from("ledger_entries")
-        .select("file_id")
-        .eq("period_id", selectedPeriodId!)
-        .limit(20000);
-      if (error) throw error;
       const counts: Record<string, number> = {};
-      for (const row of data ?? []) {
-        counts[row.file_id] = (counts[row.file_id] ?? 0) + 1;
+      for (const file of filesQuery.data ?? []) {
+        const legs = await supabase
+          .from("journal_legs")
+          .select("id", { count: "exact", head: true })
+          .eq("file_id", file.id);
+        if (legs.count && legs.count > 0) {
+          counts[file.id] = legs.count;
+          continue;
+        }
+        const entries = await supabase
+          .from("ledger_entries")
+          .select("id", { count: "exact", head: true })
+          .eq("file_id", file.id);
+        counts[file.id] = entries.count ?? 0;
       }
       return counts;
     },
   });
+
 
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: ["imported_files", selectedPeriodId] });
@@ -332,7 +348,7 @@ function ImportarPage() {
       `${total.openings} saldo(s) anterior(es)`,
       skipClosing ? `${total.skipped_closing} encerramento(s) descartado(s)` : null,
       total.ignored_no_account ? `${total.ignored_no_account} sem conta` : null,
-      total.ignored_no_value ? `${total.ignored_no_value} sem valor` : null,
+      total.ignored_no_value ? `${total.ignored_no_value} cabeçalho(s) de conta` : null,
       total.bad_numbers ? `${total.bad_numbers} valor(es) inválido(s)` : null,
       total.bad_dates ? `${total.bad_dates} data(s) inválida(s)` : null,
     ]
@@ -572,6 +588,7 @@ function ImportarPage() {
         </Card>
       ) : null}
 
+      {selectedPeriodId ? <RelatorioInconformidades periodId={selectedPeriodId} /> : null}
 
       <Card className="mb-6">
         <CardContent className="grid gap-4 pt-6 md:grid-cols-[minmax(0,220px)_minmax(0,1fr)_auto] md:items-end">

@@ -1308,6 +1308,10 @@ export type Database = {
         }
         Returns: Json
       }
+      journal_import_diagnostics: {
+        Args: { _period_id: string }
+        Returns: Json
+      }
       journal_leg_detail: { Args: { _leg_id: string }; Returns: Json }
       journal_pending_report: { Args: { _period_id: string }; Returns: Json }
       journal_report_analytic: {
