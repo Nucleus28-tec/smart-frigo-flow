@@ -1519,6 +1519,10 @@ export type Database = {
         Args: { _ids: string[]; _nature?: string; _parent_code?: string }
         Returns: Json
       }
+      statement_line_tree: {
+        Args: { _basis?: string; _codes: string[]; _period_id: string }
+        Returns: Json
+      }
       sync_accounts_for_period: { Args: { _period_id: string }; Returns: Json }
       trial_balance_report: {
         Args: {
