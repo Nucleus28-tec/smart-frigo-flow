@@ -44,9 +44,12 @@ import {
   createUploadUrl,
   deleteImportedFile,
   getFileDownloadUrl,
+  getPeriodMovementCount,
   parseImportedFile,
+  purgePeriodJournal,
   registerImportedFile,
 } from "@/lib/imports.functions";
+
 import {
   finalizeJournalImport,
   importJournalChunk,
@@ -146,6 +149,8 @@ function ImportarPage() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<ImportedFile | null>(null);
+  const [pendingPurge, setPendingPurge] = useState(false);
+
   const [progress, setProgress] = useState<{ label: string; pct: number } | null>(null);
   const [sheet, setSheet] = useState<SheetData | null>(null);
   const [sheetFile, setSheetFile] = useState<File | null>(null);
@@ -163,6 +168,9 @@ function ImportarPage() {
   const createUrl = useServerFn(createUploadUrl);
   const parseFile = useServerFn(parseImportedFile);
   const removeFile = useServerFn(deleteImportedFile);
+  const countMovement = useServerFn(getPeriodMovementCount);
+  const purgeMovement = useServerFn(purgePeriodJournal);
+
   const downloadUrl = useServerFn(getFileDownloadUrl);
   const registerFile = useServerFn(registerImportedFile);
   const sendJournalChunk = useServerFn(importJournalChunk);
@@ -246,12 +254,35 @@ function ImportarPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (fileId: string) => removeFile({ data: { file_id: fileId } }),
-    onSuccess: () => {
+    onSuccess: (result) => {
       invalidate();
-      toast.success("Arquivo excluído.");
+      void queryClient.invalidateQueries({ queryKey: ["period_movement", selectedPeriodId] });
+      toast.success(
+        `Arquivo excluído — ${result.journalLegs} lançamentos do razão removidos.` +
+          (result.storageRemoved ? "" : " O arquivo físico não pôde ser apagado do armazenamento."),
+      );
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error("Nada foi excluído", { description: error.message }),
   });
+
+  const movementQuery = useQuery({
+    queryKey: ["period_movement", selectedPeriodId],
+    enabled: Boolean(selectedPeriodId),
+    queryFn: () => countMovement({ data: { period_id: selectedPeriodId! } }),
+  });
+
+  const purgeMutation = useMutation({
+    mutationFn: () => purgeMovement({ data: { period_id: selectedPeriodId! } }),
+    onSuccess: (result) => {
+      invalidate();
+      void queryClient.invalidateQueries({ queryKey: ["period_movement", selectedPeriodId] });
+      toast.success(
+        `Movimento de ${result.label} limpo: ${result.journalLegs} lançamentos removidos.`,
+      );
+    },
+    onError: (error: Error) => toast.error("Não foi possível limpar", { description: error.message }),
+  });
+
 
   /** Envia as pernas em blocos e finaliza (validação + casamento + recálculo). */
   async function enviarPernas(
@@ -513,6 +544,35 @@ function ImportarPage() {
         description={`Arquivos do período ${selectedPeriod?.label ?? ""}. Balancetes em PDF são lidos por IA; planilhas via parser.`}
       />
 
+      {isAdmin && (movementQuery.data?.legs ?? 0) > 0 ? (
+        <Card className="mb-6 border-amber-500/40 bg-amber-500/5">
+          <CardContent className="flex flex-col gap-3 pt-6 md:flex-row md:items-center md:justify-between">
+            <div className="text-sm">
+              <p className="font-medium">
+                {movementQuery.data!.legs.toLocaleString("pt-BR")} lançamentos no razão de{" "}
+                {selectedPeriod?.label}
+                {(movementQuery.data?.orphans ?? 0) > 0
+                  ? ` — ${movementQuery.data!.orphans.toLocaleString("pt-BR")} sem arquivo vinculado`
+                  : ""}
+                .
+              </p>
+              <p className="text-muted-foreground">
+                Excluir o arquivo remove os lançamentos dele. Lançamentos sem arquivo (importações
+                antigas ou manuais) só saem com a limpeza do período.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              disabled={isClosed || purgeMutation.isPending}
+              onClick={() => setPendingPurge(true)}
+            >
+              {purgeMutation.isPending ? "Limpando…" : "Limpar movimento do período"}
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+
+
       <Card className="mb-6">
         <CardContent className="grid gap-4 pt-6 md:grid-cols-[minmax(0,220px)_minmax(0,1fr)_auto] md:items-end">
           <div className="space-y-2">
@@ -742,6 +802,31 @@ function ImportarPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={pendingPurge} onOpenChange={setPendingPurge}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Limpar o movimento de {selectedPeriod?.label}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Serão removidos {movementQuery.data?.legs.toLocaleString("pt-BR") ?? 0} lançamentos do
+              razão (inclusive manuais e cancelados), o balancete importado e os saldos de abertura
+              deste período. Os indicadores serão recalculados. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                purgeMutation.mutate();
+                setPendingPurge(false);
+              }}
+            >
+              Limpar movimento
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </>
   );
 }

@@ -128,47 +128,88 @@ export const deleteImportedFile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => fileIdSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { data: isAdmin } = await context.supabase.rpc("is_admin");
-    if (isAdmin !== true) throw new Error("Apenas administradores podem excluir arquivos.");
-
-    const { data: file, error } = await context.supabase
-      .from("imported_files")
-      .select("storage_path, original_name")
-      .eq("id", data.file_id)
-      .single();
-    if (error) throw new Error(friendly(error.message));
-
-    // Limpa dependências do arquivo antes de remover o registro.
-    await context.supabase.from("ledger_entries").delete().eq("file_id", data.file_id);
-    await context.supabase.from("journal_legs").delete().eq("file_id", data.file_id);
-    await context.supabase.from("trial_balance_lines").delete().eq("file_id", data.file_id);
+    // Exclusão atômica no banco: arquivo + lançamentos + linhas legadas na mesma transação.
+    const { data: result, error: rpcError } = await context.supabase.rpc("delete_imported_file", {
+      _file_id: data.file_id,
+    });
+    if (rpcError) throw new Error(friendly(rpcError.message));
+    const report = (result ?? {}) as {
+      storage_path?: string;
+      original_name?: string;
+      journal_legs?: number;
+      ledger_entries?: number;
+      trial_balance_lines?: number;
+    };
 
     let storageRemoved = true;
-    try {
-      const admin = await tryAdmin();
-      const client = (admin ?? context.supabase) as typeof context.supabase;
-      const { error: storageError } = await client.storage
-        .from("imports")
-        .remove([file.storage_path]);
-      if (storageError) storageRemoved = false;
-    } catch {
-      storageRemoved = false;
+    if (report.storage_path) {
+      try {
+        const admin = await tryAdmin();
+        const client = (admin ?? context.supabase) as typeof context.supabase;
+        const { error: storageError } = await client.storage
+          .from("imports")
+          .remove([report.storage_path]);
+        if (storageError) storageRemoved = false;
+      } catch {
+        storageRemoved = false;
+      }
     }
 
-    const { error: deleteError } = await context.supabase
-      .from("imported_files")
-      .delete()
-      .eq("id", data.file_id);
-    if (deleteError) throw new Error(friendly(deleteError.message));
-
-    await context.supabase.rpc("log_activity", {
-      _action: "excluiu arquivo importado",
-      _entity_type: "imported_files",
-      _entity_id: data.file_id,
-      _metadata: { original_name: file.original_name, storage_removed: storageRemoved },
-    });
-    return { ok: true, storageRemoved };
+    return {
+      ok: true,
+      storageRemoved,
+      journalLegs: report.journal_legs ?? 0,
+      ledgerEntries: report.ledger_entries ?? 0,
+      trialBalanceLines: report.trial_balance_lines ?? 0,
+      originalName: report.original_name ?? "",
+    };
   });
+
+const periodIdSchema = z.object({ period_id: z.string().uuid() });
+
+/** Quantos registros de movimento existem no período (inclui pernas sem arquivo vinculado). */
+export const getPeriodMovementCount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => periodIdSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const legs = await context.supabase
+      .from("journal_legs")
+      .select("id", { count: "exact", head: true })
+      .eq("period_id", data.period_id);
+    const orphans = await context.supabase
+      .from("journal_legs")
+      .select("id", { count: "exact", head: true })
+      .eq("period_id", data.period_id)
+      .is("file_id", null);
+    return { legs: legs.count ?? 0, orphans: orphans.count ?? 0 };
+  });
+
+/** Limpa todo o movimento do período (usado quando sobram lançamentos sem arquivo). */
+export const purgePeriodJournal = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => periodIdSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: result, error } = await context.supabase.rpc("purge_period_journal", {
+      _period_id: data.period_id,
+    });
+    if (error) throw new Error(friendly(error.message));
+    const report = (result ?? {}) as {
+      label?: string;
+      journal_legs?: number;
+      ledger_entries?: number;
+      trial_balance_lines?: number;
+      aberturas?: number;
+    };
+    return {
+      ok: true,
+      label: report.label ?? "",
+      journalLegs: report.journal_legs ?? 0,
+      ledgerEntries: report.ledger_entries ?? 0,
+      trialBalanceLines: report.trial_balance_lines ?? 0,
+      aberturas: report.aberturas ?? 0,
+    };
+  });
+
 
 
 /** Equivalente à Edge Function "parse-imported-file": baixa, interpreta e grava os lançamentos. */

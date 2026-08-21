@@ -760,4 +760,14 @@ create policy "messages_delete" on public.agent_messages for delete to authentic
 --   encerramentos na base e define processing_status
 --   (processado | erro + motivo). Chamada pelo front após o
 --   último bloco, dentro de finalizeJournalImport.
+-- delete_imported_file(_file_id): exclusão padrão do arquivo.
+--   Transação única: journal_legs + ledger_entries +
+--   trial_balance_lines + imported_files. Bloqueia período
+--   fechado; devolve storage_path e as contagens apagadas.
+--   Nunca apaga o arquivo deixando movimento órfão.
+-- purge_period_journal(_period_id): limpa todo o movimento do
+--   período (pernas, legado, espelho e aberturas) e recalcula
+--   os indicadores. Bloqueia período fechado ou com
+--   fechamento contábil ativo.
 -- ============================================================
+

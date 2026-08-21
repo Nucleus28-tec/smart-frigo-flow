@@ -25,4 +25,7 @@ A rotina de excluir arquivo faz, nesta ordem: apaga os lançamentos do arquivo, 
 - Nova função `purge_period_journal(_period_id)` para o caso órfão, com a mesma validação de período fechado, seguida de `recalculate_period_indicators`.
 - `src/lib/imports.functions.ts`: `deleteImportedFile` passa a chamar a RPC e a propagar erro (hoje ignora o retorno dos três deletes).
 - `src/routes/_authenticated/importar.tsx`: ação de limpeza do período com diálogo de confirmação e contagem.
-- Sem mudança de esquema nas tabelas; RLS mantida (escrita por `is_admin()`).
+- Sem mudança de esquema nas tabelas; RLS mantida (escrita por `is_admin()`).  
+  
+padronizar este operaçao e documentar 
+- &nbsp;
