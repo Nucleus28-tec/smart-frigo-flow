@@ -174,6 +174,7 @@ export function PlanoDeContasArvore({ periodId, isAdmin }: Props) {
   const renumber = useServerFn(renumberChartBranch);
   const analyze = useServerFn(analyzeChartWithAi);
   const decide = useServerFn(decideChartSuggestions);
+  const createGroup = useServerFn(createChildAccount);
 
   const tree = useQuery({
     queryKey: ["chart_tree", periodId, applied, nature, onlyPending],
