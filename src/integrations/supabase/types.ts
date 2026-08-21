@@ -1242,6 +1242,7 @@ export type Database = {
       closing_result_codes: { Args: never; Returns: string[] }
       closing_summary: { Args: { _period_id: string }; Returns: Json }
       closing_year_grid: { Args: { _year: number }; Returns: Json }
+      delete_imported_file: { Args: { _file_id: string }; Returns: Json }
       finalize_journal_import: { Args: { _file_id: string }; Returns: Json }
       generate_period_statements: {
         Args: { _period_id: string }
@@ -1383,6 +1384,7 @@ export type Database = {
           reduced_code: string
         }[]
       }
+      purge_period_journal: { Args: { _period_id: string }; Returns: Json }
       recalc_periods_for_accounts: {
         Args: { _codes: string[] }
         Returns: number
