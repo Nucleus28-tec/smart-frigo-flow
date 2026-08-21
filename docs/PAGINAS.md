@@ -162,6 +162,7 @@ Convenções de estados usadas em todas as páginas:
   - Tabela hierárquica de grupos/linhas/valores para cada demonstrativo, com subtotais e totais.
   - Botão "Gerar/Atualizar demonstrativos" (dispara `generate-statements`) e data da última geração.
   - Botões "Exportar PDF" (com logo do Rotta) e "Exportar Excel" (dispara `export-report`, download via signed URL do bucket `exports`).
+  - Diálogo "Reclassificar conta" (menu ⋮ da conta analítica, apenas Admin): escolhe o grupo de destino, mostra a prévia com **De/Para**, **Hoje aparece** e **Vai aparecer** — o valor do período sob a convenção da natureza atual e da natureza de destino (`valorApresentado` em `src/lib/rotta.ts`). Marca "sinal invertido" quando o valor deixa de ser negativo e alerta âmbar "saldo invertido — confira a escrituração" quando permanece negativo no destino. Débito e crédito dos lançamentos nunca são alterados; os totais gravados só mudam após "Gerar demonstrativos".
 - **Estados:**
   - **Vazio:** "Demonstrativos ainda não gerados para este período" com botão "Gerar demonstrativos" (habilitado quando há lançamentos classificados).
   - **Carregando:** skeleton das tabelas; botões de exportação com spinner durante a geração do arquivo.
