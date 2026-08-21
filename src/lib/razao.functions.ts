@@ -918,6 +918,29 @@ export const moveChartAccounts = createServerFn({ method: "POST" })
     }),
   );
 
+/** Cria um grupo (conta sintética) filho de um ramo do plano de contas. */
+export const createChildAccount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        parent_code: z.string().min(1).max(40),
+        name: z.string().min(2).max(120),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) =>
+    callRpc<{
+      id: string;
+      reduced_code: string;
+      hierarchical_code: string;
+      name: string;
+    }>(context.supabase, "create_child_account", {
+      _parent_hier: data.parent_code,
+      _name: data.name,
+    }),
+  );
+
 /** Promove ou rebaixa uma conta entre sintética e analítica. */
 export const setChartAccountKind = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
