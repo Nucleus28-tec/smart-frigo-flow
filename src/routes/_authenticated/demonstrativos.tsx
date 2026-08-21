@@ -55,10 +55,20 @@ function StatementCard({
   statement,
   periodId,
   onDrill,
+  canEdit,
+  expanded,
+  onToggleExpand,
+  openLines,
+  onLineOpenChange,
 }: {
   statement: Statement;
   periodId: string;
   onDrill: (codes: string[], label: string, base?: string) => void;
+  canEdit: boolean;
+  expanded: boolean;
+  onToggleExpand: () => void;
+  openLines: Set<string>;
+  onLineOpenChange: (key: string, open: boolean) => void;
 }) {
   const lines = statement.content?.linhas ?? [];
   const fonte = statement.content?.fonte;
@@ -70,11 +80,22 @@ function StatementCard({
           <CardTitle className="text-base">
             {TITLES[statement.statement_type] ?? statement.statement_type}
           </CardTitle>
-          {fonte ? (
-            <Badge variant={fonte === "razao" ? "default" : "secondary"} className="shrink-0">
-              Fonte: {fonte === "razao" ? "razão" : "balancete"}
-            </Badge>
-          ) : null}
+          <div className="flex shrink-0 items-center gap-2">
+            {fonte ? (
+              <Badge variant={fonte === "razao" ? "default" : "secondary"}>
+                Fonte: {fonte === "razao" ? "razão" : "balancete"}
+              </Badge>
+            ) : null}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              title={expanded ? "Voltar à visão em três colunas" : "Expandir em tela cheia"}
+              onClick={onToggleExpand}
+            >
+              {expanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+            </Button>
+          </div>
         </div>
         {base ? (
           <p className="text-xs text-muted-foreground">Base de cálculo: {BASE_LABEL[base] ?? base}.</p>
@@ -84,12 +105,17 @@ function StatementCard({
         {lines.map((line, index) => {
           const isTotal = line.kind === "total" || line.kind === "subtotal";
           const canDrill = (line.codes?.length ?? 0) > 0;
+          const lineKey = `${statement.statement_type}-${index}`;
           return canDrill ? (
             <LinhaHierarquica
               key={`${line.label}-${index}`}
               periodId={periodId}
               line={{ ...line, ...(line.base ?? base ? { base: line.base ?? base } : {}) }}
               onOpen={onDrill}
+              canEdit={canEdit}
+              large={expanded}
+              open={openLines.has(lineKey)}
+              onOpenChange={(value) => onLineOpenChange(lineKey, value)}
             />
           ) : (
             <div
