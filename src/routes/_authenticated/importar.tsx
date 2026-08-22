@@ -314,7 +314,7 @@ function ImportarPage() {
       openings: 0,
       skipped_closing: 0,
       ignored_no_account: 0,
-      ignored_no_value: 0,
+      zero_value_kept: 0,
       bad_numbers: 0,
       bad_dates: 0,
     };
@@ -348,7 +348,7 @@ function ImportarPage() {
       `${total.openings} saldo(s) anterior(es)`,
       skipClosing ? `${total.skipped_closing} encerramento(s) descartado(s)` : null,
       total.ignored_no_account ? `${total.ignored_no_account} sem conta` : null,
-      total.ignored_no_value ? `${total.ignored_no_value} cabeçalho(s) de conta` : null,
+      total.zero_value_kept ? `${total.zero_value_kept} lançamento(s) de valor zero` : null,
       total.bad_numbers ? `${total.bad_numbers} valor(es) inválido(s)` : null,
       total.bad_dates ? `${total.bad_dates} data(s) inválida(s)` : null,
     ]

@@ -54,7 +54,8 @@ export type ImportChunkReport = {
   skipped_closing?: number;
   closing_detected?: number;
   ignored_no_account?: number;
-  ignored_no_value?: number;
+  zero_value_kept?: number;
+  purged_on_reset?: number;
   bad_numbers?: number;
   bad_dates?: number;
   sqlstate?: string;
