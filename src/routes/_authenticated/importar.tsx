@@ -361,7 +361,7 @@ function ImportarPage() {
         `Importação incompleta: ${done.gaps.lines} lançamento(s) perdido(s) em ${done.gaps.accounts} conta(s) (R$ ${done.gaps.value.toFixed(2)}). Reimporte o arquivo.`,
       );
     }
-    const vinculadas = `${done.by_name + done.by_value} contas vinculadas`;
+    const vinculadas = `${(done.by_name ?? 0) + (done.by_value ?? 0)} contas vinculadas`;
     if (alertas.length > 0) {
       toast.warning("Razão importado com alertas.", {
         description: `${alertas.join(" ")} — ${detalhes} · ${vinculadas}.`,
