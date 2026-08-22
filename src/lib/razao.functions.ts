@@ -405,6 +405,33 @@ export const saveManualJournalEntry = createServerFn({ method: "POST" })
     ),
   );
 
+/** Move um lançamento para outra data (entre meses) e recalcula os períodos afetados. */
+export const moveJournalLegToDate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ leg_id: z.string().uuid(), new_date: z.string().min(8) }).parse(input),
+  )
+  .handler(async ({ data, context }) =>
+    callRpc<JsonObject>(context.supabase, "move_journal_leg_to_date", {
+      _leg_id: data.leg_id,
+      _new_date: data.new_date,
+    }),
+  );
+
+/** Reconstrói a cadeia de saldos encadeados a partir de um período (ou tudo, se nulo). */
+export const rebuildLedgerChain = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ from_period_id: z.string().uuid().nullable().default(null) }).parse(input),
+  )
+  .handler(async ({ data, context }) =>
+    callRpc<{ periodos_reconstruidos: number; legs_atualizadas: number }>(
+      context.supabase,
+      "rebuild_ledger_chain",
+      { _from_period_id: data.from_period_id },
+    ),
+  );
+
 /** Cancela um lançamento (as duas pernas) sem apagá-lo do histórico. */
 export const cancelJournalEntry = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

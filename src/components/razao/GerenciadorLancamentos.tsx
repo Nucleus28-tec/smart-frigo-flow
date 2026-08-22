@@ -46,6 +46,8 @@ import {
   cancelJournalEntry,
   getJournalDocument,
   listJournalEntries,
+  moveJournalLegToDate,
+  rebuildLedgerChain,
   saveManualJournalEntry,
 } from "@/lib/razao.functions";
 
@@ -323,6 +325,8 @@ export function GerenciadorLancamentos({
   const fetchDocument = useServerFn(getJournalDocument);
   const runSave = useServerFn(saveManualJournalEntry);
   const runCancel = useServerFn(cancelJournalEntry);
+  const runMove = useServerFn(moveJournalLegToDate);
+  const runRebuild = useServerFn(rebuildLedgerChain);
 
   const grid = useQuery({
     queryKey: ["journal_grid", periodId, term, from, to, includeCancelled, page],
@@ -391,7 +395,22 @@ export function GerenciadorLancamentos({
       if (!Number.isFinite(valor) || valor <= 0) throw new Error("Valor inválido.");
       if (!state.entry_date) throw new Error("Informe a data.");
       if (!state.historico.trim()) throw new Error("Informe o histórico.");
-      return (await runSave({
+
+      // A trava de "mesmo mês" saiu do banco: um lançamento pode ser movido
+      // para outro período. Quando a nova data cai em outro mês, editar um
+      // lançamento existente vira um movimento entre períodos.
+      const targetMonth = state.entry_date.slice(0, 7);
+      const periodMonth = (referenceMonth ?? "").slice(0, 7);
+      const crossMonth = Boolean(state.leg_id) && periodMonth !== "" && targetMonth !== periodMonth;
+
+      if (crossMonth && state.leg_id) {
+        await runMove({ data: { leg_id: state.leg_id, new_date: state.entry_date } });
+        // Reconstrói os saldos encadeados a partir do período de origem.
+        await runRebuild({ data: { from_period_id: periodId } });
+        return { id: state.leg_id } as { id: string };
+      }
+
+      const result = (await runSave({
         data: {
           period_id: periodId,
           leg_id: state.leg_id,
@@ -403,6 +422,9 @@ export function GerenciadorLancamentos({
           historico: state.historico.trim(),
         },
       })) as unknown as { id: string };
+      // Mesmo mês: mantém o update direto e reconstrói a cadeia deste período em diante.
+      await runRebuild({ data: { from_period_id: periodId } });
+      return result;
     },
     onSuccess: (result) => {
       toast.success(form.leg_id ? "Lançamento atualizado." : "Lançamento incluído.");
