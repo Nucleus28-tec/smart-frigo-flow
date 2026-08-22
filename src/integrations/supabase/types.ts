@@ -95,6 +95,7 @@ export type Database = {
       }
       accounting_periods: {
         Row: {
+          chain_stale: boolean
           created_at: string
           created_by: string
           id: string
@@ -105,6 +106,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          chain_stale?: boolean
           created_at?: string
           created_by: string
           id?: string
@@ -115,6 +117,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          chain_stale?: boolean
           created_at?: string
           created_by?: string
           id?: string
@@ -717,6 +720,7 @@ export type Database = {
           origin: string
           period_id: string
           running_balance: number | null
+          running_balance_file: number | null
           status: string
           updated_at: string
           updated_by: string | null
@@ -745,6 +749,7 @@ export type Database = {
           origin?: string
           period_id: string
           running_balance?: number | null
+          running_balance_file?: number | null
           status?: string
           updated_at?: string
           updated_by?: string | null
@@ -773,6 +778,7 @@ export type Database = {
           origin?: string
           period_id?: string
           running_balance?: number | null
+          running_balance_file?: number | null
           status?: string
           updated_at?: string
           updated_by?: string | null
@@ -1291,6 +1297,44 @@ export type Database = {
       }
     }
     Views: {
+      v_anchor_sign_check: {
+        Row: {
+          account_reduced_code: string | null
+          conta: string | null
+          nature: string | null
+          period_id: string | null
+          periodo: string | null
+          saldo_anterior: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_legs_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_chain_continuity: {
+        Row: {
+          account_reduced_code: string | null
+          conta: string | null
+          period_id: string | null
+          periodo: string | null
+          saldo_anterior: number | null
+          saldo_anterior_esperado: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_legs_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_ledger_import_gaps: {
         Row: {
           account_reduced_code: string | null
@@ -1383,6 +1427,7 @@ export type Database = {
         }
         Returns: Json
       }
+      close_accounting_period: { Args: { _period_id: string }; Returns: Json }
       close_fiscal_year: { Args: { _year: number }; Returns: Json }
       close_period_partial: {
         Args: {
@@ -1535,6 +1580,10 @@ export type Database = {
         Returns: Json
       }
       month_names_pt: { Args: { _months: number[] }; Returns: string }
+      move_journal_leg_to_date: {
+        Args: { _leg_id: string; _new_date: string }
+        Returns: Json
+      }
       move_ledger_accounts: {
         Args: { _dry_run?: boolean; _ids: string[]; _new_parent_hier: string }
         Returns: Json
@@ -1577,6 +1626,10 @@ export type Database = {
       }
       reconcile_journal_vs_trial_balance: {
         Args: { _period_id: string }
+        Returns: Json
+      }
+      rebuild_ledger_chain: {
+        Args: { _from_period_id?: string }
         Returns: Json
       }
       renumber_branch: { Args: { _parent_hier: string }; Returns: Json }
