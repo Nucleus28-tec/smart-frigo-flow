@@ -176,6 +176,13 @@ export const finalizeJournalImport = createServerFn({ method: "POST" })
     );
     await callRpc(context.supabase, "generate_period_statements", { _period_id: data.period_id });
 
+    // Reconstrói saldos anteriores encadeados e running_balance derivado,
+    // deste período em diante. Sem isso os meses seguintes ficam com saldo velho.
+    const chain = await callRpc<{
+      periodos_reconstruidos: number;
+      legs_atualizadas: number;
+    }>(context.supabase, "rebuild_ledger_chain", { _from_period_id: data.period_id });
+
     await context.supabase.rpc("log_activity", {
       _action: "importou razão contábil",
       _entity_type: "journal_legs",
@@ -185,6 +192,7 @@ export const finalizeJournalImport = createServerFn({ method: "POST" })
         warnings: validation?.warnings ?? [],
         gaps: gaps.length,
         gap_lines: gapLines,
+        chain_periods: chain?.periodos_reconstruidos ?? 0,
       },
     });
 
@@ -193,6 +201,7 @@ export const finalizeJournalImport = createServerFn({ method: "POST" })
       source: indicators.source,
       validation,
       gaps: { accounts: gaps.length, lines: gapLines, value: gapValue, detail: gaps.slice(0, 10) },
+      chain,
     };
   });
 
