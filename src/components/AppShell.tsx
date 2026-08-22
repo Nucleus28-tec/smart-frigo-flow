@@ -19,6 +19,8 @@ import {
   BookOpen,
 } from "lucide-react";
 
+import { toast } from "sonner";
+
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
 import { usePeriod } from "@/hooks/usePeriod";
@@ -37,6 +39,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
 import { useServerFn } from "@tanstack/react-start";
 import { getAiProvider, setAiProvider } from "@/lib/ai-settings.functions";
+import { rebuildLedgerChain } from "@/lib/razao.functions";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: BarChart3, adminOnly: false },
@@ -78,6 +81,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ai-provider"] });
     },
+  });
+
+  // Períodos com saldos pendentes de recálculo (chain_stale).
+  const { data: staleData } = useQuery({
+    queryKey: ["chain-stale"],
+    queryFn: async (): Promise<{ label: string }[]> => {
+      const { data: stale, error } = await supabase
+        .from("accounting_periods")
+        .select("label")
+        .eq("chain_stale", true);
+      if (error) throw new Error(error.message);
+      return stale ?? [];
+    },
+  });
+  const staleCount = staleData?.length ?? 0;
+
+  const rebuildChain = useServerFn(rebuildLedgerChain);
+  const rebuildMutation = useMutation({
+    mutationFn: () => rebuildChain({ data: { from_period_id: null } }),
+    onSuccess: () => {
+      toast.success("Saldos reconstruídos.");
+      queryClient.invalidateQueries({ queryKey: ["chain-stale"] });
+      // Relatórios e balancetes leem running_balance derivado: recarrega tudo.
+      queryClient.invalidateQueries();
+    },
+    onError: (error: Error) =>
+      toast.error("Não foi possível reconstruir os saldos", { description: error.message }),
   });
 
   async function handleSignOut() {
@@ -199,6 +229,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <span className="text-sm text-muted-foreground">Nenhum período criado</span>
             )}
           </div>
+
+          {staleCount > 0 ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 border-amber-500/50 text-amber-600 hover:bg-amber-500/10 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300"
+              onClick={() => rebuildMutation.mutate()}
+              disabled={rebuildMutation.isPending}
+              title={`${staleCount} período(s) com saldos pendentes de recálculo`}
+            >
+              <RefreshCw className={cn("size-4", rebuildMutation.isPending && "animate-spin")} />
+              Saldos desatualizados
+            </Button>
+          ) : null}
 
           <div className="ml-auto flex items-center gap-3">
             {isAdmin && (
