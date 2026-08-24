@@ -249,6 +249,7 @@ function PeriodosPage() {
                   <TableHead>Período</TableHead>
                   <TableHead>Referência</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Cadeia de saldos</TableHead>
                   <TableHead>Último recálculo</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
