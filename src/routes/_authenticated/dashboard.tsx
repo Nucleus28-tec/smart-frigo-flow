@@ -36,6 +36,8 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { EmptyState, ErrorState, LoadingRows, PageHeader } from "@/components/PageState";
+import { SemMovimento } from "@/components/periodo/SemMovimento";
+import { usePeriodStatus } from "@/hooks/usePeriodStatus";
 import { IndicadorDrilldown } from "@/components/dashboard/IndicadorDrilldown";
 import {
   GROUP_LABEL,
@@ -100,6 +102,7 @@ function DashboardPage() {
     refetch: refetchPeriods,
   } = usePeriod();
   const { data: profile } = useProfile();
+  const periodStatus = usePeriodStatus(selectedPeriodId);
   const isAdmin = profile?.role === "admin";
   const queryClient = useQueryClient();
   const recalc = useServerFn(recalculateIndicators);
