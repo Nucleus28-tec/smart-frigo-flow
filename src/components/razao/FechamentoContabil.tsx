@@ -60,6 +60,7 @@ import {
   saveClosingAccounts,
 } from "@/lib/razao.functions";
 import { amount, balanceLabel } from "@/lib/razao-report-types";
+import { downloadExported } from "@/lib/razao-export";
 
 const MONTHS = [
   "Janeiro",
@@ -276,17 +277,7 @@ export function FechamentoContabil({ periodId, periodLabel, referenceMonth, isAd
           show_plan: mode === "analitico",
         },
       });
-      const opened = window.open(result.url, "_blank", "noopener,noreferrer");
-      if (!opened) {
-        toast.error("O navegador bloqueou a janela do download.", {
-          duration: 15000,
-          action: {
-            label: "Abrir arquivo",
-            onClick: () => window.open(result.url, "_blank", "noopener,noreferrer"),
-          },
-        });
-        return;
-      }
+      downloadExported(result);
       toast.success(`Download iniciado: ${result.file_name}`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Falha ao exportar.");

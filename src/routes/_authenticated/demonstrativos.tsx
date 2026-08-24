@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
   Download,
+  Eye,
   EyeOff,
   FileSpreadsheet,
   FileText,
@@ -28,6 +29,11 @@ import { formatCurrency } from "@/lib/rotta";
 import { ConferenciaBalanco } from "@/components/ConferenciaBalanco";
 import { LinhaHierarquica } from "@/components/demonstrativos/LinhaHierarquica";
 import { ContasOcultasPainel } from "@/components/demonstrativos/ContasOcultasPainel";
+import { downloadExported } from "@/lib/razao-export";
+import {
+  VisualizadorRelatorio,
+  type PreviewFile,
+} from "@/components/razao/VisualizadorRelatorio";
 
 import {
   PainelLancamentosLinha,
@@ -163,7 +169,8 @@ function DemonstrativosPage() {
   const queryClient = useQueryClient();
   const periodId = selectedPeriod?.id ?? null;
   const periodStatus = usePeriodStatus(periodId);
-  const [busy, setBusy] = useState<"pdf" | "xlsx" | null>(null);
+  const [busy, setBusy] = useState<"pdf" | "xlsx" | "preview" | null>(null);
+  const [preview, setPreview] = useState<PreviewFile | null>(null);
   const [drill, setDrill] = useState<LinhaDrill | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [openLines, setOpenLines] = useState<Set<string>>(() => new Set());
@@ -259,15 +266,33 @@ function DemonstrativosPage() {
     setBusy(format);
     try {
       const result = await doExport({ data: { period_id: periodId, format } });
-      const link = document.createElement("a");
-      link.href = result.url;
-      link.download = result.file_name;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      downloadExported(result);
+      if (result.storage_error) {
+        toast.warning("Arquivo baixado, mas não foi possível arquivá-lo no histórico.");
+      }
       toast.success(`Download iniciado: ${result.file_name}`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Falha ao exportar.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  /** Gera o PDF e abre na pré-visualização, com opção de imprimir. */
+  async function handlePreview() {
+    if (!periodId) return;
+    setBusy("preview");
+    try {
+      const result = await doExport({ data: { period_id: periodId, format: "pdf" } });
+      setPreview({
+        base64: result.base64,
+        content_type: result.content_type,
+        file_name: result.file_name,
+        size: result.size,
+        title: `Demonstrativos — ${selectedPeriod?.label ?? ""}`,
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao gerar a pré-visualização.");
     } finally {
       setBusy(null);
     }
@@ -325,6 +350,10 @@ function DemonstrativosPage() {
                 {generateMutation.isPending ? "Gerando..." : "Gerar demonstrativos"}
               </Button>
             ) : null}
+            <Button variant="outline" onClick={() => void handlePreview()} disabled={busy !== null}>
+              <Eye className="mr-2 h-4 w-4" />
+              {busy === "preview" ? "Gerando..." : "Pré-visualizar PDF"}
+            </Button>
             <Button onClick={() => handleExport("pdf")} disabled={busy !== null}>
               <FileText className="mr-2 h-4 w-4" />
               {busy === "pdf" ? "Gerando PDF..." : "Exportar PDF"}
@@ -387,6 +416,8 @@ function DemonstrativosPage() {
           )}
         </div>
       )}
+
+      <VisualizadorRelatorio file={preview} onClose={() => setPreview(null)} />
 
       {periodId ? (
         <PainelLancamentosLinha

@@ -719,26 +719,44 @@ export const exportLedgerReport = createServerFn({ method: "POST" })
 
     const path = `${data.period_id}/relatorios/${fileName}`;
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error: uploadError } = await supabaseAdmin.storage
-      .from("exports")
-      .upload(path, bytes, { contentType, upsert: true });
-    if (uploadError) throw new Error(`Falha ao salvar o arquivo: ${uploadError.message}`);
+    // O arquivo volta no próprio retorno (base64): o navegador monta o download
+    // localmente, sem depender de pop-up nem de URL assinada de outro domínio.
+    let binary = "";
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+    }
+    const base64 = btoa(binary);
 
-    const { data: signed, error: signedError } = await supabaseAdmin.storage
-      .from("exports")
-      .createSignedUrl(path, 60 * 10, { download: fileName });
-    if (signedError || !signed) {
-      throw new Error(`Falha ao gerar link de download: ${signedError?.message ?? ""}`);
+    // Cópia no bucket é apenas histórico: falha aqui não impede o download.
+    let storageError: string | null = null;
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { error: uploadError } = await supabaseAdmin.storage
+        .from("exports")
+        .upload(path, bytes, { contentType, upsert: true });
+      if (uploadError) storageError = uploadError.message;
+    } catch (error) {
+      storageError = error instanceof Error ? error.message : "erro ao arquivar";
     }
 
-    await context.supabase.rpc("log_activity", {
-      _action: `exportou ${data.kind} em ${data.format.toUpperCase()}`,
-      _entity_type: "journal_legs",
-      _metadata: { period_id: data.period_id, path, contas: data.codes.length },
-    });
+    try {
+      await context.supabase.rpc("log_activity", {
+        _action: `exportou ${data.kind} em ${data.format.toUpperCase()}`,
+        _entity_type: "journal_legs",
+        _metadata: { period_id: data.period_id, path, contas: data.codes.length },
+      });
+    } catch {
+      /* log de atividade não deve derrubar a exportação */
+    }
 
-    return { url: signed.signedUrl, file_name: fileName, size: bytes.byteLength };
+    return {
+      file_name: fileName,
+      content_type: contentType,
+      size: bytes.byteLength,
+      base64,
+      storage_error: storageError,
+    };
   });
 
 /* ------------------------------ FECHAMENTO CONTÁBIL ------------------------------ */

@@ -9,6 +9,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
   Eraser,
+  Eye,
   FileSpreadsheet,
   FileText,
   Loader2,
@@ -55,6 +56,11 @@ import {
   type ReportKind,
   type TrialBalanceReport,
 } from "@/lib/razao-report-types";
+import { downloadExported } from "@/lib/razao-export";
+import {
+  VisualizadorRelatorio,
+  type PreviewFile,
+} from "@/components/razao/VisualizadorRelatorio";
 
 
 const PAGE_SIZE = 100;
@@ -118,6 +124,7 @@ export function RelatoriosRazao({ periodId, periodLabel, referenceMonth, drill }
   const [busy, setBusy] = useState<string | null>(null);
   const [ledger, setLedger] = useState<LedgerReport | null>(null);
   const [trial, setTrial] = useState<TrialBalanceReport | null>(null);
+  const [preview, setPreview] = useState<PreviewFile | null>(null);
 
   const runList = useServerFn(listChartAccounts);
   const runLedger = useServerFn(getLedgerReport);
@@ -220,42 +227,53 @@ export function RelatoriosRazao({ periodId, periodLabel, referenceMonth, drill }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drill?.token]);
 
+  /** Gera o arquivo no servidor e devolve o conteúdo para uso local. */
+  async function generate(format: "pdf" | "xlsx") {
+    return runExport({
+      data: {
+        ...filters(),
+        doc_number: docNumber.trim() || null,
+        kind,
+        format,
+        multi_page: kind === "razao" && multiPage,
+      },
+    });
+  }
+
   async function handleExport(format: "pdf" | "xlsx") {
     setBusy(format);
     try {
-      const result = await runExport({
-        data: {
-          ...filters(),
-          doc_number: docNumber.trim() || null,
-          kind,
-          format,
-          multi_page: kind === "razao" && multiPage,
-        },
-      });
-      // A URL assinada é de outro domínio (Supabase Storage), então o atributo
-      // download é ignorado e, dentro do preview em iframe, o clique não abre nada.
-      // Abrimos em uma nova aba e deixamos um link de reserva no toast.
-      const opened = window.open(result.url, "_blank", "noopener,noreferrer");
-      if (!opened) {
-        toast.error("O navegador bloqueou a janela do download.", {
-          duration: 15000,
-          action: {
-            label: "Abrir arquivo",
-            onClick: () => window.open(result.url, "_blank", "noopener,noreferrer"),
-          },
-        });
-        return;
+      // O arquivo vem no retorno da função (base64) e o download é montado no
+      // navegador: sem pop-up e sem URL assinada de outro domínio.
+      const result = await generate(format);
+      downloadExported(result);
+      if (result.storage_error) {
+        toast.warning("Arquivo baixado, mas não foi possível arquivá-lo no histórico.");
       }
-      toast.success(`Download iniciado: ${result.file_name}`, {
-        duration: 10000,
-        action: {
-          label: "Abrir novamente",
-          onClick: () => window.open(result.url, "_blank", "noopener,noreferrer"),
-        },
-      });
-
+      toast.success(`Download iniciado: ${result.file_name}`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Falha ao exportar.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function handlePreview() {
+    setBusy("preview");
+    try {
+      const result = await generate("pdf");
+      setPreview({
+        base64: result.base64,
+        content_type: result.content_type,
+        file_name: result.file_name,
+        size: result.size,
+        title:
+          kind === "razao"
+            ? `Razão Contábil Analítico — ${periodLabel}`
+            : `Balancete Analítico — ${periodLabel}`,
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao gerar a pré-visualização.");
     } finally {
       setBusy(null);
     }
@@ -477,12 +495,22 @@ export function RelatoriosRazao({ periodId, periodLabel, referenceMonth, drill }
               )}
               Exportar Excel
             </Button>
+            <Button variant="outline" onClick={() => void handlePreview()} disabled={busy !== null}>
+              {busy === "preview" ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Eye className="mr-2 h-4 w-4" />
+              )}
+              Pré-visualizar PDF
+            </Button>
           </div>
         </CardContent>
       </Card>
 
       {ledger ? <LedgerView report={ledger} periodLabel={periodLabel} /> : null}
       {trial ? <TrialView report={trial} periodLabel={periodLabel} /> : null}
+
+      <VisualizadorRelatorio file={preview} onClose={() => setPreview(null)} />
     </div>
   );
 }
