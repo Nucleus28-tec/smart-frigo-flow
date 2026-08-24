@@ -81,6 +81,48 @@ function PeriodosPage() {
   const [month, setMonth] = useState("");
   const [label, setLabel] = useState("");
   const [pendingClose, setPendingClose] = useState<{ id: string; label: string } | null>(null);
+  const [pendingReset, setPendingReset] = useState<{ id: string; label: string } | null>(null);
+
+  const zerarPeriodo = useServerFn(resetPeriod);
+  const recalcularCadeia = useServerFn(rebuildChain);
+
+  const invalidateAll = () => {
+    for (const key of [
+      "accounting_periods",
+      "period_status",
+      "period_movement",
+      "period_health",
+      "fluxo_operacional",
+      "imported_files",
+      "financial_statements",
+      "dashboard-indicators",
+      "period-summary",
+      "conferencia_balanco",
+    ]) {
+      void queryClient.invalidateQueries({ queryKey: [key] });
+    }
+  };
+
+  const resetMutation = useMutation({
+    mutationFn: (id: string) => zerarPeriodo({ data: { period_id: id, include_accounts: false } }),
+    onSuccess: (result) => {
+      invalidateAll();
+      toast.success(`${result.label} zerado`, {
+        description: `${result.journal_legs} lançamentos e ${result.aberturas} aberturas removidos.`,
+      });
+    },
+    onError: (e: Error) => toast.error("Não foi possível zerar", { description: e.message }),
+  });
+
+  const rebuildMutation = useMutation({
+    mutationFn: (id: string) => recalcularCadeia({ data: { period_id: id } }),
+    onSuccess: () => {
+      invalidateAll();
+      toast.success("Cadeia de saldos recalculada.");
+    },
+    onError: (e: Error) => toast.error("Falha ao recalcular", { description: e.message }),
+  });
+
 
   const createPeriod = useMutation({
     mutationFn: async () => {
