@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/table";
 import { EmptyState, ErrorState, LoadingRows, PageHeader } from "@/components/PageState";
 import { PERIOD_STATUS_LABEL, formatDateTime, formatMonth } from "@/lib/rotta";
+import { rebuildChain, resetPeriod } from "@/lib/periodo.functions";
 
 export const Route = createFileRoute("/_authenticated/periodos")({
   component: PeriodosPage,
