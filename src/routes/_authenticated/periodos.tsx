@@ -300,18 +300,50 @@ function PeriodosPage() {
                         </Badge>
                       )}
                     </TableCell>
+                    <TableCell>
+                      {period.chain_stale ? (
+                        <Badge variant="destructive">Recálculo pendente</Badge>
+                      ) : (
+                        <Badge variant="secondary">Em dia</Badge>
+                      )}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">
                       {formatDateTime(period.last_recalculated_at)}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={period.id === selectedPeriodId}
-                        onClick={() => selectPeriod(period.id)}
-                      >
-                        Selecionar
-                      </Button>
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={period.id === selectedPeriodId}
+                          onClick={() => selectPeriod(period.id)}
+                        >
+                          Selecionar
+                        </Button>
+                        {isAdmin ? (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={rebuildMutation.isPending || period.status === "fechado"}
+                              onClick={() => rebuildMutation.mutate(period.id)}
+                            >
+                              Recalcular
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive"
+                              disabled={resetMutation.isPending || period.status === "fechado"}
+                              onClick={() =>
+                                setPendingReset({ id: period.id, label: period.label })
+                              }
+                            >
+                              Zerar
+                            </Button>
+                          </>
+                        ) : null}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
