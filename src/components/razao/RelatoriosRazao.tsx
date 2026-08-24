@@ -123,6 +123,7 @@ export function RelatoriosRazao({ periodId, periodLabel, referenceMonth, drill }
   const [busy, setBusy] = useState<string | null>(null);
   const [ledger, setLedger] = useState<LedgerReport | null>(null);
   const [trial, setTrial] = useState<TrialBalanceReport | null>(null);
+  const [preview, setPreview] = useState<PreviewFile | null>(null);
 
   const runList = useServerFn(listChartAccounts);
   const runLedger = useServerFn(getLedgerReport);
