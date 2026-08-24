@@ -302,6 +302,34 @@ function ImportarPage() {
     onError: (error: Error) => toast.error("Não foi possível limpar", { description: error.message }),
   });
 
+  const resetMutation = useMutation({
+    mutationFn: (includeAccounts: boolean) =>
+      zerarPeriodo({
+        data: { period_id: selectedPeriodId!, include_accounts: includeAccounts },
+      }),
+    onSuccess: (result) => {
+      invalidate();
+      for (const key of [
+        "period_movement",
+        "period_status",
+        "period_health",
+        "fluxo_operacional",
+        "financial_statements",
+        "dashboard-indicators",
+        "period-summary",
+        "conferencia_balanco",
+        "journal_accounts",
+        "accounting_periods",
+      ]) {
+        void queryClient.invalidateQueries({ queryKey: [key] });
+      }
+      toast.success(`${result.label} zerado`, {
+        description: `${result.journal_legs} lançamentos, ${result.aberturas} aberturas, ${result.demonstrativos} demonstrativos e ${result.indicadores} indicadores removidos.`,
+      });
+    },
+    onError: (error: Error) => toast.error("Não foi possível zerar", { description: error.message }),
+  });
+
 
   /** Envia as pernas em blocos e finaliza (validação + casamento + recálculo). */
   async function enviarPernas(
