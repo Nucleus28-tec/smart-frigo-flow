@@ -921,6 +921,44 @@ function ImportarPage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <AlertDialog open={pendingReset} onOpenChange={setPendingReset}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Zerar {selectedPeriod?.label}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Remove tudo o que o período tem hoje: arquivos importados, razão, saldos de abertura,
+              balancete derivado, demonstrativos, indicadores, contas ocultas, sugestões de
+              reclassificação e apontamentos. É o reinício limpo para importar de novo. Não pode ser
+              desfeito.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <label className="flex items-start gap-2 rounded-md border border-border/60 p-3 text-sm">
+            <input
+              type="checkbox"
+              className="mt-0.5 size-4 accent-primary"
+              checked={resetAccounts}
+              onChange={(e) => setResetAccounts(e.target.checked)}
+            />
+            <span>
+              Remover também as contas do plano que ficarem sem uso
+              <span className="block text-xs text-muted-foreground">
+                Recomeça o cadastro do plano de contas do zero.
+              </span>
+            </span>
+          </label>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                resetMutation.mutate(resetAccounts);
+                setPendingReset(false);
+              }}
+            >
+              Zerar período
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
