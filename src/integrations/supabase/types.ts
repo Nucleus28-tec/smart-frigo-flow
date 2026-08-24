@@ -618,6 +618,7 @@ export type Database = {
           created_at: string
           id: string
           opening_balance: number
+          opening_source: string
           period_id: string
         }
         Insert: {
@@ -626,6 +627,7 @@ export type Database = {
           created_at?: string
           id?: string
           opening_balance?: number
+          opening_source?: string
           period_id: string
         }
         Update: {
@@ -634,6 +636,7 @@ export type Database = {
           created_at?: string
           id?: string
           opening_balance?: number
+          opening_source?: string
           period_id?: string
         }
         Relationships: [
@@ -1301,14 +1304,16 @@ export type Database = {
         Row: {
           account_reduced_code: string | null
           conta: string | null
+          lado_esperado: string | null
+          lado_gravado: string | null
           nature: string | null
+          opening_balance: number | null
           period_id: string | null
           periodo: string | null
-          saldo_anterior: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "journal_legs_period_id_fkey"
+            foreignKeyName: "journal_account_openings_period_id_fkey"
             columns: ["period_id"]
             isOneToOne: false
             referencedRelation: "accounting_periods"
@@ -1318,22 +1323,15 @@ export type Database = {
       }
       v_chain_continuity: {
         Row: {
-          account_reduced_code: string | null
+          abertura_seguinte: number | null
+          abre_em: string | null
+          account_name: string | null
           conta: string | null
-          period_id: string | null
-          periodo: string | null
-          saldo_anterior: number | null
-          saldo_anterior_esperado: number | null
+          diferenca: number | null
+          fecha_em: string | null
+          fechamento: number | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "journal_legs_period_id_fkey"
-            columns: ["period_id"]
-            isOneToOne: false
-            referencedRelation: "accounting_periods"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       v_ledger_import_gaps: {
         Row: {
@@ -1427,7 +1425,7 @@ export type Database = {
         }
         Returns: Json
       }
-      close_accounting_period: { Args: { _period_id: string }; Returns: Json }
+      close_accounting_period: { Args: { _period_id: string }; Returns: string }
       close_fiscal_year: { Args: { _year: number }; Returns: Json }
       close_period_partial: {
         Args: {
@@ -1446,6 +1444,7 @@ export type Database = {
         Returns: Json
       }
       delete_imported_file: { Args: { _file_id: string }; Returns: Json }
+      earliest_period: { Args: { _a: string; _b: string }; Returns: string }
       finalize_journal_import: { Args: { _file_id: string }; Returns: Json }
       generate_period_statements: {
         Args: { _period_id: string }
@@ -1612,6 +1611,10 @@ export type Database = {
       period_hidden_accounts: { Args: { _period_id: string }; Returns: Json }
       period_hidden_summary: { Args: { _period_id: string }; Returns: Json }
       purge_period_journal: { Args: { _period_id: string }; Returns: Json }
+      rebuild_ledger_chain: {
+        Args: { _from_period_id?: string }
+        Returns: Json
+      }
       recalc_periods_for_accounts: {
         Args: { _codes: string[] }
         Returns: number
@@ -1626,10 +1629,6 @@ export type Database = {
       }
       reconcile_journal_vs_trial_balance: {
         Args: { _period_id: string }
-        Returns: Json
-      }
-      rebuild_ledger_chain: {
-        Args: { _from_period_id?: string }
         Returns: Json
       }
       renumber_branch: { Args: { _parent_hier: string }; Returns: Json }
