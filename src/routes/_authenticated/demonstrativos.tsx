@@ -285,6 +285,11 @@ function DemonstrativosPage() {
           title="Nenhum período selecionado"
           description="Escolha um período contábil no topo da tela para visualizar DRE, Balanço e Fluxo de Caixa."
         />
+      ) : periodStatus.data && !periodStatus.data.hasMovement ? (
+        <SemMovimento
+          periodLabel={selectedPeriod?.label}
+          contexto="DRE, Balanço e Fluxo são gerados a partir do razão do período. Importe o razão para gerar os demonstrativos."
+        />
       ) : (
         <div className="space-y-6">
           <ConferenciaBalanco periodId={periodId} />
