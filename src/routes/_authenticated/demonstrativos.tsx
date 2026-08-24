@@ -162,6 +162,7 @@ function DemonstrativosPage() {
   const isAdmin = profile?.role === "admin";
   const queryClient = useQueryClient();
   const periodId = selectedPeriod?.id ?? null;
+  const periodStatus = usePeriodStatus(periodId);
   const [busy, setBusy] = useState<"pdf" | "xlsx" | null>(null);
   const [drill, setDrill] = useState<LinhaDrill | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
