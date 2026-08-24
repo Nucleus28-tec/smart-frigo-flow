@@ -60,6 +60,7 @@ import {
   saveClosingAccounts,
 } from "@/lib/razao.functions";
 import { amount, balanceLabel } from "@/lib/razao-report-types";
+import { downloadExported } from "@/lib/razao-export";
 
 const MONTHS = [
   "Janeiro",
