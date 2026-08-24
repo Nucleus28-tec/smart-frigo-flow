@@ -162,6 +162,8 @@ function ImportarPage() {
   const [uploading, setUploading] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<ImportedFile | null>(null);
   const [pendingPurge, setPendingPurge] = useState(false);
+  const [pendingReset, setPendingReset] = useState(false);
+  const [resetAccounts, setResetAccounts] = useState(false);
 
   const [progress, setProgress] = useState<{ label: string; pct: number } | null>(null);
   const [sheet, setSheet] = useState<SheetData | null>(null);
