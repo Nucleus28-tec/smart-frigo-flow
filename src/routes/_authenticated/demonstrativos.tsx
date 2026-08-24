@@ -13,6 +13,8 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { EmptyState, ErrorState, PageHeader } from "@/components/PageState";
+import { SemMovimento } from "@/components/periodo/SemMovimento";
+import { usePeriodStatus } from "@/hooks/usePeriodStatus";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -160,6 +162,7 @@ function DemonstrativosPage() {
   const isAdmin = profile?.role === "admin";
   const queryClient = useQueryClient();
   const periodId = selectedPeriod?.id ?? null;
+  const periodStatus = usePeriodStatus(periodId);
   const [busy, setBusy] = useState<"pdf" | "xlsx" | null>(null);
   const [drill, setDrill] = useState<LinhaDrill | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -281,6 +284,11 @@ function DemonstrativosPage() {
         <EmptyState
           title="Nenhum período selecionado"
           description="Escolha um período contábil no topo da tela para visualizar DRE, Balanço e Fluxo de Caixa."
+        />
+      ) : periodStatus.data && !periodStatus.data.hasMovement ? (
+        <SemMovimento
+          periodLabel={selectedPeriod?.label}
+          contexto="DRE, Balanço e Fluxo são gerados a partir do razão do período. Importe o razão para gerar os demonstrativos."
         />
       ) : (
         <div className="space-y-6">

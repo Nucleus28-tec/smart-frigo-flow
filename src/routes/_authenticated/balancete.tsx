@@ -28,6 +28,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EmptyState, ErrorState, LoadingRows, PageHeader } from "@/components/PageState";
+import { SemMovimento } from "@/components/periodo/SemMovimento";
+import { usePeriodStatus } from "@/hooks/usePeriodStatus";
 import { NATURE_LABEL, NATURE_OPTIONS, formatCurrency } from "@/lib/rotta";
 import { ConferenciaBalanco } from "@/components/ConferenciaBalanco";
 import { useConferencia, type SaldoConta } from "@/lib/conferencia";
@@ -111,6 +113,7 @@ function sinal(nature: string | null, value: number) {
 
 function BalancetePage() {
   const { selectedPeriod, selectedPeriodId } = usePeriod();
+  const periodStatus = usePeriodStatus(selectedPeriodId);
   const conferencia = useConferencia(selectedPeriodId);
 
   const [search, setSearch] = useState("");
@@ -206,6 +209,21 @@ function BalancetePage() {
         <EmptyState
           title="Selecione um período"
           description="Escolha um período contábil no cabeçalho para ver o balancete."
+        />
+      </>
+    );
+  }
+
+  if (periodStatus.data && !periodStatus.data.hasMovement) {
+    return (
+      <>
+        <PageHeader
+          title="Balancete"
+          description="Balancete gerado a partir do razão contábil do período."
+        />
+        <SemMovimento
+          periodLabel={selectedPeriod?.label}
+          contexto="O balancete é derivado do razão. Importe o razão do período para vê-lo aqui."
         />
       </>
     );

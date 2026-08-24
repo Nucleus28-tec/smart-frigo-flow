@@ -36,6 +36,8 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { EmptyState, ErrorState, LoadingRows, PageHeader } from "@/components/PageState";
+import { SemMovimento } from "@/components/periodo/SemMovimento";
+import { usePeriodStatus } from "@/hooks/usePeriodStatus";
 import { IndicadorDrilldown } from "@/components/dashboard/IndicadorDrilldown";
 import {
   GROUP_LABEL,
@@ -100,6 +102,7 @@ function DashboardPage() {
     refetch: refetchPeriods,
   } = usePeriod();
   const { data: profile } = useProfile();
+  const periodStatus = usePeriodStatus(selectedPeriodId);
   const isAdmin = profile?.role === "admin";
   const queryClient = useQueryClient();
   const recalc = useServerFn(recalculateIndicators);
@@ -173,6 +176,18 @@ function DashboardPage() {
         <EmptyState
           title="Nenhum período contábil selecionado"
           description="Crie um período em Períodos para começar a importar arquivos e gerar demonstrativos."
+        />
+      </>
+    );
+  }
+
+  if (periodStatus.data && !periodStatus.data.hasMovement) {
+    return (
+      <>
+        <PageHeader title={`Olá, ${profile?.full_name?.split(" ")[0] ?? ""}`} />
+        <SemMovimento
+          periodLabel={selectedPeriod?.label}
+          contexto="Os indicadores são calculados a partir do razão. Importe o razão do período para o painel voltar a mostrar números."
         />
       </>
     );

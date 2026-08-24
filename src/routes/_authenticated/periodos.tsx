@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -47,6 +48,7 @@ import {
 } from "@/components/ui/table";
 import { EmptyState, ErrorState, LoadingRows, PageHeader } from "@/components/PageState";
 import { PERIOD_STATUS_LABEL, formatDateTime, formatMonth } from "@/lib/rotta";
+import { rebuildChain, resetPeriod } from "@/lib/periodo.functions";
 
 export const Route = createFileRoute("/_authenticated/periodos")({
   component: PeriodosPage,
@@ -79,6 +81,48 @@ function PeriodosPage() {
   const [month, setMonth] = useState("");
   const [label, setLabel] = useState("");
   const [pendingClose, setPendingClose] = useState<{ id: string; label: string } | null>(null);
+  const [pendingReset, setPendingReset] = useState<{ id: string; label: string } | null>(null);
+
+  const zerarPeriodo = useServerFn(resetPeriod);
+  const recalcularCadeia = useServerFn(rebuildChain);
+
+  const invalidateAll = () => {
+    for (const key of [
+      "accounting_periods",
+      "period_status",
+      "period_movement",
+      "period_health",
+      "fluxo_operacional",
+      "imported_files",
+      "financial_statements",
+      "dashboard-indicators",
+      "period-summary",
+      "conferencia_balanco",
+    ]) {
+      void queryClient.invalidateQueries({ queryKey: [key] });
+    }
+  };
+
+  const resetMutation = useMutation({
+    mutationFn: (id: string) => zerarPeriodo({ data: { period_id: id, include_accounts: false } }),
+    onSuccess: (result) => {
+      invalidateAll();
+      toast.success(`${result.label} zerado`, {
+        description: `${result.journal_legs} lançamentos e ${result.aberturas} aberturas removidos.`,
+      });
+    },
+    onError: (e: Error) => toast.error("Não foi possível zerar", { description: e.message }),
+  });
+
+  const rebuildMutation = useMutation({
+    mutationFn: (id: string) => recalcularCadeia({ data: { period_id: id } }),
+    onSuccess: () => {
+      invalidateAll();
+      toast.success("Cadeia de saldos recalculada.");
+    },
+    onError: (e: Error) => toast.error("Falha ao recalcular", { description: e.message }),
+  });
+
 
   const createPeriod = useMutation({
     mutationFn: async () => {
@@ -205,6 +249,7 @@ function PeriodosPage() {
                   <TableHead>Período</TableHead>
                   <TableHead>Referência</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Cadeia de saldos</TableHead>
                   <TableHead>Último recálculo</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -255,18 +300,50 @@ function PeriodosPage() {
                         </Badge>
                       )}
                     </TableCell>
+                    <TableCell>
+                      {period.chain_stale ? (
+                        <Badge variant="destructive">Recálculo pendente</Badge>
+                      ) : (
+                        <Badge variant="secondary">Em dia</Badge>
+                      )}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">
                       {formatDateTime(period.last_recalculated_at)}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={period.id === selectedPeriodId}
-                        onClick={() => selectPeriod(period.id)}
-                      >
-                        Selecionar
-                      </Button>
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={period.id === selectedPeriodId}
+                          onClick={() => selectPeriod(period.id)}
+                        >
+                          Selecionar
+                        </Button>
+                        {isAdmin ? (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={rebuildMutation.isPending || period.status === "fechado"}
+                              onClick={() => rebuildMutation.mutate(period.id)}
+                            >
+                              Recalcular
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive"
+                              disabled={resetMutation.isPending || period.status === "fechado"}
+                              onClick={() =>
+                                setPendingReset({ id: period.id, label: period.label })
+                              }
+                            >
+                              Zerar
+                            </Button>
+                          </>
+                        ) : null}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -299,6 +376,35 @@ function PeriodosPage() {
               }}
             >
               Fechar período
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={pendingReset !== null}
+        onOpenChange={(o: boolean) => {
+          if (!o) setPendingReset(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Zerar {pendingReset?.label}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Remove arquivos, razão, saldos de abertura, balancete derivado, demonstrativos,
+              indicadores e contas ocultas deste período. Use para recomeçar a importação do zero.
+              Não pode ser desfeito.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingReset) resetMutation.mutate(pendingReset.id);
+                setPendingReset(null);
+              }}
+            >
+              Zerar período
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

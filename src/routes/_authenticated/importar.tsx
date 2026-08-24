@@ -77,6 +77,9 @@ import {
   type Mapping,
 } from "@/lib/razao-mapeamento";
 import { MapeamentoColunas } from "@/components/razao/MapeamentoColunas";
+import { FluxoOperacional } from "@/components/importar/FluxoOperacional";
+import { PainelSaudePeriodo } from "@/components/importar/PainelSaudePeriodo";
+import { resetPeriod } from "@/lib/periodo.functions";
 
 export const Route = createFileRoute("/_authenticated/importar")({
   component: ImportarPage,
@@ -159,6 +162,8 @@ function ImportarPage() {
   const [uploading, setUploading] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<ImportedFile | null>(null);
   const [pendingPurge, setPendingPurge] = useState(false);
+  const [pendingReset, setPendingReset] = useState(false);
+  const [resetAccounts, setResetAccounts] = useState(false);
 
   const [progress, setProgress] = useState<{ label: string; pct: number } | null>(null);
   const [sheet, setSheet] = useState<SheetData | null>(null);
@@ -179,6 +184,7 @@ function ImportarPage() {
   const removeFile = useServerFn(deleteImportedFile);
   const countMovement = useServerFn(getPeriodMovementCount);
   const purgeMovement = useServerFn(purgePeriodJournal);
+  const zerarPeriodo = useServerFn(resetPeriod);
 
   const downloadUrl = useServerFn(getFileDownloadUrl);
   const registerFile = useServerFn(registerImportedFile);
@@ -297,6 +303,34 @@ function ImportarPage() {
       );
     },
     onError: (error: Error) => toast.error("Não foi possível limpar", { description: error.message }),
+  });
+
+  const resetMutation = useMutation({
+    mutationFn: (includeAccounts: boolean) =>
+      zerarPeriodo({
+        data: { period_id: selectedPeriodId!, include_accounts: includeAccounts },
+      }),
+    onSuccess: (result) => {
+      invalidate();
+      for (const key of [
+        "period_movement",
+        "period_status",
+        "period_health",
+        "fluxo_operacional",
+        "financial_statements",
+        "dashboard-indicators",
+        "period-summary",
+        "conferencia_balanco",
+        "journal_accounts",
+        "accounting_periods",
+      ]) {
+        void queryClient.invalidateQueries({ queryKey: [key] });
+      }
+      toast.success(`${result.label} zerado`, {
+        description: `${result.journal_legs} lançamentos, ${result.aberturas} aberturas, ${result.demonstrativos} demonstrativos e ${result.indicadores} indicadores removidos.`,
+      });
+    },
+    onError: (error: Error) => toast.error("Não foi possível zerar", { description: error.message }),
   });
 
 
@@ -582,16 +616,54 @@ function ImportarPage() {
                 antigas ou manuais) só saem com a limpeza do período.
               </p>
             </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                disabled={isClosed || purgeMutation.isPending}
+                onClick={() => setPendingPurge(true)}
+              >
+                {purgeMutation.isPending ? "Limpando…" : "Limpar movimento do período"}
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={isClosed || resetMutation.isPending}
+                onClick={() => setPendingReset(true)}
+              >
+                {resetMutation.isPending ? "Zerando…" : "Zerar período"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {isAdmin && (movementQuery.data?.legs ?? 0) === 0 ? (
+        <Card className="mb-6">
+          <CardContent className="flex flex-col gap-3 pt-6 md:flex-row md:items-center md:justify-between">
+            <p className="text-sm text-muted-foreground">
+              {selectedPeriod?.label} está sem razão importado. Se ainda houver resíduo de
+              importações antigas (aberturas, demonstrativos ou indicadores), use “Zerar período”
+              para começar do zero.
+            </p>
             <Button
               variant="outline"
-              disabled={isClosed || purgeMutation.isPending}
-              onClick={() => setPendingPurge(true)}
+              disabled={isClosed || resetMutation.isPending}
+              onClick={() => setPendingReset(true)}
             >
-              {purgeMutation.isPending ? "Limpando…" : "Limpar movimento do período"}
+              {resetMutation.isPending ? "Zerando…" : "Zerar período"}
             </Button>
           </CardContent>
         </Card>
       ) : null}
+
+      {selectedPeriodId ? (
+        <FluxoOperacional
+          periodId={selectedPeriodId}
+          periodLabel={selectedPeriod?.label ?? ""}
+          periodStatus={selectedPeriod?.status ?? "aberto"}
+        />
+      ) : null}
+
+      {selectedPeriodId ? <PainelSaudePeriodo periodId={selectedPeriodId} /> : null}
 
       {selectedPeriodId ? <RelatorioInconformidades periodId={selectedPeriodId} /> : null}
 
@@ -849,6 +921,44 @@ function ImportarPage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <AlertDialog open={pendingReset} onOpenChange={setPendingReset}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Zerar {selectedPeriod?.label}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Remove tudo o que o período tem hoje: arquivos importados, razão, saldos de abertura,
+              balancete derivado, demonstrativos, indicadores, contas ocultas, sugestões de
+              reclassificação e apontamentos. É o reinício limpo para importar de novo. Não pode ser
+              desfeito.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <label className="flex items-start gap-2 rounded-md border border-border/60 p-3 text-sm">
+            <input
+              type="checkbox"
+              className="mt-0.5 size-4 accent-primary"
+              checked={resetAccounts}
+              onChange={(e) => setResetAccounts(e.target.checked)}
+            />
+            <span>
+              Remover também as contas do plano que ficarem sem uso
+              <span className="block text-xs text-muted-foreground">
+                Recomeça o cadastro do plano de contas do zero.
+              </span>
+            </span>
+          </label>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                resetMutation.mutate(resetAccounts);
+                setPendingReset(false);
+              }}
+            >
+              Zerar período
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

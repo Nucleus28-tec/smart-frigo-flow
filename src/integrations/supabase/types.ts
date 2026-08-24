@@ -1608,6 +1608,7 @@ export type Database = {
           reduced_code: string
         }[]
       }
+      period_health: { Args: { _period_id: string }; Returns: Json }
       period_hidden_accounts: { Args: { _period_id: string }; Returns: Json }
       period_hidden_summary: { Args: { _period_id: string }; Returns: Json }
       purge_period_journal: { Args: { _period_id: string }; Returns: Json }
@@ -1634,6 +1635,10 @@ export type Database = {
       renumber_branch: { Args: { _parent_hier: string }; Returns: Json }
       reopen_fiscal_year: { Args: { _year: number }; Returns: Json }
       reopen_period: { Args: { _period_id: string }; Returns: Json }
+      reset_period: {
+        Args: { _include_accounts?: boolean; _period_id: string }
+        Returns: Json
+      }
       safe_date: { Args: { _t: string }; Returns: string }
       safe_int: { Args: { _t: string }; Returns: number }
       safe_numeric: { Args: { _t: string }; Returns: number }
