@@ -13,6 +13,8 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { EmptyState, ErrorState, PageHeader } from "@/components/PageState";
+import { SemMovimento } from "@/components/periodo/SemMovimento";
+import { usePeriodStatus } from "@/hooks/usePeriodStatus";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
