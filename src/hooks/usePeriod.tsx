@@ -8,6 +8,7 @@ export type AccountingPeriod = {
   reference_month: string;
   status: string;
   last_recalculated_at: string | null;
+  chain_stale: boolean;
   created_by: string;
   created_at: string;
 };
