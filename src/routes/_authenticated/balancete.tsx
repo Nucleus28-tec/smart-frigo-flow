@@ -214,6 +214,21 @@ function BalancetePage() {
     );
   }
 
+  if (periodStatus.data && !periodStatus.data.hasMovement) {
+    return (
+      <>
+        <PageHeader
+          title="Balancete"
+          description="Balancete gerado a partir do razão contábil do período."
+        />
+        <SemMovimento
+          periodLabel={selectedPeriod?.label}
+          contexto="O balancete é derivado do razão. Importe o razão do período para vê-lo aqui."
+        />
+      </>
+    );
+  }
+
   function renderSecao(secao: Secao) {
     const aberta = !collapsed.has(secao.nature);
     return (
