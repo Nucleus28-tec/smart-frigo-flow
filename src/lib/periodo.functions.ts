@@ -70,7 +70,7 @@ export const resetPeriod = createServerFn({ method: "POST" })
     return report;
   });
 
-export type PeriodHealthItem = Record<string, unknown>;
+export type PeriodHealthItem = Record<string, string | number | null>;
 
 export type PeriodHealth = {
   period_id: string;
