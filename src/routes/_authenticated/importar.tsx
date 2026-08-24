@@ -182,6 +182,7 @@ function ImportarPage() {
   const removeFile = useServerFn(deleteImportedFile);
   const countMovement = useServerFn(getPeriodMovementCount);
   const purgeMovement = useServerFn(purgePeriodJournal);
+  const zerarPeriodo = useServerFn(resetPeriod);
 
   const downloadUrl = useServerFn(getFileDownloadUrl);
   const registerFile = useServerFn(registerImportedFile);
