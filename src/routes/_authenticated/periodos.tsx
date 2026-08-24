@@ -380,6 +380,35 @@ function PeriodosPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog
+        open={pendingReset !== null}
+        onOpenChange={(o: boolean) => {
+          if (!o) setPendingReset(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Zerar {pendingReset?.label}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Remove arquivos, razão, saldos de abertura, balancete derivado, demonstrativos,
+              indicadores e contas ocultas deste período. Use para recomeçar a importação do zero.
+              Não pode ser desfeito.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingReset) resetMutation.mutate(pendingReset.id);
+                setPendingReset(null);
+              }}
+            >
+              Zerar período
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
