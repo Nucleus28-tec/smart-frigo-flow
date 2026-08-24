@@ -145,3 +145,35 @@ export async function exportPdf(table: ExportTable, filename: string) {
   new Uint8Array(buffer).set(bytes);
   download(new Blob([buffer], { type: "application/pdf" }), filename.endsWith(".pdf") ? filename : `${filename}.pdf`);
 }
+
+/* ------------------- Download local a partir do retorno do servidor ------------------- */
+
+/** Converte o conteúdo base64 devolvido pelo servidor em Blob no navegador. */
+export function base64ToBlob(base64: string, contentType: string) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: contentType });
+}
+
+/** Dispara o download de um Blob sem depender de pop-up ou URL externa. */
+export function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.rel = "noopener";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 20_000);
+}
+
+/** Baixa o arquivo devolvido por uma server function de exportação. */
+export function downloadExported(result: {
+  base64: string;
+  content_type: string;
+  file_name: string;
+}) {
+  downloadBlob(base64ToBlob(result.base64, result.content_type), result.file_name);
+}
