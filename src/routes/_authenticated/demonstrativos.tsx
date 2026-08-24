@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
   Download,
+  Eye,
   EyeOff,
   FileSpreadsheet,
   FileText,
@@ -28,6 +29,11 @@ import { formatCurrency } from "@/lib/rotta";
 import { ConferenciaBalanco } from "@/components/ConferenciaBalanco";
 import { LinhaHierarquica } from "@/components/demonstrativos/LinhaHierarquica";
 import { ContasOcultasPainel } from "@/components/demonstrativos/ContasOcultasPainel";
+import { downloadExported } from "@/lib/razao-export";
+import {
+  VisualizadorRelatorio,
+  type PreviewFile,
+} from "@/components/razao/VisualizadorRelatorio";
 
 import {
   PainelLancamentosLinha,
@@ -163,7 +169,8 @@ function DemonstrativosPage() {
   const queryClient = useQueryClient();
   const periodId = selectedPeriod?.id ?? null;
   const periodStatus = usePeriodStatus(periodId);
-  const [busy, setBusy] = useState<"pdf" | "xlsx" | null>(null);
+  const [busy, setBusy] = useState<"pdf" | "xlsx" | "preview" | null>(null);
+  const [preview, setPreview] = useState<PreviewFile | null>(null);
   const [drill, setDrill] = useState<LinhaDrill | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [openLines, setOpenLines] = useState<Set<string>>(() => new Set());
@@ -343,6 +350,10 @@ function DemonstrativosPage() {
                 {generateMutation.isPending ? "Gerando..." : "Gerar demonstrativos"}
               </Button>
             ) : null}
+            <Button variant="outline" onClick={() => void handlePreview()} disabled={busy !== null}>
+              <Eye className="mr-2 h-4 w-4" />
+              {busy === "preview" ? "Gerando..." : "Pré-visualizar PDF"}
+            </Button>
             <Button onClick={() => handleExport("pdf")} disabled={busy !== null}>
               <FileText className="mr-2 h-4 w-4" />
               {busy === "pdf" ? "Gerando PDF..." : "Exportar PDF"}
@@ -405,6 +416,8 @@ function DemonstrativosPage() {
           )}
         </div>
       )}
+
+      <VisualizadorRelatorio file={preview} onClose={() => setPreview(null)} />
 
       {periodId ? (
         <PainelLancamentosLinha
