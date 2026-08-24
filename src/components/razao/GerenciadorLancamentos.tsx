@@ -403,13 +403,8 @@ export function GerenciadorLancamentos({
       const periodMonth = (referenceMonth ?? "").slice(0, 7);
       const crossMonth = Boolean(state.leg_id) && periodMonth !== "" && targetMonth !== periodMonth;
 
-      if (crossMonth && state.leg_id) {
-        await runMove({ data: { leg_id: state.leg_id, new_date: state.entry_date } });
-        // Reconstrói os saldos encadeados a partir do período de origem.
-        await runRebuild({ data: { from_period_id: periodId } });
-        return { id: state.leg_id } as { id: string };
-      }
-
+      // Primeiro grava todos os campos (valor, contas, histórico e data): o
+      // upsert recria as pernas do lançamento com um novo id.
       const result = (await runSave({
         data: {
           period_id: periodId,
@@ -422,12 +417,30 @@ export function GerenciadorLancamentos({
           historico: state.historico.trim(),
         },
       })) as unknown as { id: string };
-      // Mesmo mês: mantém o update direto e reconstrói a cadeia deste período em diante.
+
+      // Se a nova data cai em outro mês, reposiciona o lançamento (todas as
+      // pernas do entry_group) para o período de destino usando o id recriado.
+      let movedLegs = 0;
+      if (crossMonth) {
+        const moved = (await runMove({
+          data: { leg_id: result.id, new_date: state.entry_date },
+        })) as unknown as { pernas_movidas?: number };
+        movedLegs = Number(moved?.pernas_movidas ?? 0);
+      }
+
+      // Reconstrói os saldos encadeados a partir do período de origem.
       await runRebuild({ data: { from_period_id: periodId } });
-      return result;
+      return { id: result.id, movedLegs };
     },
     onSuccess: (result) => {
-      toast.success(form.leg_id ? "Lançamento atualizado." : "Lançamento incluído.");
+      const base = form.leg_id ? "Lançamento atualizado." : "Lançamento incluído.";
+      if (result.movedLegs > 1) {
+        toast.success(base, {
+          description: `${result.movedLegs} pernas movidas para o novo período (a contrapartida acompanhou).`,
+        });
+      } else {
+        toast.success(base);
+      }
       setSelectedId(result.id);
       setMode("lista");
       invalidate();
