@@ -113,6 +113,7 @@ function sinal(nature: string | null, value: number) {
 
 function BalancetePage() {
   const { selectedPeriod, selectedPeriodId } = usePeriod();
+  const periodStatus = usePeriodStatus(selectedPeriodId);
   const conferencia = useConferencia(selectedPeriodId);
 
   const [search, setSearch] = useState("");
