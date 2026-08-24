@@ -33,7 +33,9 @@ export function usePeriodsQuery() {
     queryFn: async (): Promise<AccountingPeriod[]> => {
       const { data, error } = await supabase
         .from("accounting_periods")
-        .select("id, label, reference_month, status, last_recalculated_at, created_by, created_at")
+        .select(
+          "id, label, reference_month, status, last_recalculated_at, chain_stale, created_by, created_at",
+        )
         .order("reference_month", { ascending: false });
       if (error) throw error;
       return (data ?? []) as AccountingPeriod[];
