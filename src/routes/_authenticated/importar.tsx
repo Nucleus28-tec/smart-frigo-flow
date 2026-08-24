@@ -77,6 +77,9 @@ import {
   type Mapping,
 } from "@/lib/razao-mapeamento";
 import { MapeamentoColunas } from "@/components/razao/MapeamentoColunas";
+import { FluxoOperacional } from "@/components/importar/FluxoOperacional";
+import { PainelSaudePeriodo } from "@/components/importar/PainelSaudePeriodo";
+import { resetPeriod } from "@/lib/periodo.functions";
 
 export const Route = createFileRoute("/_authenticated/importar")({
   component: ImportarPage,
