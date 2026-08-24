@@ -181,6 +181,18 @@ function DashboardPage() {
     );
   }
 
+  if (periodStatus.data && !periodStatus.data.hasMovement) {
+    return (
+      <>
+        <PageHeader title={`Olá, ${profile?.full_name?.split(" ")[0] ?? ""}`} />
+        <SemMovimento
+          periodLabel={selectedPeriod?.label}
+          contexto="Os indicadores são calculados a partir do razão. Importe o razão do período para o painel voltar a mostrar números."
+        />
+      </>
+    );
+  }
+
   const currentIndicators = new Map<string, Indicator>(
     (indicators.data ?? [])
       .filter((i) => i.period_id === selectedPeriodId)
