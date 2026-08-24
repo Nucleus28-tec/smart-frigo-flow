@@ -614,16 +614,54 @@ function ImportarPage() {
                 antigas ou manuais) só saem com a limpeza do período.
               </p>
             </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                disabled={isClosed || purgeMutation.isPending}
+                onClick={() => setPendingPurge(true)}
+              >
+                {purgeMutation.isPending ? "Limpando…" : "Limpar movimento do período"}
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={isClosed || resetMutation.isPending}
+                onClick={() => setPendingReset(true)}
+              >
+                {resetMutation.isPending ? "Zerando…" : "Zerar período"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {isAdmin && (movementQuery.data?.legs ?? 0) === 0 ? (
+        <Card className="mb-6">
+          <CardContent className="flex flex-col gap-3 pt-6 md:flex-row md:items-center md:justify-between">
+            <p className="text-sm text-muted-foreground">
+              {selectedPeriod?.label} está sem razão importado. Se ainda houver resíduo de
+              importações antigas (aberturas, demonstrativos ou indicadores), use “Zerar período”
+              para começar do zero.
+            </p>
             <Button
               variant="outline"
-              disabled={isClosed || purgeMutation.isPending}
-              onClick={() => setPendingPurge(true)}
+              disabled={isClosed || resetMutation.isPending}
+              onClick={() => setPendingReset(true)}
             >
-              {purgeMutation.isPending ? "Limpando…" : "Limpar movimento do período"}
+              {resetMutation.isPending ? "Zerando…" : "Zerar período"}
             </Button>
           </CardContent>
         </Card>
       ) : null}
+
+      {selectedPeriodId ? (
+        <FluxoOperacional
+          periodId={selectedPeriodId}
+          periodLabel={selectedPeriod?.label ?? ""}
+          periodStatus={selectedPeriod?.status ?? "aberto"}
+        />
+      ) : null}
+
+      {selectedPeriodId ? <PainelSaudePeriodo periodId={selectedPeriodId} /> : null}
 
       {selectedPeriodId ? <RelatorioInconformidades periodId={selectedPeriodId} /> : null}
 
