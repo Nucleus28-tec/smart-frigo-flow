@@ -494,12 +494,22 @@ export function RelatoriosRazao({ periodId, periodLabel, referenceMonth, drill }
               )}
               Exportar Excel
             </Button>
+            <Button variant="outline" onClick={() => void handlePreview()} disabled={busy !== null}>
+              {busy === "preview" ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Eye className="mr-2 h-4 w-4" />
+              )}
+              Pré-visualizar PDF
+            </Button>
           </div>
         </CardContent>
       </Card>
 
       {ledger ? <LedgerView report={ledger} periodLabel={periodLabel} /> : null}
       {trial ? <TrialView report={trial} periodLabel={periodLabel} /> : null}
+
+      <VisualizadorRelatorio file={preview} onClose={() => setPreview(null)} />
     </div>
   );
 }
