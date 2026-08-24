@@ -259,15 +259,33 @@ function DemonstrativosPage() {
     setBusy(format);
     try {
       const result = await doExport({ data: { period_id: periodId, format } });
-      const link = document.createElement("a");
-      link.href = result.url;
-      link.download = result.file_name;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      downloadExported(result);
+      if (result.storage_error) {
+        toast.warning("Arquivo baixado, mas não foi possível arquivá-lo no histórico.");
+      }
       toast.success(`Download iniciado: ${result.file_name}`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Falha ao exportar.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  /** Gera o PDF e abre na pré-visualização, com opção de imprimir. */
+  async function handlePreview() {
+    if (!periodId) return;
+    setBusy("preview");
+    try {
+      const result = await doExport({ data: { period_id: periodId, format: "pdf" } });
+      setPreview({
+        base64: result.base64,
+        content_type: result.content_type,
+        file_name: result.file_name,
+        size: result.size,
+        title: `Demonstrativos — ${selectedPeriod?.label ?? ""}`,
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao gerar a pré-visualização.");
     } finally {
       setBusy(null);
     }
