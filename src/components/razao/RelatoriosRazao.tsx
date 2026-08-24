@@ -55,6 +55,11 @@ import {
   type ReportKind,
   type TrialBalanceReport,
 } from "@/lib/razao-report-types";
+import { downloadExported } from "@/lib/razao-export";
+import {
+  VisualizadorRelatorio,
+  type PreviewFile,
+} from "@/components/razao/VisualizadorRelatorio";
 
 
 const PAGE_SIZE = 100;
