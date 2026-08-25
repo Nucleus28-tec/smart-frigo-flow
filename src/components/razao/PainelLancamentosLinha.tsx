@@ -488,6 +488,93 @@ export function PainelLancamentosLinha({
             ) : null}
           </p>
         ) : null}
+
+        {legsQuery.data ? (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs">
+            <span className="text-muted-foreground">
+              Saldo inicial{" "}
+              <strong className="tabular-nums text-foreground">
+                {balanceLabel(legsQuery.data.saldo_inicial)}
+              </strong>
+            </span>
+            <span className="text-muted-foreground">
+              Saldo final{" "}
+              <strong className="tabular-nums text-foreground">
+                {balanceLabel(legsQuery.data.saldo_final)}
+              </strong>
+            </span>
+            {legsQuery.data.saldo_final_com_ocultos !== legsQuery.data.saldo_final ? (
+              <span className="text-muted-foreground">
+                com ocultos:{" "}
+                <span className="tabular-nums">
+                  {balanceLabel(legsQuery.data.saldo_final_com_ocultos)}
+                </span>
+              </span>
+            ) : null}
+            <span className="text-muted-foreground">
+              {drill.from
+                ? `${formatDate(drill.from)} a ${formatDate(drill.to)}`
+                : "período todo"}
+            </span>
+          </div>
+        ) : null}
+
+        {canEdit && rows.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-3 text-xs">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="select-all-legs"
+                checked={allSelected}
+                onCheckedChange={(value) =>
+                  setSelected(value === true ? new Set(rows.map((r) => r.id)) : new Set())
+                }
+              />
+              <Label htmlFor="select-all-legs" className="text-xs">
+                Selecionar todos ({rows.length})
+              </Label>
+            </div>
+            {selectedRows.length > 0 ? (
+              <>
+                <span className="text-muted-foreground">
+                  {selectedRows.length} selecionado(s) ·{" "}
+                  <strong className="tabular-nums">
+                    {formatCurrency(selectedRows.reduce((sum, r) => sum + Number(r.valor || 0), 0))}
+                  </strong>
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={bulkHide.isPending}
+                  onClick={() => {
+                    setBulkMotivo("");
+                    setBulkAsk(true);
+                  }}
+                >
+                  <EyeOff className="mr-1 size-3.5" />
+                  Ocultar selecionados
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={bulkHide.isPending}
+                  onClick={() =>
+                    bulkHide.mutate({
+                      ids: selectedRows.map((r) => r.id),
+                      excluded: false,
+                      motivo: "",
+                    })
+                  }
+                >
+                  <Eye className="mr-1 size-3.5" />
+                  Reexibir selecionados
+                </Button>
+                {bulkHide.isPending ? (
+                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                ) : null}
+              </>
+            ) : null}
+          </div>
+        ) : null}
       </header>
 
       <div className="flex-1 space-y-2 overflow-auto p-3">
