@@ -830,6 +830,50 @@ export function PainelLancamentosLinha({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog
+        open={bulkAsk}
+        onOpenChange={(value) => {
+          if (!value && !bulkHide.isPending) setBulkAsk(false);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Ocultar lançamentos selecionados</DialogTitle>
+            <DialogDescription>
+              {selectedRows.length} lançamento(s) serão ocultos de todos os relatórios e os
+              demonstrativos recalculados em seguida.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            autoFocus
+            value={bulkMotivo}
+            onChange={(event) => setBulkMotivo(event.target.value)}
+            placeholder="Motivo (opcional)"
+          />
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setBulkAsk(false)}
+              disabled={bulkHide.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() =>
+                bulkHide.mutate({
+                  ids: selectedRows.map((r) => r.id),
+                  excluded: true,
+                  motivo: bulkMotivo,
+                })
+              }
+              disabled={bulkHide.isPending}
+            >
+              {bulkHide.isPending ? "Ocultando…" : "Ocultar e recalcular"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </aside>
   );
 }
