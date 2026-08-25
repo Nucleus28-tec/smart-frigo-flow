@@ -135,6 +135,9 @@ export function PainelLancamentosLinha({
   const [reclassOpen, setReclassOpen] = useState(false);
   const [hideAsk, setHideAsk] = useState(false);
   const [motivo, setMotivo] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkAsk, setBulkAsk] = useState(false);
+  const [bulkMotivo, setBulkMotivo] = useState("");
   const dragging = useRef(false);
 
   useEffect(() => {
