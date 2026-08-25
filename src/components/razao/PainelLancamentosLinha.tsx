@@ -214,6 +214,9 @@ export function PainelLancamentosLinha({
         soma: number;
         ocultos: number;
         soma_oculta: number;
+        saldo_inicial: number;
+        saldo_final: number;
+        saldo_final_com_ocultos: number;
         rows: Row[];
       };
       return result;
@@ -221,6 +224,14 @@ export function PainelLancamentosLinha({
   });
 
   const rows = useMemo(() => legsQuery.data?.rows ?? [], [legsQuery.data]);
+
+  /** Seleção em massa: só lançamentos visíveis na página atual. */
+  useEffect(() => {
+    setSelected(new Set());
+  }, [rows]);
+
+  const selectedRows = useMemo(() => rows.filter((r) => selected.has(r.id)), [rows, selected]);
+  const allSelected = rows.length > 0 && selectedRows.length === rows.length;
 
   function invalidate() {
     void queryClient.invalidateQueries({ queryKey: ["line_legs"] });
