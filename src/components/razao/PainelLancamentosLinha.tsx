@@ -290,6 +290,42 @@ export function PainelLancamentosLinha({
     onError: (error: Error) => toast.error(error.message),
   });
 
+  /** Oculta ou reexibe em bloco os lançamentos marcados na lista. */
+  const bulkHide = useMutation({
+    mutationFn: async (input: { ids: string[]; excluded: boolean; motivo: string }) => {
+      let ok = 0;
+      const errors: string[] = [];
+      for (const id of input.ids) {
+        try {
+          await runHide({ data: { leg_id: id, excluded: input.excluded, motivo: input.motivo } });
+          ok += 1;
+        } catch (error) {
+          errors.push(error instanceof Error ? error.message : "erro");
+        }
+      }
+      await runRegenerate({ data: { period_id: periodId } });
+      return { ok, errors };
+    },
+    onSuccess: (result, input) => {
+      if (result.errors.length > 0) {
+        toast.warning(
+          `${result.ok} lançamento(s) atualizados · ${result.errors.length} falha(s): ${result.errors[0]}`,
+        );
+      } else {
+        toast.success(
+          `${result.ok} lançamento(s) ${input.excluded ? "ocultos" : "reexibidos"}. Demonstrativos recalculados.`,
+        );
+      }
+      setBulkAsk(false);
+      setBulkMotivo("");
+      setSelected(new Set());
+      invalidate();
+      void queryClient.invalidateQueries({ queryKey: ["hidden_accounts"] });
+      onAccountChanged?.();
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   const cancel = useMutation({
     mutationFn: async (id: string) => runCancel({ data: { leg_id: id, motivo: "Cancelado pelo painel de demonstrativos" } }),
     onSuccess: () => {
