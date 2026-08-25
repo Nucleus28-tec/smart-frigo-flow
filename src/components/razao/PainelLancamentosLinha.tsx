@@ -47,6 +47,7 @@ import {
 } from "@/lib/razao.functions";
 import { generateStatements } from "@/lib/reports.functions";
 import { formatCurrency, parseCurrencyInput } from "@/lib/rotta";
+import { balanceLabel } from "@/lib/razao-report-types";
 
 export type LinhaDrill = {
   label: string;
