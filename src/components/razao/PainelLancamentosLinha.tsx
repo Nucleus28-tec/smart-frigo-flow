@@ -21,6 +21,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -46,6 +47,7 @@ import {
 } from "@/lib/razao.functions";
 import { generateStatements } from "@/lib/reports.functions";
 import { formatCurrency, parseCurrencyInput } from "@/lib/rotta";
+import { balanceLabel } from "@/lib/razao-report-types";
 
 export type LinhaDrill = {
   label: string;
@@ -133,6 +135,9 @@ export function PainelLancamentosLinha({
   const [reclassOpen, setReclassOpen] = useState(false);
   const [hideAsk, setHideAsk] = useState(false);
   const [motivo, setMotivo] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkAsk, setBulkAsk] = useState(false);
+  const [bulkMotivo, setBulkMotivo] = useState("");
   const dragging = useRef(false);
 
   useEffect(() => {
@@ -212,6 +217,9 @@ export function PainelLancamentosLinha({
         soma: number;
         ocultos: number;
         soma_oculta: number;
+        saldo_inicial: number;
+        saldo_final: number;
+        saldo_final_com_ocultos: number;
         rows: Row[];
       };
       return result;
@@ -219,6 +227,14 @@ export function PainelLancamentosLinha({
   });
 
   const rows = useMemo(() => legsQuery.data?.rows ?? [], [legsQuery.data]);
+
+  /** Seleção em massa: só lançamentos visíveis na página atual. */
+  useEffect(() => {
+    setSelected(new Set());
+  }, [rows]);
+
+  const selectedRows = useMemo(() => rows.filter((r) => selected.has(r.id)), [rows, selected]);
+  const allSelected = rows.length > 0 && selectedRows.length === rows.length;
 
   function invalidate() {
     void queryClient.invalidateQueries({ queryKey: ["line_legs"] });
@@ -270,6 +286,42 @@ export function PainelLancamentosLinha({
           : "Lançamento reexibido nos relatórios.",
       );
       invalidate();
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  /** Oculta ou reexibe em bloco os lançamentos marcados na lista. */
+  const bulkHide = useMutation({
+    mutationFn: async (input: { ids: string[]; excluded: boolean; motivo: string }) => {
+      let ok = 0;
+      const errors: string[] = [];
+      for (const id of input.ids) {
+        try {
+          await runHide({ data: { leg_id: id, excluded: input.excluded, motivo: input.motivo } });
+          ok += 1;
+        } catch (error) {
+          errors.push(error instanceof Error ? error.message : "erro");
+        }
+      }
+      await runRegenerate({ data: { period_id: periodId } });
+      return { ok, errors };
+    },
+    onSuccess: (result, input) => {
+      if (result.errors.length > 0) {
+        toast.warning(
+          `${result.ok} lançamento(s) atualizados · ${result.errors.length} falha(s): ${result.errors[0]}`,
+        );
+      } else {
+        toast.success(
+          `${result.ok} lançamento(s) ${input.excluded ? "ocultos" : "reexibidos"}. Demonstrativos recalculados.`,
+        );
+      }
+      setBulkAsk(false);
+      setBulkMotivo("");
+      setSelected(new Set());
+      invalidate();
+      void queryClient.invalidateQueries({ queryKey: ["hidden_accounts"] });
+      onAccountChanged?.();
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -436,6 +488,93 @@ export function PainelLancamentosLinha({
             ) : null}
           </p>
         ) : null}
+
+        {legsQuery.data ? (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs">
+            <span className="text-muted-foreground">
+              Saldo inicial{" "}
+              <strong className="tabular-nums text-foreground">
+                {balanceLabel(legsQuery.data.saldo_inicial)}
+              </strong>
+            </span>
+            <span className="text-muted-foreground">
+              Saldo final{" "}
+              <strong className="tabular-nums text-foreground">
+                {balanceLabel(legsQuery.data.saldo_final)}
+              </strong>
+            </span>
+            {legsQuery.data.saldo_final_com_ocultos !== legsQuery.data.saldo_final ? (
+              <span className="text-muted-foreground">
+                com ocultos:{" "}
+                <span className="tabular-nums">
+                  {balanceLabel(legsQuery.data.saldo_final_com_ocultos)}
+                </span>
+              </span>
+            ) : null}
+            <span className="text-muted-foreground">
+              {drill.from
+                ? `${formatDate(drill.from)} a ${formatDate(drill.to)}`
+                : "período todo"}
+            </span>
+          </div>
+        ) : null}
+
+        {canEdit && rows.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-3 text-xs">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="select-all-legs"
+                checked={allSelected}
+                onCheckedChange={(value) =>
+                  setSelected(value === true ? new Set(rows.map((r) => r.id)) : new Set())
+                }
+              />
+              <Label htmlFor="select-all-legs" className="text-xs">
+                Selecionar todos ({rows.length})
+              </Label>
+            </div>
+            {selectedRows.length > 0 ? (
+              <>
+                <span className="text-muted-foreground">
+                  {selectedRows.length} selecionado(s) ·{" "}
+                  <strong className="tabular-nums">
+                    {formatCurrency(selectedRows.reduce((sum, r) => sum + Number(r.valor || 0), 0))}
+                  </strong>
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={bulkHide.isPending}
+                  onClick={() => {
+                    setBulkMotivo("");
+                    setBulkAsk(true);
+                  }}
+                >
+                  <EyeOff className="mr-1 size-3.5" />
+                  Ocultar selecionados
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={bulkHide.isPending}
+                  onClick={() =>
+                    bulkHide.mutate({
+                      ids: selectedRows.map((r) => r.id),
+                      excluded: false,
+                      motivo: "",
+                    })
+                  }
+                >
+                  <Eye className="mr-1 size-3.5" />
+                  Reexibir selecionados
+                </Button>
+                {bulkHide.isPending ? (
+                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                ) : null}
+              </>
+            ) : null}
+          </div>
+        ) : null}
       </header>
 
       <div className="flex-1 space-y-2 overflow-auto p-3">
@@ -463,7 +602,22 @@ export function PainelLancamentosLinha({
                 }`}
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="min-w-0">
+                  {canEdit ? (
+                    <Checkbox
+                      className="mt-1 self-start"
+                      aria-label="Selecionar lançamento"
+                      checked={selected.has(row.id)}
+                      onCheckedChange={(value) =>
+                        setSelected((prev) => {
+                          const next = new Set(prev);
+                          if (value === true) next.add(row.id);
+                          else next.delete(row.id);
+                          return next;
+                        })
+                      }
+                    />
+                  ) : null}
+                  <div className="min-w-0 flex-1">
                     <p className="flex flex-wrap items-center gap-2">
                       <span className="text-xs text-muted-foreground">
                         {formatDate(row.entry_date)}
@@ -672,6 +826,50 @@ export function PainelLancamentosLinha({
               disabled={hideAccount.isPending}
             >
               {hideAccount.isPending ? "Ocultando…" : "Ocultar e recalcular"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={bulkAsk}
+        onOpenChange={(value) => {
+          if (!value && !bulkHide.isPending) setBulkAsk(false);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Ocultar lançamentos selecionados</DialogTitle>
+            <DialogDescription>
+              {selectedRows.length} lançamento(s) serão ocultos de todos os relatórios e os
+              demonstrativos recalculados em seguida.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            autoFocus
+            value={bulkMotivo}
+            onChange={(event) => setBulkMotivo(event.target.value)}
+            placeholder="Motivo (opcional)"
+          />
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setBulkAsk(false)}
+              disabled={bulkHide.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() =>
+                bulkHide.mutate({
+                  ids: selectedRows.map((r) => r.id),
+                  excluded: true,
+                  motivo: bulkMotivo,
+                })
+              }
+              disabled={bulkHide.isPending}
+            >
+              {bulkHide.isPending ? "Ocultando…" : "Ocultar e recalcular"}
             </Button>
           </DialogFooter>
         </DialogContent>

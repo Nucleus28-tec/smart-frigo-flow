@@ -5,7 +5,7 @@ O painel lateral do razão (aberto ao clicar numa conta) hoje mostra apenas quan
 ## Comportamento
 
 - Nova linha no cabeçalho do painel:
-  `Saldo inicial 12.345,67 C · movimento do período · Saldo final 15.000,00 C`
+`Saldo inicial 12.345,67 C · movimento do período · Saldo final 15.000,00 C`
 - **Saldo inicial** = saldo de abertura da(s) conta(s) no período + movimento anterior à data inicial do filtro. Se não houver filtro de data, é o saldo de abertura do período.
 - **Saldo final** = saldo inicial + débitos − créditos dos lançamentos do intervalo filtrado.
 - Lançamentos ocultos não entram no cálculo do saldo final (mesma regra do resultado); quando houver ocultos, exibimos entre parênteses o saldo final "com ocultos" para comparação.
@@ -23,4 +23,5 @@ O painel lateral do razão (aberto ao clicar numa conta) hoje mostra apenas quan
 - `src/lib/razao.functions.ts`: nenhuma mudança de contrato necessária (o retorno é `JsonObject`).
 - `src/components/razao/PainelLancamentosLinha.tsx`: ler os novos campos de `legsQuery.data` e renderizar a linha de saldos no cabeçalho, usando `balanceLabel` de `src/lib/razao-report-types.ts`.
 - Sem mudanças em outras telas: o painel é o mesmo usado em Demonstrativos, que passa a exibir a informação também.
-- `docs/PAGINAS.md` atualizado com a nova informação do painel.
+- `docs/PAGINAS.md` atualizado com a nova informação do painel.  
+ACRESENCTAR SELEÇAO EM MASSA TAMBEM PARA PODER OCULTAR VARIOS VALORES POR EXEMPLO 
