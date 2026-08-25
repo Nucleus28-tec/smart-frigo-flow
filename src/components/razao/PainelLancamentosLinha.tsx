@@ -602,7 +602,22 @@ export function PainelLancamentosLinha({
                 }`}
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="min-w-0">
+                  {canEdit ? (
+                    <Checkbox
+                      className="mt-1 self-start"
+                      aria-label="Selecionar lançamento"
+                      checked={selected.has(row.id)}
+                      onCheckedChange={(value) =>
+                        setSelected((prev) => {
+                          const next = new Set(prev);
+                          if (value === true) next.add(row.id);
+                          else next.delete(row.id);
+                          return next;
+                        })
+                      }
+                    />
+                  ) : null}
+                  <div className="min-w-0 flex-1">
                     <p className="flex flex-wrap items-center gap-2">
                       <span className="text-xs text-muted-foreground">
                         {formatDate(row.entry_date)}
