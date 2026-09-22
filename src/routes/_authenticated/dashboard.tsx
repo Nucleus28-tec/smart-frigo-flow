@@ -193,17 +193,6 @@ function DashboardPage() {
   );
   const hasIndicators = currentIndicators.size > 0;
 
-  const compositionData = [
-    { nome: "Receita", valor: Number(currentIndicators.get("receita_total")?.indicator_value ?? 0) },
-    { nome: "Custo", valor: Number(currentIndicators.get("custo_total")?.indicator_value ?? 0) },
-    { nome: "EBITDA", valor: Number(currentIndicators.get("ebitda")?.indicator_value ?? 0) },
-    {
-      nome: "Resultado",
-      valor: Number(currentIndicators.get("resultado_liquido")?.indicator_value ?? 0),
-    },
-    { nome: "Caixa", valor: Number(currentIndicators.get("posicao_caixa")?.indicator_value ?? 0) },
-  ];
-
   const historyData = [...periods]
     .sort((a, b) => a.reference_month.localeCompare(b.reference_month))
     .map((p) => {
