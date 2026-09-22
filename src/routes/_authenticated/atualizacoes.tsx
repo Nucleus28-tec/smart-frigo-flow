@@ -34,32 +34,42 @@ export const Route = createFileRoute("/_authenticated/atualizacoes")({
   }),
 });
 
-type RecalcLog = {
+type AccountAudit = {
   id: string;
-  file_id: string | null;
-  entry_id: string | null;
+  period_id: string | null;
+  entity_type: string;
+  account_key: string;
+  account_name: string | null;
   field_changed: string;
   old_value: string | null;
   new_value: string | null;
-  manual_edit_preserved: boolean;
+  source: string;
   created_at: string;
-  ledger_entries: { source_account_name: string } | null;
-  imported_files: { original_name: string } | null;
+  profiles: { full_name: string } | null;
 };
 
 const FIELD_LABELS: Record<string, string> = {
-  raw_value: "Valor importado",
   nature: "Natureza",
-  novo_lancamento: "Novo lançamento",
-  lancamento_removido: "Lançamento removido",
+  hierarchical_code: "Código hierárquico",
+  parent_code: "Grupo (conta-pai)",
+  name: "Nome da conta",
+  is_analytic: "Tipo (analítica/sintética)",
+  is_active: "Conta ativa",
+  link_status: "Vínculo com o plano",
+  excluded: "Oculta do resultado",
 };
 
-function formatValue(field: string, value: string | null) {
+const SOURCE_LABELS: Record<string, string> = {
+  manual: "Edição manual",
+  importacao: "Importação do razão",
+  ia: "Sugestão da IA aplicada",
+  sistema: "Rotina automática",
+};
+
+function formatValue(value: string | null) {
   if (value === null || value === "") return "—";
-  if (field === "raw_value" || field === "novo_lancamento") {
-    const numeric = Number(value);
-    if (Number.isFinite(numeric)) return formatCurrency(numeric);
-  }
+  if (value === "true") return "Sim";
+  if (value === "false") return "Não";
   return value;
 }
 
@@ -67,19 +77,19 @@ function AtualizacoesPage() {
   const { selectedPeriod, selectedPeriodId } = usePeriod();
 
   const logs = useQuery({
-    queryKey: ["recalculation_logs", selectedPeriodId],
+    queryKey: ["ledger_account_audit", selectedPeriodId],
     enabled: Boolean(selectedPeriodId),
-    queryFn: async (): Promise<RecalcLog[]> => {
+    queryFn: async (): Promise<AccountAudit[]> => {
       const { data, error } = await supabase
-        .from("recalculation_logs")
+        .from("ledger_account_audit")
         .select(
-          "id, file_id, entry_id, field_changed, old_value, new_value, manual_edit_preserved, created_at, ledger_entries:entry_id(source_account_name), imported_files:file_id(original_name)",
+          "id, period_id, entity_type, account_key, account_name, field_changed, old_value, new_value, source, created_at, profiles:actor_id(full_name)",
         )
-        .eq("period_id", selectedPeriodId!)
+        .or(`period_id.eq.${selectedPeriodId!},period_id.is.null`)
         .order("created_at", { ascending: false })
         .limit(300);
       if (error) throw error;
-      return (data ?? []) as unknown as RecalcLog[];
+      return (data ?? []) as unknown as AccountAudit[];
     },
   });
 
@@ -97,7 +107,8 @@ function AtualizacoesPage() {
   });
 
   const items = logs.data ?? [];
-  const preserved = items.filter((item) => item.manual_edit_preserved).length;
+  const byIa = items.filter((item) => item.source === "ia").length;
+
 
   return (
     <>
