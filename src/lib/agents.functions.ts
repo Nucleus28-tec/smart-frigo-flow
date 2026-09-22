@@ -132,14 +132,13 @@ export const applyAgentAction = createServerFn({ method: "POST" })
       const { error } = await context.supabase.rpc("set_ledger_accounts_nature", {
         _ids: data.account_ids,
         _nature: data.natureza,
-        _parent_code: null,
       });
       if (error) throw new Error(error.message);
 
 
       await context.supabase.rpc("log_activity", {
         _action: "agent_action_applied",
-        _entity_type: "chart_of_accounts",
+        _entity_type: "ledger_accounts",
         _metadata: {
           kind: "classificacao",
           thread_id: data.thread_id,
