@@ -31,6 +31,7 @@ import { EmptyState, ErrorState, LoadingRows, PageHeader } from "@/components/Pa
 import { SemMovimento } from "@/components/periodo/SemMovimento";
 import { usePeriodStatus } from "@/hooks/usePeriodStatus";
 import { IndicadorDrilldown } from "@/components/dashboard/IndicadorDrilldown";
+import { GraficosFinanceiros } from "@/components/dashboard/GraficosFinanceiros";
 import {
   GROUP_LABEL,
   GROUP_ORDER,
