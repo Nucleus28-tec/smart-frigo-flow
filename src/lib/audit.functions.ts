@@ -14,7 +14,24 @@ type Finding = {
   status: string;
 };
 
-/** Equivalente à Edge Function "detect-inconsistencies": varre o período e grava audit_findings. */
+type BalanceRow = {
+  reduced_code: string;
+  account_name: string;
+  hierarchical_code: string | null;
+  nature: string | null;
+  opening_balance: number;
+  debit_mov: number;
+  credit_mov: number;
+  closing_balance: number;
+};
+
+const ATIVO = ["ativo_circulante", "ativo_nao_circulante"];
+const PASSIVO_PL = ["passivo_circulante", "passivo_nao_circulante", "patrimonio_liquido"];
+
+/**
+ * Varre o período no razão contábil (fonte oficial) e grava os apontamentos em audit_findings.
+ * Não consulta mais o circuito legado do balancete importado.
+ */
 export const detectInconsistencies = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => schema.parse(input))
@@ -24,101 +41,98 @@ export const detectInconsistencies = createServerFn({ method: "POST" })
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: entries, error } = await supabaseAdmin
-      .from("ledger_entries")
-      .select("id, source_account_name, raw_value, reviewed_value, nature, account_id")
-      .eq("period_id", data.period_id)
-      .limit(5000);
+    const { data: balances, error } = await supabaseAdmin.rpc("period_account_balances", {
+      _period_id: data.period_id,
+    });
     if (error) throw new Error(error.message);
 
-    const rows = entries ?? [];
-    const findings: Finding[] = [];
-    const base = { period_id: data.period_id, status: "aberto" as const };
+    const rows = ((balances ?? []) as unknown as BalanceRow[]).map((r) => ({
+      ...r,
+      opening_balance: Number(r.opening_balance ?? 0),
+      debit_mov: Number(r.debit_mov ?? 0),
+      credit_mov: Number(r.credit_mov ?? 0),
+      closing_balance: Number(r.closing_balance ?? 0),
+    }));
 
-    const semNatureza = rows.filter((r) => !r.nature);
+    const findings: Finding[] = [];
+    const base = { period_id: data.period_id, status: "aberto" as const, entry_id: null };
+
+    // 1. Contas movimentadas sem natureza definida no plano do razão.
+    const semNatureza = rows.filter(
+      (r) => !r.nature && (r.debit_mov !== 0 || r.credit_mov !== 0 || r.closing_balance !== 0),
+    );
     if (semNatureza.length) {
       findings.push({
         ...base,
-        entry_id: null,
         finding_type: "conta_sem_natureza",
-        description: `${semNatureza.length} lançamento(s) sem natureza contábil definida.`,
+        description: `${semNatureza.length} conta(s) com movimento e sem natureza contábil definida.`,
         suggested_fix:
-          "Gere as sugestões em Reclassificações ou classifique as contas no Plano de Contas.",
+          "Classifique as contas na árvore do Razão Contábil ou use Reclassificações para a IA propor a natureza.",
         severity: "alta",
       });
     }
 
+    // 2. Saldos com sinal invertido em relação à natureza da conta.
     for (const row of rows) {
-      const value = row.reviewed_value ?? row.raw_value;
-      if (Number(value) === 0) {
-        findings.push({
-          ...base,
-          entry_id: row.id,
-          finding_type: "valor_divergente",
-          description: `A conta "${row.source_account_name}" está com saldo zero no balancete.`,
-          suggested_fix: "Confira no G2 se a conta deveria ter movimento no período.",
-          severity: "baixa",
-        });
-      }
-      if (row.nature === "receita" && Number(value) < 0) {
-        findings.push({
-          ...base,
-          entry_id: row.id,
-          finding_type: "lancamento_incorreto",
-          description: `Receita "${row.source_account_name}" com saldo devedor (${value}).`,
-          suggested_fix: "Verifique o lançamento na origem (G2): receita deve ter saldo credor.",
-          severity: "media",
-        });
-      }
-      if ((row.nature === "custo" || row.nature === "despesa") && Number(value) < 0) {
-        findings.push({
-          ...base,
-          entry_id: row.id,
-          finding_type: "lancamento_incorreto",
-          description: `${row.nature === "custo" ? "Custo" : "Despesa"} "${row.source_account_name}" com saldo credor invertido (${value}).`,
-          suggested_fix: "Confira estornos ou classificação da conta no G2.",
-          severity: "media",
-        });
-      }
+      if (!row.nature || row.closing_balance === 0) continue;
+      const devedora = ATIVO.includes(row.nature) || row.nature === "custo" || row.nature === "despesa";
+      const credora = PASSIVO_PL.includes(row.nature) || row.nature === "receita";
+      const invertido = (devedora && row.closing_balance < 0) || (credora && row.closing_balance > 0);
+      if (!invertido) continue;
+      findings.push({
+        ...base,
+        finding_type: "lancamento_incorreto",
+        description: `${row.reduced_code} · ${row.account_name} está com saldo invertido para a natureza ${row.nature} (${row.closing_balance.toFixed(2)}).`,
+        suggested_fix:
+          "Abra a conta no Razão Contábil e confira estornos, contrapartidas ou a classificação da conta.",
+        severity: "media",
+      });
     }
 
-    // Duplicidade de conta no mesmo período.
-    const byName = new Map<string, number>();
+    // 3. Contas duplicadas por nome dentro do mesmo período.
+    const byName = new Map<string, string[]>();
     for (const row of rows) {
-      const key = row.source_account_name.trim().toUpperCase();
-      byName.set(key, (byName.get(key) ?? 0) + 1);
+      const key = row.account_name.trim().toUpperCase();
+      byName.set(key, [...(byName.get(key) ?? []), row.reduced_code]);
     }
-    for (const [name, count] of byName) {
-      if (count > 1) {
+    for (const [name, codes] of byName) {
+      if (codes.length > 1) {
         findings.push({
           ...base,
-          entry_id: null,
           finding_type: "duplicidade",
-          description: `A conta "${name}" aparece ${count} vezes no período.`,
-          suggested_fix: "Confirme no G2 se a exportação duplicou linhas do balancete.",
+          description: `A conta "${name}" aparece com ${codes.length} códigos diferentes (${codes.join(", ")}).`,
+          suggested_fix: "Unifique as contas na árvore do Razão Contábil ou confirme a duplicidade no G2.",
           severity: "media",
         });
       }
     }
 
-    // Equação patrimonial.
+    // 4. Equação patrimonial do período.
     const soma = (naturezas: string[]) =>
       rows
         .filter((r) => r.nature && naturezas.includes(r.nature))
-        .reduce((acc, r) => acc + Math.abs(Number(r.reviewed_value ?? r.raw_value)), 0);
-    const ativo = soma(["ativo_circulante", "ativo_nao_circulante"]);
-    const passivoPl = soma([
-      "passivo_circulante",
-      "passivo_nao_circulante",
-      "patrimonio_liquido",
-    ]);
+        .reduce((acc, r) => acc + Math.abs(r.closing_balance), 0);
+    const ativo = soma(ATIVO);
+    const passivoPl = soma(PASSIVO_PL);
     if (ativo > 0 && passivoPl > 0 && Math.abs(ativo - passivoPl) > Math.max(ativo, passivoPl) * 0.01) {
       findings.push({
         ...base,
-        entry_id: null,
         finding_type: "valor_divergente",
         description: `Ativo (${ativo.toFixed(2)}) diferente de Passivo + PL (${passivoPl.toFixed(2)}).`,
-        suggested_fix: "Revise a classificação das contas e os saldos importados do G2.",
+        suggested_fix: "Revise a classificação das contas e a conferência do razão importado.",
+        severity: "alta",
+      });
+    }
+
+    // 5. Partidas dobradas: débitos totais devem igualar créditos totais no razão.
+    const totalDebito = rows.reduce((acc, r) => acc + r.debit_mov, 0);
+    const totalCredito = rows.reduce((acc, r) => acc + r.credit_mov, 0);
+    if (Math.abs(totalDebito - totalCredito) > 0.01) {
+      findings.push({
+        ...base,
+        finding_type: "valor_divergente",
+        description: `Débitos (${totalDebito.toFixed(2)}) e créditos (${totalCredito.toFixed(2)}) do razão não fecham — diferença de ${(totalDebito - totalCredito).toFixed(2)}.`,
+        suggested_fix: "Reimporte o razão do período e confira o Relatório de Inconformidades em Importar.",
         severity: "alta",
       });
     }

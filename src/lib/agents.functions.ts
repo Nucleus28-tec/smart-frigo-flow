@@ -129,26 +129,16 @@ export const applyAgentAction = createServerFn({ method: "POST" })
     await assertAdmin(context.supabase as never);
 
     if (data.kind === "classificacao") {
-      const { error } = await context.supabase
-        .from("chart_of_accounts")
-        .update({
-          nature: data.natureza,
-          is_confirmed: true,
-          updated_by: context.userId,
-          updated_at: new Date().toISOString(),
-        })
-        .in("id", data.account_ids);
+      const { error } = await context.supabase.rpc("set_ledger_accounts_nature", {
+        _ids: data.account_ids,
+        _nature: data.natureza,
+      });
       if (error) throw new Error(error.message);
 
-      const { error: entriesError } = await context.supabase
-        .from("ledger_entries")
-        .update({ nature: data.natureza, updated_by: context.userId })
-        .in("account_id", data.account_ids);
-      if (entriesError) throw new Error(entriesError.message);
 
       await context.supabase.rpc("log_activity", {
         _action: "agent_action_applied",
-        _entity_type: "chart_of_accounts",
+        _entity_type: "ledger_accounts",
         _metadata: {
           kind: "classificacao",
           thread_id: data.thread_id,

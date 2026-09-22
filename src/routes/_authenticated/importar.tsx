@@ -51,17 +51,8 @@ import {
   registerImportedFile,
 } from "@/lib/imports.functions";
 
-import {
-  finalizeJournalImport,
-  importJournalChunk,
-  importTrialBalanceMirror,
-} from "@/lib/razao.functions";
-import {
-  extractPdfPages,
-  parseBalancete,
-  parseRazao,
-  parseRazaoSheetMatrix,
-} from "@/lib/razao-parser";
+import { finalizeJournalImport, importJournalChunk } from "@/lib/razao.functions";
+import { extractPdfPages, parseRazao, parseRazaoSheetMatrix } from "@/lib/razao-parser";
 import {
   isSpreadsheet,
   looksLikeG2RazaoReport,
@@ -88,12 +79,12 @@ export const Route = createFileRoute("/_authenticated/importar")({
       { title: "Importar arquivos | Rotta Financeiro" },
       {
         name: "description",
-        content: "Envio de balancetes, razões e documentos fiscais para o período contábil ativo.",
+        content: "Envio do razão contábil e de documentos fiscais para o período contábil ativo.",
       },
       { property: "og:title", content: "Importar arquivos | Rotta Financeiro" },
       {
         property: "og:description",
-        content: "Envio de balancetes e documentos fiscais no Rotta Financeiro.",
+        content: "Envio do razão contábil e de documentos fiscais no Rotta Financeiro.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -101,8 +92,9 @@ export const Route = createFileRoute("/_authenticated/importar")({
   }),
 });
 
+/** Rótulos de exibição, incluindo tipos legados que ainda existem no histórico. */
 const FILE_TYPE_LABEL: Record<string, string> = {
-  balancete: "Balancete (G2)",
+  balancete: "Balancete (G2) — legado",
   razao: "Razão contábil (G2)",
   pedido_compra: "Pedido de compra",
   nota_fiscal: "Nota fiscal",
@@ -112,6 +104,10 @@ const FILE_TYPE_LABEL: Record<string, string> = {
   relatorio_vendas: "Relatório de vendas",
   extrato_sicoob: "Extrato Sicoob",
 };
+
+/** Tipos disponíveis para envio: o balancete deixou de ser importado. */
+const UPLOAD_TYPES = Object.entries(FILE_TYPE_LABEL).filter(([value]) => value !== "balancete");
+
 
 const STATUS_LABEL: Record<string, string> = {
   pendente: "Pendente",
@@ -157,7 +153,7 @@ function ImportarPage() {
   const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const [fileType, setFileType] = useState<string>("balancete");
+  const [fileType, setFileType] = useState<string>("razao");
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<ImportedFile | null>(null);
@@ -189,7 +185,6 @@ function ImportarPage() {
   const downloadUrl = useServerFn(getFileDownloadUrl);
   const registerFile = useServerFn(registerImportedFile);
   const sendJournalChunk = useServerFn(importJournalChunk);
-  const sendMirror = useServerFn(importTrialBalanceMirror);
   const finalizeJournal = useServerFn(finalizeJournalImport);
 
   const filesQuery = useQuery({
@@ -220,15 +215,7 @@ function ImportarPage() {
           .from("journal_legs")
           .select("id", { count: "exact", head: true })
           .eq("file_id", file.id);
-        if (legs.count && legs.count > 0) {
-          counts[file.id] = legs.count;
-          continue;
-        }
-        const entries = await supabase
-          .from("ledger_entries")
-          .select("id", { count: "exact", head: true })
-          .eq("file_id", file.id);
-        counts[file.id] = entries.count ?? 0;
+        counts[file.id] = legs.count ?? 0;
       }
       return counts;
     },
@@ -244,7 +231,7 @@ function ImportarPage() {
     mutationFn: (fileId: string) => parseFile({ data: { file_id: fileId } }),
     onSuccess: (result) => {
       invalidate();
-      void queryClient.invalidateQueries({ queryKey: ["recalculation_logs", selectedPeriodId] });
+      void queryClient.invalidateQueries({ queryKey: ["ledger_account_audit", selectedPeriodId] });
       const merge = result as Partial<{
         firstImport: boolean;
         updated: number;
@@ -436,20 +423,6 @@ function ImportarPage() {
     await enviarPernas(fileId, periodId, legs);
   }
 
-  /** Grava o espelho oficial do balancete (árvore de contas do G2). */
-  async function importarEspelhoBalancete(fileId: string, source: File) {
-    try {
-      const pages = await extractPdfPages(source);
-      const lines = parseBalancete(pages);
-      if (!lines.length) return;
-      for (let i = 0; i < lines.length; i += 1000) {
-        await sendMirror({ data: { file_id: fileId, lines: lines.slice(i, i + 1000) } });
-      }
-      toast.success(`Espelho do balancete gravado: ${lines.length} contas.`);
-    } catch {
-      // espelho é complementar: falha aqui não impede a leitura principal
-    }
-  }
 
   async function enviarArquivo(source: File, periodId: string) {
     const { path, token } = await createUrl({
@@ -536,9 +509,6 @@ function ImportarPage() {
 
       toast.success("Arquivo enviado. Iniciando leitura...");
       processMutation.mutate(file_id);
-      if (fileType === "balancete" && uploaded.name.toLowerCase().endsWith(".pdf")) {
-        void importarEspelhoBalancete(file_id, uploaded);
-      }
     } catch (error) {
       setProgress(null);
       toast.error(error instanceof Error ? error.message : "Falha no envio do arquivo.");
@@ -582,7 +552,7 @@ function ImportarPage() {
       <>
         <PageHeader
           title="Importar arquivos"
-          description="Envio de balancetes, razões e documentos fiscais em PDF ou Excel."
+          description="Envio do razão contábil e de documentos fiscais em PDF ou Excel."
         />
         <EmptyState
           title="Selecione um período"
@@ -596,7 +566,7 @@ function ImportarPage() {
     <>
       <PageHeader
         title="Importar arquivos"
-        description={`Arquivos do período ${selectedPeriod?.label ?? ""}. Balancetes em PDF são lidos por IA; planilhas via parser.`}
+        description={`Arquivos do período ${selectedPeriod?.label ?? ""}. O razão é a fonte oficial do movimento contábil.`}
       />
 
       {isAdmin && (movementQuery.data?.legs ?? 0) > 0 ? (
@@ -676,19 +646,13 @@ function ImportarPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(FILE_TYPE_LABEL).map(([value, label]) => (
+                {UPLOAD_TYPES.map(([value, label]) => (
                   <SelectItem key={value} value={value}>
-                    {value === "balancete" ? `${label} — em descontinuação` : label}
+                    {label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {fileType === "balancete" ? (
-              <p className="text-xs text-amber-700 dark:text-amber-400">
-                Em descontinuação: o balancete oficial agora é gerado pelo razão contábil. Esta
-                importação serve apenas como espelho de conferência.
-              </p>
-            ) : null}
             {fileType === "razao" ? (
               <label className="flex items-start gap-2 rounded-md border border-border/60 p-2 text-xs text-muted-foreground">
                 <input
@@ -786,7 +750,7 @@ function ImportarPage() {
                       </span>
                       {row.file_type === "balancete" ? (
                         <Badge variant="outline" className="mt-1 text-amber-700 dark:text-amber-400">
-                          Em descontinuação
+                          Legado
                         </Badge>
                       ) : null}
                     </TableCell>
@@ -847,7 +811,7 @@ function ImportarPage() {
       ) : (
         <EmptyState
           title="Nenhum arquivo importado"
-          description="Envie o balancete do período para iniciar a leitura automática."
+          description="Envie o razão contábil do período para iniciar a leitura automática."
         />
       )}
 

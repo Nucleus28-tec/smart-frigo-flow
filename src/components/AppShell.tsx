@@ -7,7 +7,6 @@ import {
   Upload,
   Table2,
   Wand2,
-  ListTree,
   AlertTriangle,
   FileSpreadsheet,
   RefreshCw,
@@ -41,20 +40,45 @@ import { useServerFn } from "@tanstack/react-start";
 import { getAiProvider, setAiProvider } from "@/lib/ai-settings.functions";
 import { rebuildLedgerChain } from "@/lib/razao.functions";
 
-const NAV = [
-  { to: "/dashboard", label: "Dashboard", icon: BarChart3, adminOnly: false },
-  { to: "/agentes", label: "IA Agentes", icon: Bot, adminOnly: false },
-  { to: "/periodos", label: "Períodos", icon: CalendarRange, adminOnly: false },
-  { to: "/importar", label: "Importar", icon: Upload, adminOnly: false },
-  { to: "/razao", label: "Razão Contábil", icon: BookOpen, adminOnly: false },
-  { to: "/balancete", label: "Balancete", icon: Table2, adminOnly: false },
-  { to: "/reclassificacoes", label: "Reclassificações", icon: Wand2, adminOnly: false },
-  { to: "/plano-de-contas", label: "Plano de Contas", icon: ListTree, adminOnly: false },
-  { to: "/apontamentos", label: "Apontamentos", icon: AlertTriangle, adminOnly: false },
-  { to: "/demonstrativos", label: "Demonstrativos", icon: FileSpreadsheet, adminOnly: false },
-  { to: "/atualizacoes", label: "Atualizações", icon: RefreshCw, adminOnly: false },
-  { to: "/usuarios", label: "Usuários", icon: Users, adminOnly: true },
-] as const;
+type NavItem = {
+  to: string;
+  label: string;
+  icon: typeof BarChart3;
+  adminOnly: boolean;
+};
+
+const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
+  {
+    title: "Operação",
+    items: [
+      { to: "/dashboard", label: "Dashboard", icon: BarChart3, adminOnly: false },
+      { to: "/periodos", label: "Períodos", icon: CalendarRange, adminOnly: false },
+      { to: "/importar", label: "Importar", icon: Upload, adminOnly: false },
+    ],
+  },
+  {
+    title: "Contabilidade",
+    items: [
+      { to: "/razao", label: "Razão Contábil", icon: BookOpen, adminOnly: false },
+      { to: "/balancete", label: "Balancete", icon: Table2, adminOnly: false },
+      { to: "/demonstrativos", label: "Demonstrativos", icon: FileSpreadsheet, adminOnly: false },
+    ],
+  },
+  {
+    title: "Revisão",
+    items: [
+      { to: "/reclassificacoes", label: "Reclassificações", icon: Wand2, adminOnly: false },
+      { to: "/apontamentos", label: "Apontamentos", icon: AlertTriangle, adminOnly: false },
+      { to: "/atualizacoes", label: "Atualizações", icon: RefreshCw, adminOnly: false },
+      { to: "/agentes", label: "IA Agentes", icon: Bot, adminOnly: false },
+    ],
+  },
+  {
+    title: "Administração",
+    items: [{ to: "/usuarios", label: "Usuários", icon: Users, adminOnly: true }],
+  },
+];
+
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { data: profile, isLoading } = useProfile();
@@ -117,7 +141,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     navigate({ to: "/login", replace: true });
   }
 
-  const items = NAV.filter((item) => isAdmin || !item.adminOnly);
+  const groups = NAV_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => isAdmin || !item.adminOnly),
+  })).filter((group) => group.items.length > 0);
+
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -148,33 +176,41 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <X className="size-5" />
           </button>
         </div>
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3 pb-3">
-          {items.map((item) => {
-            const Icon = item.icon;
-            const active = pathname === item.to;
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                onClick={() => setOpen(false)}
-                className={cn(
-                  "group flex items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 text-sm font-medium transition-all duration-150",
-                  active
-                    ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                    : "text-sidebar-foreground hover:border-[var(--glow-border)] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-[var(--glow-soft)]",
-                )}
-              >
-                <Icon
-                  className={cn(
-                    "size-4 transition-colors",
-                    active ? "text-brand" : "text-muted-foreground group-hover:text-brand",
-                  )}
-                />
-                {item.label}
-              </Link>
-            );
-          })}
+        <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-3">
+          {groups.map((group) => (
+            <div key={group.title} className="space-y-1">
+              <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                {group.title}
+              </p>
+              {group.items.map((item) => {
+                const Icon = item.icon;
+                const active = pathname === item.to;
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => setOpen(false)}
+                    className={cn(
+                      "group flex items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 text-sm font-medium transition-all duration-150",
+                      active
+                        ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                        : "text-sidebar-foreground hover:border-[var(--glow-border)] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-[var(--glow-soft)]",
+                    )}
+                  >
+                    <Icon
+                      className={cn(
+                        "size-4 transition-colors",
+                        active ? "text-brand" : "text-muted-foreground group-hover:text-brand",
+                      )}
+                    />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
+
         <div className="px-5 py-4 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
           ERP Financeiro · MVP
         </div>

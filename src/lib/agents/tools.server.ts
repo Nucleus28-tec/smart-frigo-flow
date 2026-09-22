@@ -11,27 +11,34 @@ type Db = SupabaseClient<Database>;
 const brl = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+/** Saldo consolidado de uma conta do razão no período. */
 type EntryRow = {
-  account_id: string | null;
-  source_account_name: string;
-  raw_value: number | string;
-  reviewed_value: number | string | null;
+  reduced_code: string;
+  account_name: string;
+  hierarchical_code: string | null;
   nature: string | null;
-  is_manually_edited: boolean;
+  opening_balance: number;
+  debit_mov: number;
+  credit_mov: number;
+  closing_balance: number;
 };
 
+/** Saldos por conta vindos do razão contábil (fonte oficial do movimento). */
 async function loadEntries(supabase: Db, periodId: string): Promise<EntryRow[]> {
-  const { data, error } = await supabase
-    .from("ledger_entries")
-    .select("account_id, source_account_name, raw_value, reviewed_value, nature, is_manually_edited")
-    .eq("period_id", periodId)
-    .limit(5000);
+  const { data, error } = await supabase.rpc("period_account_balances", {
+    _period_id: periodId,
+  });
   if (error) throw new Error(error.message);
-  return (data ?? []) as EntryRow[];
+  return ((data ?? []) as unknown as EntryRow[]).map((r) => ({
+    ...r,
+    opening_balance: Number(r.opening_balance ?? 0),
+    debit_mov: Number(r.debit_mov ?? 0),
+    credit_mov: Number(r.credit_mov ?? 0),
+    closing_balance: Number(r.closing_balance ?? 0),
+  }));
 }
 
-const valueOf = (row: EntryRow) =>
-  Number(row.reviewed_value ?? row.raw_value ?? 0) || 0;
+const valueOf = (row: EntryRow) => Math.abs(row.closing_balance);
 
 function aggregate(entries: EntryRow[]) {
   const byNature = new Map<string, { total: number; count: number }>();
@@ -43,7 +50,7 @@ function aggregate(entries: EntryRow[]) {
     byNature.set(key, current);
   }
   return Array.from(byNature.entries())
-    .map(([nature, v]) => ({ nature, total: v.total, total_formatado: brl(v.total), lancamentos: v.count }))
+    .map(([nature, v]) => ({ nature, total: v.total, total_formatado: brl(v.total), contas: v.count }))
     .sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
 }
 
@@ -95,7 +102,7 @@ export function buildAgentTools(options: {
             despesa: brl(despesa),
             resultado: brl(receita - custo - despesa),
           },
-          lancamentos: entries.length,
+          contas_movimentadas: entries.length,
         };
       },
     }),
@@ -110,19 +117,14 @@ export function buildAgentTools(options: {
       execute: async ({ natureza, limite }) => {
         const id = requirePeriod();
         const entries = (await loadEntries(supabase, id)).filter((e) => e.nature === natureza);
-        const byAccount = new Map<string, { nome: string; total: number; editado: boolean }>();
-        for (const row of entries) {
-          const key = row.account_id ?? row.source_account_name;
-          const current = byAccount.get(key) ?? {
-            nome: row.source_account_name,
-            total: 0,
-            editado: false,
-          };
-          current.total += valueOf(row);
-          current.editado = current.editado || row.is_manually_edited;
-          byAccount.set(key, current);
-        }
-        const contas = Array.from(byAccount.values())
+        const contas = entries
+          .map((e) => ({
+            codigo: e.reduced_code,
+            nome: e.account_name,
+            total: valueOf(e),
+            debitos: e.debit_mov,
+            creditos: e.credit_mov,
+          }))
           .sort((a, b) => Math.abs(b.total) - Math.abs(a.total))
           .slice(0, Math.min(Math.max(1, Math.round(limite || 10)), 30))
           .map((c) => ({ ...c, total_formatado: brl(c.total) }));
@@ -133,15 +135,16 @@ export function buildAgentTools(options: {
 
     contas_sem_natureza: tool({
       description:
-        "Lista as contas do plano de contas usadas no período que ainda não têm natureza definida ou confirmada.",
+        "Lista as contas do plano de contas do razão que ainda não têm natureza definida ou vínculo confirmado.",
       inputSchema: z.object({ limite: z.number().describe("Máximo de contas (até 60)") }),
       execute: async ({ limite }) => {
         requirePeriod();
         const { data, error } = await supabase
-          .from("chart_of_accounts")
-          .select("id, source_code, source_name, nature, is_confirmed, confidence_score")
-          .or("nature.is.null,is_confirmed.eq.false")
-          .order("source_name")
+          .from("ledger_accounts")
+          .select("id, reduced_code, hierarchical_code, name, nature, link_status, confidence")
+          .eq("is_active", true)
+          .or("nature.is.null,link_status.eq.pendente")
+          .order("reduced_code")
           .limit(Math.min(Math.max(1, Math.round(limite || 30)), 60));
         if (error) throw new Error(error.message);
         return { contas: data ?? [] };
