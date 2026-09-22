@@ -185,7 +185,6 @@ function ImportarPage() {
   const downloadUrl = useServerFn(getFileDownloadUrl);
   const registerFile = useServerFn(registerImportedFile);
   const sendJournalChunk = useServerFn(importJournalChunk);
-  const sendMirror = useServerFn(importTrialBalanceMirror);
   const finalizeJournal = useServerFn(finalizeJournalImport);
 
   const filesQuery = useQuery({
@@ -759,7 +758,7 @@ function ImportarPage() {
                       </span>
                       {row.file_type === "balancete" ? (
                         <Badge variant="outline" className="mt-1 text-amber-700 dark:text-amber-400">
-                          Em descontinuação
+                          Legado
                         </Badge>
                       ) : null}
                     </TableCell>
