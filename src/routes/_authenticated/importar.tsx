@@ -101,8 +101,9 @@ export const Route = createFileRoute("/_authenticated/importar")({
   }),
 });
 
+/** Rótulos de exibição, incluindo tipos legados que ainda existem no histórico. */
 const FILE_TYPE_LABEL: Record<string, string> = {
-  balancete: "Balancete (G2)",
+  balancete: "Balancete (G2) — legado",
   razao: "Razão contábil (G2)",
   pedido_compra: "Pedido de compra",
   nota_fiscal: "Nota fiscal",
@@ -112,6 +113,10 @@ const FILE_TYPE_LABEL: Record<string, string> = {
   relatorio_vendas: "Relatório de vendas",
   extrato_sicoob: "Extrato Sicoob",
 };
+
+/** Tipos disponíveis para envio: o balancete deixou de ser importado. */
+const UPLOAD_TYPES = Object.entries(FILE_TYPE_LABEL).filter(([value]) => value !== "balancete");
+
 
 const STATUS_LABEL: Record<string, string> = {
   pendente: "Pendente",
