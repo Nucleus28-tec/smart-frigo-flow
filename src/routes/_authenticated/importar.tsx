@@ -162,7 +162,7 @@ function ImportarPage() {
   const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const [fileType, setFileType] = useState<string>("balancete");
+  const [fileType, setFileType] = useState<string>("razao");
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<ImportedFile | null>(null);
@@ -441,20 +441,6 @@ function ImportarPage() {
     await enviarPernas(fileId, periodId, legs);
   }
 
-  /** Grava o espelho oficial do balancete (árvore de contas do G2). */
-  async function importarEspelhoBalancete(fileId: string, source: File) {
-    try {
-      const pages = await extractPdfPages(source);
-      const lines = parseBalancete(pages);
-      if (!lines.length) return;
-      for (let i = 0; i < lines.length; i += 1000) {
-        await sendMirror({ data: { file_id: fileId, lines: lines.slice(i, i + 1000) } });
-      }
-      toast.success(`Espelho do balancete gravado: ${lines.length} contas.`);
-    } catch {
-      // espelho é complementar: falha aqui não impede a leitura principal
-    }
-  }
 
   async function enviarArquivo(source: File, periodId: string) {
     const { path, token } = await createUrl({
