@@ -248,3 +248,25 @@ Cada linha da DRE, do Balanço e do Fluxo com contas vinculadas é expansível: 
 O cabeçalho do painel exibe **saldo inicial** e **saldo final** da(s) conta(s) no intervalo consultado (saldo inicial = abertura do período + movimento anterior à data inicial; saldo final = saldo inicial + débitos − créditos do intervalo, ignorando os lançamentos ocultos, com o valor "com ocultos" ao lado quando houver diferença). A busca por texto não altera esses saldos — apenas o intervalo de datas.
 
 A lista tem **seleção em massa**: marque os lançamentos (ou "Selecionar todos") e use **Ocultar selecionados** (pede motivo) ou **Reexibir selecionados**; ao final os demonstrativos são recalculados automaticamente.
+
+## Unificação no razão contábil (circuito único)
+
+O sistema passou a operar apenas sobre o razão contábil. O circuito legado
+(balancete importado: `chart_of_accounts`, `ledger_entries`,
+`reclassification_suggestions`, `recalculation_logs`) continua no banco como
+histórico, mas nenhuma tela ou rotina o consulta.
+
+- **Menu lateral**: agrupado em OPERAÇÃO, CONTABILIDADE, REVISÃO e ADMINISTRAÇÃO.
+- **Plano de Contas**: deixou de ser item de menu; vive como aba de `/razao`.
+  A rota `/plano-de-contas` redireciona para `/razao?tab=plano`.
+- **Importar**: o tipo "balancete" não pode mais ser enviado (segue apenas como
+  rótulo "Legado" no histórico de arquivos).
+- **Reclassificações**: opera sobre `chart_ai_suggestions` + `ledger_accounts`,
+  com análise da IA e aplicação/rejeição em massa pelo Admin.
+- **Apontamentos**: `detectInconsistencies` usa `period_account_balances`
+  (contas sem natureza, saldos invertidos, duplicidades, equação patrimonial e
+  fechamento débito × crédito).
+- **Atualizações**: lista `ledger_account_audit` (conta, campo, antes, depois,
+  origem e autor) somada à trilha de `activity_log`.
+- **Agentes de IA**: leem saldos do razão e o plano `ledger_accounts`; aplicar
+  uma classificação chama `set_ledger_accounts_nature`.
