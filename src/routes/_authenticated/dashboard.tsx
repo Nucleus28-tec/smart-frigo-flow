@@ -425,12 +425,12 @@ function DashboardPage() {
           {counters.map((card) => {
             const Icon = card.icon;
             return (
-              <Card key={card.label}>
+              <Card key={card.label} className={`glow-surface border-l-4 ${card.tone}`}>
                 <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground">
                     {card.label}
                   </CardTitle>
-                  <Icon className="size-4 text-muted-foreground" />
+                  <Icon className="size-4 opacity-80" />
                 </CardHeader>
                 <CardContent>
                   <p className="text-3xl font-semibold tabular-nums">
