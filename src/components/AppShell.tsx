@@ -177,33 +177,41 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <X className="size-5" />
           </button>
         </div>
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3 pb-3">
-          {items.map((item) => {
-            const Icon = item.icon;
-            const active = pathname === item.to;
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                onClick={() => setOpen(false)}
-                className={cn(
-                  "group flex items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 text-sm font-medium transition-all duration-150",
-                  active
-                    ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                    : "text-sidebar-foreground hover:border-[var(--glow-border)] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-[var(--glow-soft)]",
-                )}
-              >
-                <Icon
-                  className={cn(
-                    "size-4 transition-colors",
-                    active ? "text-brand" : "text-muted-foreground group-hover:text-brand",
-                  )}
-                />
-                {item.label}
-              </Link>
-            );
-          })}
+        <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-3">
+          {groups.map((group) => (
+            <div key={group.title} className="space-y-1">
+              <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                {group.title}
+              </p>
+              {group.items.map((item) => {
+                const Icon = item.icon;
+                const active = pathname === item.to;
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => setOpen(false)}
+                    className={cn(
+                      "group flex items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 text-sm font-medium transition-all duration-150",
+                      active
+                        ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                        : "text-sidebar-foreground hover:border-[var(--glow-border)] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-[var(--glow-soft)]",
+                    )}
+                  >
+                    <Icon
+                      className={cn(
+                        "size-4 transition-colors",
+                        active ? "text-brand" : "text-muted-foreground group-hover:text-brand",
+                      )}
+                    />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
+
         <div className="px-5 py-4 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
           ERP Financeiro · MVP
         </div>
