@@ -116,13 +116,12 @@ function AtualizacoesPage() {
         title="Atualizações"
         description={
           selectedPeriod
-            ? `Valores alterados pelos recálculos automáticos em ${selectedPeriod.label}, com as edições manuais preservadas em destaque.`
-            : "Selecione um período para ver os valores atualizados."
+            ? `Mudanças feitas no plano de contas do razão em ${selectedPeriod.label}: quem alterou, o que mudou e de onde veio a alteração.`
+            : "Selecione um período para ver as mudanças registradas."
         }
       />
 
       <AiStatusCard />
-
 
       {!selectedPeriodId ? (
         <EmptyState
@@ -136,17 +135,18 @@ function AtualizacoesPage() {
       ) : items.length === 0 ? (
         <EmptyState
           title="Nenhuma mudança registrada"
-          description="Ao reimportar um arquivo sobre este período, a lista dos valores atualizados aparecerá aqui."
+          description="Alterações de natureza, grupo, nome ou ocultação de contas do razão aparecerão aqui."
         />
       ) : (
         <Card className="mb-6">
           <CardHeader className="flex flex-row items-center justify-between gap-3">
             <CardTitle className="text-base">
-              {items.length} mudança{items.length === 1 ? "" : "s"} no período
+              {items.length} mudança{items.length === 1 ? "" : "s"} registrada
+              {items.length === 1 ? "" : "s"}
             </CardTitle>
-            {preserved > 0 ? (
+            {byIa > 0 ? (
               <Badge variant="outline" className="border-amber-500 text-amber-600">
-                {preserved} edição{preserved === 1 ? "" : "ões"} manual preservada
+                {byIa} vinda{byIa === 1 ? "" : "s"} de sugestão da IA
               </Badge>
             ) : null}
           </CardHeader>
@@ -155,50 +155,36 @@ function AtualizacoesPage() {
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 text-left text-xs uppercase text-muted-foreground">
                   <tr>
-                    <th className="px-4 py-2 font-medium">Conta / arquivo</th>
-                    <th className="px-4 py-2 font-medium">Campo</th>
+                    <th className="px-4 py-2 font-medium">Conta</th>
+                    <th className="px-4 py-2 font-medium">O que mudou</th>
                     <th className="px-4 py-2 font-medium text-right">Antes</th>
                     <th className="px-4 py-2 font-medium text-right">Depois</th>
-                    <th className="px-4 py-2 font-medium">Quando</th>
+                    <th className="px-4 py-2 font-medium">Quem / quando</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {items.map((item) => (
-                    <tr
-                      key={item.id}
-                      className={item.manual_edit_preserved ? "bg-amber-500/10" : undefined}
-                    >
+                    <tr key={item.id} className={item.source === "ia" ? "bg-amber-500/10" : undefined}>
                       <td className="px-4 py-2">
-                        <div className="font-medium">
-                          {item.ledger_entries?.source_account_name ??
-                            item.old_value ??
-                            "Lançamento"}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {item.imported_files?.original_name ?? "—"}
-                        </div>
+                        <div className="font-medium">{item.account_name ?? item.account_key}</div>
+                        <div className="text-xs text-muted-foreground">{item.account_key}</div>
                       </td>
                       <td className="px-4 py-2">
                         <div className="flex flex-wrap items-center gap-2">
                           <span>{FIELD_LABELS[item.field_changed] ?? item.field_changed}</span>
-                          {item.manual_edit_preserved ? (
-                            <Badge
-                              variant="outline"
-                              className="border-amber-500 text-xs text-amber-600"
-                            >
-                              edição manual preservada
-                            </Badge>
-                          ) : null}
+                          <Badge variant="outline" className="text-xs">
+                            {SOURCE_LABELS[item.source] ?? item.source}
+                          </Badge>
                         </div>
                       </td>
                       <td className="px-4 py-2 text-right tabular-nums">
-                        {formatValue(item.field_changed, item.old_value)}
+                        {formatValue(item.old_value)}
                       </td>
                       <td className="px-4 py-2 text-right tabular-nums">
-                        {formatValue(item.field_changed, item.new_value)}
+                        {formatValue(item.new_value)}
                       </td>
                       <td className="px-4 py-2 text-xs text-muted-foreground">
-                        {formatDateTime(item.created_at)}
+                        {item.profiles?.full_name ?? "Sistema"} · {formatDateTime(item.created_at)}
                       </td>
                     </tr>
                   ))}
