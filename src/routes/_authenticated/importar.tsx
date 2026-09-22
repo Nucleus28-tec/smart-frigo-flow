@@ -527,9 +527,6 @@ function ImportarPage() {
 
       toast.success("Arquivo enviado. Iniciando leitura...");
       processMutation.mutate(file_id);
-      if (fileType === "balancete" && uploaded.name.toLowerCase().endsWith(".pdf")) {
-        void importarEspelhoBalancete(file_id, uploaded);
-      }
     } catch (error) {
       setProgress(null);
       toast.error(error instanceof Error ? error.message : "Falha no envio do arquivo.");
@@ -667,19 +664,13 @@ function ImportarPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(FILE_TYPE_LABEL).map(([value, label]) => (
+                {UPLOAD_TYPES.map(([value, label]) => (
                   <SelectItem key={value} value={value}>
-                    {value === "balancete" ? `${label} — em descontinuação` : label}
+                    {label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {fileType === "balancete" ? (
-              <p className="text-xs text-amber-700 dark:text-amber-400">
-                Em descontinuação: o balancete oficial agora é gerado pelo razão contábil. Esta
-                importação serve apenas como espelho de conferência.
-              </p>
-            ) : null}
             {fileType === "razao" ? (
               <label className="flex items-start gap-2 rounded-md border border-border/60 p-2 text-xs text-muted-foreground">
                 <input
