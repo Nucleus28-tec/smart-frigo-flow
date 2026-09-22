@@ -348,31 +348,15 @@ function DashboardPage() {
 
 
       {hasIndicators ? (
-        <div className="mt-6 grid gap-4 lg:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                Composição do resultado · {selectedPeriod?.label}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ChartContainer config={chartConfig} className="h-[280px] w-full">
-                <BarChart data={compositionData}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                  <XAxis dataKey="nome" tickLine={false} axisLine={false} />
-                  <YAxis tickFormatter={compactCurrency} tickLine={false} axisLine={false} width={60} />
-                  <ChartTooltip
-                    content={
-                      <ChartTooltipContent formatter={(v) => formatCurrency(Number(v))} />
-                    }
-                  />
-                  <Bar dataKey="valor" fill="var(--color-valor)" radius={4} />
-                </BarChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
+        <>
+          <GraficosFinanceiros
+            periodId={selectedPeriodId}
+            periodLabel={selectedPeriod?.label}
+            indicators={currentIndicators}
+          />
 
-          <Card>
+          <div className="mt-4 grid gap-4">
+          <Card className="glow-surface border-l-4 border-l-chart-4">
             <CardHeader>
               <CardTitle className="text-base">Evolução por período</CardTitle>
             </CardHeader>
