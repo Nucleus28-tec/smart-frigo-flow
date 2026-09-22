@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState, ErrorState, LoadingRows, PageHeader } from "@/components/PageState";
-import { formatCurrency, formatDateTime } from "@/lib/rotta";
+import { formatDateTime } from "@/lib/rotta";
 import { usePeriod } from "@/hooks/usePeriod";
 import { useProfile } from "@/hooks/useProfile";
 import { testAiConnection } from "@/lib/ai.functions";

@@ -215,15 +215,7 @@ function ImportarPage() {
           .from("journal_legs")
           .select("id", { count: "exact", head: true })
           .eq("file_id", file.id);
-        if (legs.count && legs.count > 0) {
-          counts[file.id] = legs.count;
-          continue;
-        }
-        const entries = await supabase
-          .from("ledger_entries")
-          .select("id", { count: "exact", head: true })
-          .eq("file_id", file.id);
-        counts[file.id] = entries.count ?? 0;
+        counts[file.id] = legs.count ?? 0;
       }
       return counts;
     },
@@ -239,7 +231,7 @@ function ImportarPage() {
     mutationFn: (fileId: string) => parseFile({ data: { file_id: fileId } }),
     onSuccess: (result) => {
       invalidate();
-      void queryClient.invalidateQueries({ queryKey: ["recalculation_logs", selectedPeriodId] });
+      void queryClient.invalidateQueries({ queryKey: ["ledger_account_audit", selectedPeriodId] });
       const merge = result as Partial<{
         firstImport: boolean;
         updated: number;
