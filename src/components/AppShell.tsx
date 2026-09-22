@@ -142,7 +142,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     navigate({ to: "/login", replace: true });
   }
 
-  const items = NAV.filter((item) => isAdmin || !item.adminOnly);
+  const groups = NAV_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => isAdmin || !item.adminOnly),
+  })).filter((group) => group.items.length > 0);
+
 
   return (
     <div className="flex min-h-screen bg-background">
