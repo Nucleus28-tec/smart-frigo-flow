@@ -87,8 +87,9 @@ const compactCurrency = (value: number) =>
   value.toLocaleString("pt-BR", { notation: "compact", maximumFractionDigits: 1 });
 
 const chartConfig = {
-  valor: { label: "Valor", color: "hsl(var(--chart-1, 220 70% 50%))" },
-  resultado: { label: "Resultado líquido", color: "hsl(var(--chart-2, 160 60% 45%))" },
+  receita: { label: "Receita", color: "var(--chart-2)" },
+  custo: { label: "Custo", color: "var(--chart-3)" },
+  resultado: { label: "Resultado líquido", color: "var(--chart-1)" },
 } satisfies ChartConfig;
 
 
