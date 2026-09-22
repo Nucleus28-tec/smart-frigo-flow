@@ -210,14 +210,35 @@ function DashboardPage() {
     .filter((row) => row.receita || row.custo || row.resultado);
 
   const counters = [
-    { label: "Arquivos importados", value: summary.data?.files_count, icon: Upload },
-    { label: "Lançamentos no balancete", value: summary.data?.entries_count, icon: Table2 },
-    { label: "Sugestões pendentes", value: summary.data?.pending_suggestions, icon: ListChecks },
-    { label: "Apontamentos abertos", value: summary.data?.open_findings, icon: AlertTriangle },
+    {
+      label: "Arquivos importados",
+      value: summary.data?.files_count,
+      icon: Upload,
+      tone: "border-l-chart-5 text-chart-5",
+    },
+    {
+      label: "Lançamentos no balancete",
+      value: summary.data?.entries_count,
+      icon: Table2,
+      tone: "border-l-chart-2 text-chart-2",
+    },
+    {
+      label: "Sugestões pendentes",
+      value: summary.data?.pending_suggestions,
+      icon: ListChecks,
+      tone: "border-l-chart-6 text-chart-6",
+    },
+    {
+      label: "Apontamentos abertos",
+      value: summary.data?.open_findings,
+      icon: AlertTriangle,
+      tone: "border-l-chart-4 text-chart-4",
+    },
     {
       label: "Demonstrativos gerados",
       value: summary.data?.statements_generated,
       icon: FileSpreadsheet,
+      tone: "border-l-chart-3 text-chart-3",
     },
   ];
 
