@@ -41,20 +41,45 @@ import { useServerFn } from "@tanstack/react-start";
 import { getAiProvider, setAiProvider } from "@/lib/ai-settings.functions";
 import { rebuildLedgerChain } from "@/lib/razao.functions";
 
-const NAV = [
-  { to: "/dashboard", label: "Dashboard", icon: BarChart3, adminOnly: false },
-  { to: "/agentes", label: "IA Agentes", icon: Bot, adminOnly: false },
-  { to: "/periodos", label: "Períodos", icon: CalendarRange, adminOnly: false },
-  { to: "/importar", label: "Importar", icon: Upload, adminOnly: false },
-  { to: "/razao", label: "Razão Contábil", icon: BookOpen, adminOnly: false },
-  { to: "/balancete", label: "Balancete", icon: Table2, adminOnly: false },
-  { to: "/reclassificacoes", label: "Reclassificações", icon: Wand2, adminOnly: false },
-  { to: "/plano-de-contas", label: "Plano de Contas", icon: ListTree, adminOnly: false },
-  { to: "/apontamentos", label: "Apontamentos", icon: AlertTriangle, adminOnly: false },
-  { to: "/demonstrativos", label: "Demonstrativos", icon: FileSpreadsheet, adminOnly: false },
-  { to: "/atualizacoes", label: "Atualizações", icon: RefreshCw, adminOnly: false },
-  { to: "/usuarios", label: "Usuários", icon: Users, adminOnly: true },
-] as const;
+type NavItem = {
+  to: string;
+  label: string;
+  icon: typeof BarChart3;
+  adminOnly: boolean;
+};
+
+const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
+  {
+    title: "Operação",
+    items: [
+      { to: "/dashboard", label: "Dashboard", icon: BarChart3, adminOnly: false },
+      { to: "/periodos", label: "Períodos", icon: CalendarRange, adminOnly: false },
+      { to: "/importar", label: "Importar", icon: Upload, adminOnly: false },
+    ],
+  },
+  {
+    title: "Contabilidade",
+    items: [
+      { to: "/razao", label: "Razão Contábil", icon: BookOpen, adminOnly: false },
+      { to: "/balancete", label: "Balancete", icon: Table2, adminOnly: false },
+      { to: "/demonstrativos", label: "Demonstrativos", icon: FileSpreadsheet, adminOnly: false },
+    ],
+  },
+  {
+    title: "Revisão",
+    items: [
+      { to: "/reclassificacoes", label: "Reclassificações", icon: Wand2, adminOnly: false },
+      { to: "/apontamentos", label: "Apontamentos", icon: AlertTriangle, adminOnly: false },
+      { to: "/atualizacoes", label: "Atualizações", icon: RefreshCw, adminOnly: false },
+      { to: "/agentes", label: "IA Agentes", icon: Bot, adminOnly: false },
+    ],
+  },
+  {
+    title: "Administração",
+    items: [{ to: "/usuarios", label: "Usuários", icon: Users, adminOnly: true }],
+  },
+];
+
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { data: profile, isLoading } = useProfile();
