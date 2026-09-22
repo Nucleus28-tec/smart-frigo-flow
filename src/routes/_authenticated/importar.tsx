@@ -79,12 +79,12 @@ export const Route = createFileRoute("/_authenticated/importar")({
       { title: "Importar arquivos | Rotta Financeiro" },
       {
         name: "description",
-        content: "Envio de balancetes, razões e documentos fiscais para o período contábil ativo.",
+        content: "Envio do razão contábil e de documentos fiscais para o período contábil ativo.",
       },
       { property: "og:title", content: "Importar arquivos | Rotta Financeiro" },
       {
         property: "og:description",
-        content: "Envio de balancetes e documentos fiscais no Rotta Financeiro.",
+        content: "Envio do razão contábil e de documentos fiscais no Rotta Financeiro.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -560,7 +560,7 @@ function ImportarPage() {
       <>
         <PageHeader
           title="Importar arquivos"
-          description="Envio de balancetes, razões e documentos fiscais em PDF ou Excel."
+          description="Envio do razão contábil e de documentos fiscais em PDF ou Excel."
         />
         <EmptyState
           title="Selecione um período"
@@ -574,7 +574,7 @@ function ImportarPage() {
     <>
       <PageHeader
         title="Importar arquivos"
-        description={`Arquivos do período ${selectedPeriod?.label ?? ""}. Balancetes em PDF são lidos por IA; planilhas via parser.`}
+        description={`Arquivos do período ${selectedPeriod?.label ?? ""}. O razão é a fonte oficial do movimento contábil.`}
       />
 
       {isAdmin && (movementQuery.data?.legs ?? 0) > 0 ? (
@@ -819,7 +819,7 @@ function ImportarPage() {
       ) : (
         <EmptyState
           title="Nenhum arquivo importado"
-          description="Envie o balancete do período para iniciar a leitura automática."
+          description="Envie o razão contábil do período para iniciar a leitura automática."
         />
       )}
 
