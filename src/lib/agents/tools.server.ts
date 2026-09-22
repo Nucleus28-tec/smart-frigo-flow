@@ -102,7 +102,7 @@ export function buildAgentTools(options: {
             despesa: brl(despesa),
             resultado: brl(receita - custo - despesa),
           },
-          lancamentos: entries.length,
+          contas_movimentadas: entries.length,
         };
       },
     }),
@@ -117,19 +117,14 @@ export function buildAgentTools(options: {
       execute: async ({ natureza, limite }) => {
         const id = requirePeriod();
         const entries = (await loadEntries(supabase, id)).filter((e) => e.nature === natureza);
-        const byAccount = new Map<string, { nome: string; total: number; editado: boolean }>();
-        for (const row of entries) {
-          const key = row.account_id ?? row.source_account_name;
-          const current = byAccount.get(key) ?? {
-            nome: row.source_account_name,
-            total: 0,
-            editado: false,
-          };
-          current.total += valueOf(row);
-          current.editado = current.editado || row.is_manually_edited;
-          byAccount.set(key, current);
-        }
-        const contas = Array.from(byAccount.values())
+        const contas = entries
+          .map((e) => ({
+            codigo: e.reduced_code,
+            nome: e.account_name,
+            total: valueOf(e),
+            debitos: e.debit_mov,
+            creditos: e.credit_mov,
+          }))
           .sort((a, b) => Math.abs(b.total) - Math.abs(a.total))
           .slice(0, Math.min(Math.max(1, Math.round(limite || 10)), 30))
           .map((c) => ({ ...c, total_formatado: brl(c.total) }));
@@ -140,15 +135,16 @@ export function buildAgentTools(options: {
 
     contas_sem_natureza: tool({
       description:
-        "Lista as contas do plano de contas usadas no período que ainda não têm natureza definida ou confirmada.",
+        "Lista as contas do plano de contas do razão que ainda não têm natureza definida ou vínculo confirmado.",
       inputSchema: z.object({ limite: z.number().describe("Máximo de contas (até 60)") }),
       execute: async ({ limite }) => {
         requirePeriod();
         const { data, error } = await supabase
-          .from("chart_of_accounts")
-          .select("id, source_code, source_name, nature, is_confirmed, confidence_score")
-          .or("nature.is.null,is_confirmed.eq.false")
-          .order("source_name")
+          .from("ledger_accounts")
+          .select("id, reduced_code, hierarchical_code, name, nature, link_status, confidence")
+          .eq("is_active", true)
+          .or("nature.is.null,link_status.eq.pendente")
+          .order("reduced_code")
           .limit(Math.min(Math.max(1, Math.round(limite || 30)), 60));
         if (error) throw new Error(error.message);
         return { contas: data ?? [] };
