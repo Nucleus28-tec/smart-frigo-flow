@@ -11,15 +11,7 @@ import {
   Table2,
   Upload,
 } from "lucide-react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Line,
-  LineChart,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -39,6 +31,7 @@ import { EmptyState, ErrorState, LoadingRows, PageHeader } from "@/components/Pa
 import { SemMovimento } from "@/components/periodo/SemMovimento";
 import { usePeriodStatus } from "@/hooks/usePeriodStatus";
 import { IndicadorDrilldown } from "@/components/dashboard/IndicadorDrilldown";
+import { GraficosFinanceiros } from "@/components/dashboard/GraficosFinanceiros";
 import {
   GROUP_LABEL,
   GROUP_ORDER,
@@ -87,8 +80,9 @@ const compactCurrency = (value: number) =>
   value.toLocaleString("pt-BR", { notation: "compact", maximumFractionDigits: 1 });
 
 const chartConfig = {
-  valor: { label: "Valor", color: "hsl(var(--chart-1, 220 70% 50%))" },
-  resultado: { label: "Resultado líquido", color: "hsl(var(--chart-2, 160 60% 45%))" },
+  receita: { label: "Receita", color: "var(--chart-2)" },
+  custo: { label: "Custo", color: "var(--chart-3)" },
+  resultado: { label: "Resultado líquido", color: "var(--chart-1)" },
 } satisfies ChartConfig;
 
 
@@ -200,17 +194,6 @@ function DashboardPage() {
   );
   const hasIndicators = currentIndicators.size > 0;
 
-  const compositionData = [
-    { nome: "Receita", valor: Number(currentIndicators.get("receita_total")?.indicator_value ?? 0) },
-    { nome: "Custo", valor: Number(currentIndicators.get("custo_total")?.indicator_value ?? 0) },
-    { nome: "EBITDA", valor: Number(currentIndicators.get("ebitda")?.indicator_value ?? 0) },
-    {
-      nome: "Resultado",
-      valor: Number(currentIndicators.get("resultado_liquido")?.indicator_value ?? 0),
-    },
-    { nome: "Caixa", valor: Number(currentIndicators.get("posicao_caixa")?.indicator_value ?? 0) },
-  ];
-
   const historyData = [...periods]
     .sort((a, b) => a.reference_month.localeCompare(b.reference_month))
     .map((p) => {
@@ -227,14 +210,35 @@ function DashboardPage() {
     .filter((row) => row.receita || row.custo || row.resultado);
 
   const counters = [
-    { label: "Arquivos importados", value: summary.data?.files_count, icon: Upload },
-    { label: "Lançamentos no balancete", value: summary.data?.entries_count, icon: Table2 },
-    { label: "Sugestões pendentes", value: summary.data?.pending_suggestions, icon: ListChecks },
-    { label: "Apontamentos abertos", value: summary.data?.open_findings, icon: AlertTriangle },
+    {
+      label: "Arquivos importados",
+      value: summary.data?.files_count,
+      icon: Upload,
+      tone: "border-l-chart-5 text-chart-5",
+    },
+    {
+      label: "Lançamentos no balancete",
+      value: summary.data?.entries_count,
+      icon: Table2,
+      tone: "border-l-chart-2 text-chart-2",
+    },
+    {
+      label: "Sugestões pendentes",
+      value: summary.data?.pending_suggestions,
+      icon: ListChecks,
+      tone: "border-l-chart-6 text-chart-6",
+    },
+    {
+      label: "Apontamentos abertos",
+      value: summary.data?.open_findings,
+      icon: AlertTriangle,
+      tone: "border-l-chart-4 text-chart-4",
+    },
     {
       label: "Demonstrativos gerados",
       value: summary.data?.statements_generated,
       icon: FileSpreadsheet,
+      tone: "border-l-chart-3 text-chart-3",
     },
   ];
 
@@ -348,31 +352,15 @@ function DashboardPage() {
 
 
       {hasIndicators ? (
-        <div className="mt-6 grid gap-4 lg:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                Composição do resultado · {selectedPeriod?.label}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ChartContainer config={chartConfig} className="h-[280px] w-full">
-                <BarChart data={compositionData}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                  <XAxis dataKey="nome" tickLine={false} axisLine={false} />
-                  <YAxis tickFormatter={compactCurrency} tickLine={false} axisLine={false} width={60} />
-                  <ChartTooltip
-                    content={
-                      <ChartTooltipContent formatter={(v) => formatCurrency(Number(v))} />
-                    }
-                  />
-                  <Bar dataKey="valor" fill="var(--color-valor)" radius={4} />
-                </BarChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
+        <>
+          <GraficosFinanceiros
+            periodId={selectedPeriodId}
+            periodLabel={selectedPeriod?.label}
+            indicators={currentIndicators}
+          />
 
-          <Card>
+          <div className="mt-4 grid gap-4">
+          <Card className="glow-surface border-l-4 border-l-chart-4">
             <CardHeader>
               <CardTitle className="text-base">Evolução por período</CardTitle>
             </CardHeader>
@@ -403,8 +391,16 @@ function DashboardPage() {
                     <Line
                       type="monotone"
                       dataKey="receita"
-                      stroke="var(--color-valor)"
+                      stroke="var(--color-receita)"
                       strokeWidth={2}
+                      dot
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="custo"
+                      stroke="var(--color-custo)"
+                      strokeWidth={2}
+                      strokeDasharray="4 4"
                       dot
                     />
                   </LineChart>
@@ -412,7 +408,8 @@ function DashboardPage() {
               )}
             </CardContent>
           </Card>
-        </div>
+          </div>
+        </>
       ) : null}
 
       {/* Contagens operacionais (RPC get_period_summary) */}
@@ -428,12 +425,12 @@ function DashboardPage() {
           {counters.map((card) => {
             const Icon = card.icon;
             return (
-              <Card key={card.label}>
+              <Card key={card.label} className={`glow-surface border-l-4 ${card.tone}`}>
                 <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground">
                     {card.label}
                   </CardTitle>
-                  <Icon className="size-4 text-muted-foreground" />
+                  <Icon className="size-4 opacity-80" />
                 </CardHeader>
                 <CardContent>
                   <p className="text-3xl font-semibold tabular-nums">
