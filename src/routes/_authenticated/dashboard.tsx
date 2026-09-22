@@ -387,8 +387,16 @@ function DashboardPage() {
                     <Line
                       type="monotone"
                       dataKey="receita"
-                      stroke="var(--color-valor)"
+                      stroke="var(--color-receita)"
                       strokeWidth={2}
+                      dot
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="custo"
+                      stroke="var(--color-custo)"
+                      strokeWidth={2}
+                      strokeDasharray="4 4"
                       dot
                     />
                   </LineChart>
@@ -396,7 +404,8 @@ function DashboardPage() {
               )}
             </CardContent>
           </Card>
-        </div>
+          </div>
+        </>
       ) : null}
 
       {/* Contagens operacionais (RPC get_period_summary) */}
