@@ -52,7 +52,7 @@ const CHART_COLORS = [
 
 type Props = {
   periodId: string | null;
-  periodLabel?: string | null;
+  periodLabel?: string | null | undefined;
   indicators: Map<string, { indicator_value: number }>;
 };
 
@@ -170,12 +170,12 @@ export function GraficosFinanceiros({ periodId, periodLabel, indicators }: Props
     valor: { label: "Valor" },
   } satisfies ChartConfig;
 
-  const donutConfig = Object.fromEntries(
+  const donutConfig: ChartConfig = Object.fromEntries(
     donutData.map((d, i) => [
       d.nome,
-      { label: d.nome, color: CHART_COLORS[i % CHART_COLORS.length] },
+      { label: d.nome, color: CHART_COLORS[i % CHART_COLORS.length] ?? "var(--chart-1)" },
     ]),
-  ) satisfies ChartConfig;
+  );
 
   const radarConfig = {
     indice: { label: "Índice", color: "var(--chart-1)" },
