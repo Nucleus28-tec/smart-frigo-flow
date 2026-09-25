@@ -313,16 +313,18 @@ function DashboardPage() {
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || e.key === " ") setDrillKey(meta.key);
                         }}
-                        className="cursor-pointer transition-colors hover:border-primary/40"
+                        className="group cursor-pointer overflow-hidden transition-colors hover:border-brand/40"
                       >
                         <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
                           <CardTitle className="text-sm font-medium text-muted-foreground">
                             {meta.label}
                           </CardTitle>
-                          <Search className="size-4 text-muted-foreground" />
+                          <span className="grid size-9 place-items-center rounded-lg bg-brand-soft text-brand-soft-foreground transition-transform group-hover:scale-105">
+                            <Search className="size-4" />
+                          </span>
                         </CardHeader>
                         <CardContent>
-                          <p className="text-2xl font-semibold tabular-nums">
+                           <p className="font-display text-3xl font-semibold tabular-nums">
                             {formatIndicatorValue(meta.kind, value)}
                           </p>
                           <p className="mt-1 text-xs text-muted-foreground">{meta.hint}</p>

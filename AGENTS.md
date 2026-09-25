@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- The authenticated application uses a two-tier horizontal header instead of a sidebar, because financial pages need full-width tables and charts.
