@@ -13,27 +13,27 @@ export function ThemeToggle() {
   const { mode, resolved, setMode, toggle } = useTheme();
 
   return (
-    <div className="flex items-center">
+    <div className="flex items-center rounded-full border border-border bg-secondary/70 p-0.5">
       <Button
-        variant="outline"
+        variant="ghost"
         size="icon"
-        className="glow-surface size-9 rounded-r-none border-r-0"
+        className="size-8 rounded-full bg-surface shadow-sm"
         onClick={toggle}
         aria-label={resolved === "dark" ? "Ativar modo claro" : "Ativar modo noite"}
         title={resolved === "dark" ? "Modo claro" : "Modo noite"}
       >
         {resolved === "dark" ? (
-          <Sun className="size-4 text-brand" />
+            <Sun className="size-4 text-chart-3" />
         ) : (
-          <Moon className="size-4 text-muted-foreground" />
+            <Moon className="size-4 text-chart-2" />
         )}
       </Button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
-            variant="outline"
+            variant="ghost"
             size="icon"
-            className="glow-surface size-9 rounded-l-none px-0"
+            className="size-8 rounded-full px-0"
             aria-label="Escolher tema"
           >
             <Monitor className="size-3.5 text-muted-foreground" />
